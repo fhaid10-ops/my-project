@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>المصاريف اليومية</title>
+  <meta name="description" content="تطبيق لتتبع المصاريف اليومية وتذكير تبديل زيت السيارة" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="المصاريف" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+:root {
+  --bg: #0f172a;
+  --bg-2: #111a34;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-soft: #475569;
+  --muted: #94a3b8;
+  --primary: #4f46e5;
+  --primary-strong: #4338ca;
+  --primary-soft: #eef2ff;
+  --success: #10b981;
+  --danger: #ef4444;
+  --danger-soft: #fef2f2;
+  --warning: #f59e0b;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.12);
+  --gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Cairo', system-ui, -apple-system, 'Segoe UI', Tahoma, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 500px at 100% -10%, rgba(139, 92, 246, 0.18), transparent 60%),
+    radial-gradient(1000px 500px at -10% 10%, rgba(99, 102, 241, 0.16), transparent 60%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 20px 60px;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--gradient);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 24px;
+  box-shadow: var(--shadow-md);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Stats */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--gradient);
+}
+
+.stat-label {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.5px;
+}
+
+.stat-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 20px;
+  align-items: start;
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-md);
+  padding: 22px;
+}
+
+.card-header h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.card-header p {
+  margin: 0 0 16px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.card-header.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Form */
+.form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-full {
+  grid-column: 1 / -1;
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.field input,
+.field select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+}
+
+.input-with-suffix {
+  position: relative;
+}
+
+.input-with-suffix input {
+  padding-inline-end: 56px;
+}
+
+.input-with-suffix .suffix {
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* Toggle */
+.toggle-field {
+  background: var(--primary-soft);
+  border: 1px dashed #c7d2fe;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.toggle-label {
+  font-weight: 700;
+  color: var(--primary-strong);
+  font-size: 14px;
+}
+
+.toggle-hint {
+  margin: 2px 0 0;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #cbd5e1;
+  border-radius: 999px;
+  transition: background .2s;
+}
+
+.slider::before {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  border-radius: 50%;
+  top: 3px;
+  inset-inline-start: 3px;
+  transition: transform .2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.switch input:checked + .slider {
+  background: var(--primary);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(-20px);
+}
+
+/* Oil fields */
+.oil-fields {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.oil-fields[hidden] {
+  display: none;
+}
+
+.oil-hint {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.last-oil {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0e7490;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.last-oil.warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Buttons */
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform .05s ease, background .15s, color .15s, box-shadow .15s;
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  background: var(--gradient);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-soft);
+  border: 1px solid var(--border);
+}
+
+.btn-ghost:hover {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.btn-danger-ghost {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid #fecaca;
+}
+
+.btn-danger-ghost:hover {
+  background: var(--danger-soft);
+}
+
+.btn-icon {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filters input,
+.filters select {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  font: inherit;
+  font-size: 13px;
+  min-width: 130px;
+}
+
+.filters input:focus,
+.filters select:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+/* Table */
+.table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.expenses-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 640px;
+}
+
+.expenses-table thead th {
+  text-align: right;
+  font-weight: 700;
+  color: var(--text-soft);
+  font-size: 12px;
+  padding: 12px;
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.expenses-table tbody td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.expenses-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.expenses-table tbody tr:hover {
+  background: var(--surface-soft);
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge.oil {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.amount-cell {
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.oil-cell {
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  transition: all .15s;
+}
+
+.icon-btn:hover {
+  color: var(--danger);
+  border-color: #fecaca;
+  background: var(--danger-soft);
+}
+
+/* Empty */
+.empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-soft);
+}
+
+.empty-icon {
+  font-size: 42px;
+  margin-bottom: 8px;
+}
+
+/* Footer */
+.app-footer {
+  margin-top: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  z-index: 999;
+  animation: toastIn .2s ease-out;
+}
+
+.toast.error { background: var(--danger); }
+.toast.success { background: var(--success); }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+  .grid { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 560px) {
+  .form { grid-template-columns: 1fr; }
+  .oil-fields { grid-template-columns: 1fr; }
+  .brand h1 { font-size: 18px; }
+  .stat-value { font-size: 20px; }
+  .app { padding: 16px 12px 40px; }
+  .card { padding: 16px; }
+  .filters { width: 100%; }
+  .filters input, .filters select { flex: 1; min-width: 0; }
+}
+
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo">₪</div>
+        <div>
+          <h1>المصاريف اليومية</h1>
+          <p class="subtitle">تتبّع مصاريفك وتذكير تبديل الزيت لسيارتك</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="../" class="btn btn-ghost" title="الانتقال للمبيعات">
+          <span>المبيعات ←</span>
+        </a>
+        <button id="exportBtn" class="btn btn-ghost" title="تصدير البيانات">
+          <span>تصدير</span>
+        </button>
+        <button id="clearBtn" class="btn btn-danger-ghost" title="مسح كل المصاريف">
+          <span>مسح الكل</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="stat-card">
+        <span class="stat-label">مجموع اليوم</span>
+        <span class="stat-value" id="statToday">0.00</span>
+        <span class="stat-hint">ريال</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">مجموع الشهر</span>
+        <span class="stat-value" id="statMonth">0.00</span>
+        <span class="stat-hint">ريال</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">المجموع الكلي</span>
+        <span class="stat-value" id="statTotal">0.00</span>
+        <span class="stat-hint">ريال</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">عدد العمليات</span>
+        <span class="stat-value" id="statCount">0</span>
+        <span class="stat-hint">عملية</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card form-card">
+        <div class="card-header">
+          <h2>إضافة مصروف جديد</h2>
+          <p>عبّي البيانات وسيتم حفظها تلقائياً في جهازك</p>
+        </div>
+
+        <form id="expenseForm" class="form" novalidate>
+          <div class="field">
+            <label for="amount">مبلغ الشراء</label>
+            <div class="input-with-suffix">
+              <input type="number" id="amount" name="amount" min="0" step="0.01" placeholder="0.00" required />
+              <span class="suffix">ريال</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="type">نوع الشراء</label>
+            <select id="type" name="type" required>
+              <option value="">اختر النوع</option>
+              <option value="طعام وشراب">طعام وشراب</option>
+              <option value="بنزين">بنزين</option>
+              <option value="مواصلات">مواصلات</option>
+              <option value="بقالة">بقالة</option>
+              <option value="فواتير">فواتير</option>
+              <option value="صيانة سيارة">صيانة سيارة</option>
+              <option value="ملابس">ملابس</option>
+              <option value="ترفيه">ترفيه</option>
+              <option value="صحة">صحة</option>
+              <option value="أخرى">أخرى</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="date">التاريخ</label>
+            <input type="date" id="date" name="date" required />
+          </div>
+
+          <div class="field">
+            <label for="time">الساعة</label>
+            <input type="time" id="time" name="time" required />
+          </div>
+
+          <div class="field field-full toggle-field">
+            <div class="toggle-row">
+              <div>
+                <label for="oilToggle" class="toggle-label">هل هذه العملية تبديل زيت؟</label>
+                <p class="toggle-hint">فعّل الخيار لإدخال بيانات السيارة وعدّاد الكيلومترات</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="oilToggle" />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div id="oilFields" class="oil-fields" hidden>
+            <div class="field">
+              <label for="carType">نوع السيارة</label>
+              <input type="text" id="carType" name="carType" placeholder="مثال: تويوتا كامري 2020" />
+            </div>
+
+            <div class="field">
+              <label for="odometer">قراءة العداد (كم)</label>
+              <div class="input-with-suffix">
+                <input type="number" id="odometer" name="odometer" min="0" step="1" placeholder="0" />
+                <span class="suffix">كم</span>
+              </div>
+            </div>
+
+            <div class="field field-full oil-hint">
+              <span id="lastOilInfo" class="last-oil"></span>
+            </div>
+          </div>
+
+          <div class="form-actions field-full">
+            <button type="submit" class="btn btn-primary">
+              <span>حفظ المصروف</span>
+            </button>
+            <button type="reset" class="btn btn-ghost" id="resetBtn">إعادة تعيين</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card list-card">
+        <div class="card-header row">
+          <div>
+            <h2>سجل المصاريف</h2>
+            <p>كل المصاريف مرتبة من الأحدث للأقدم</p>
+          </div>
+          <div class="filters">
+            <input type="search" id="searchInput" placeholder="بحث..." />
+            <select id="filterType">
+              <option value="">كل الأنواع</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="expenses-table">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>الساعة</th>
+                <th>النوع</th>
+                <th>المبلغ</th>
+                <th>تفاصيل الزيت</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="expensesBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty">
+            <div class="empty-icon">🧾</div>
+            <p>لا توجد مصاريف بعد. ابدأ بإضافة أول مصروف من النموذج.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <p>يتم حفظ بياناتك محلياً في متصفحك فقط.</p>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script>
+(function () {
+  'use strict';
+
+  const STORAGE_KEY = 'daily_expenses_v1';
+
+  const form = document.getElementById('expenseForm');
+  const amountEl = document.getElementById('amount');
+  const typeEl = document.getElementById('type');
+  const dateEl = document.getElementById('date');
+  const timeEl = document.getElementById('time');
+  const oilToggle = document.getElementById('oilToggle');
+  const oilFields = document.getElementById('oilFields');
+  const carTypeEl = document.getElementById('carType');
+  const odometerEl = document.getElementById('odometer');
+  const lastOilInfo = document.getElementById('lastOilInfo');
+
+  const tbody = document.getElementById('expensesBody');
+  const emptyState = document.getElementById('emptyState');
+  const searchInput = document.getElementById('searchInput');
+  const filterType = document.getElementById('filterType');
+
+  const statToday = document.getElementById('statToday');
+  const statMonth = document.getElementById('statMonth');
+  const statTotal = document.getElementById('statTotal');
+  const statCount = document.getElementById('statCount');
+
+  const exportBtn = document.getElementById('exportBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const toast = document.getElementById('toast');
+
+  let expenses = load();
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const data = JSON.parse(raw);
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      console.error('Failed to load expenses', e);
+      return [];
+    }
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function todayISO() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function nowTime() {
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+
+  function formatMoney(n) {
+    const num = Number(n) || 0;
+    return num.toLocaleString('ar-EG', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso + 'T00:00:00');
+      return d.toLocaleDateString('ar-EG', {
+        year: 'numeric', month: 'short', day: 'numeric',
+      });
+    } catch { return iso; }
+  }
+
+  function formatTime(t) {
+    if (!t) return '';
+    const [h, m] = t.split(':').map(Number);
+    if (Number.isNaN(h)) return t;
+    const period = h >= 12 ? 'م' : 'ص';
+    const hour12 = ((h + 11) % 12) + 1;
+    return `${hour12}:${String(m || 0).padStart(2, '0')} ${period}`;
+  }
+
+  function showToast(message, kind) {
+    toast.textContent = message;
+    toast.className = 'toast' + (kind ? ' ' + kind : '');
+    toast.hidden = false;
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => { toast.hidden = true; }, 2200);
+  }
+
+  function setDefaults() {
+    if (!dateEl.value) dateEl.value = todayISO();
+    if (!timeEl.value) timeEl.value = nowTime();
+  }
+
+  function updateOilVisibility() {
+    const on = oilToggle.checked;
+    oilFields.hidden = !on;
+    if (on) {
+      const last = lastOilChange();
+      if (last) {
+        lastOilInfo.textContent = `آخر تبديل زيت: ${formatDate(last.date)} - العداد: ${Number(last.odometer).toLocaleString('ar-EG')} كم`;
+        lastOilInfo.classList.remove('warn');
+      } else {
+        lastOilInfo.textContent = 'لا يوجد سجل سابق لتبديل الزيت';
+        lastOilInfo.classList.add('warn');
+      }
+    }
+  }
+
+  function lastOilChange() {
+    const oils = expenses.filter(e => e.isOilChange && e.odometer);
+    if (oils.length === 0) return null;
+    return oils.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time))[0];
+  }
+
+  function refreshTypeFilter() {
+    const current = filterType.value;
+    const types = Array.from(new Set(expenses.map(e => e.type).filter(Boolean))).sort();
+    filterType.innerHTML = '<option value="">كل الأنواع</option>' +
+      types.map(t => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('');
+    if (types.includes(current)) filterType.value = current;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  function currentMonthKey(iso) {
+    return iso ? iso.slice(0, 7) : '';
+  }
+
+  function updateStats() {
+    const today = todayISO();
+    const monthKey = today.slice(0, 7);
+    let total = 0, monthTotal = 0, todayTotal = 0;
+    for (const e of expenses) {
+      const amt = Number(e.amount) || 0;
+      total += amt;
+      if (e.date === today) todayTotal += amt;
+      if (currentMonthKey(e.date) === monthKey) monthTotal += amt;
+    }
+    statTotal.textContent = formatMoney(total);
+    statMonth.textContent = formatMoney(monthTotal);
+    statToday.textContent = formatMoney(todayTotal);
+    statCount.textContent = expenses.length.toLocaleString('ar-EG');
+  }
+
+  function render() {
+    updateStats();
+    refreshTypeFilter();
+
+    const q = searchInput.value.trim().toLowerCase();
+    const ft = filterType.value;
+
+    const sorted = [...expenses].sort((a, b) => {
+      const ak = (a.date || '') + 'T' + (a.time || '00:00');
+      const bk = (b.date || '') + 'T' + (b.time || '00:00');
+      return bk.localeCompare(ak);
+    });
+
+    const filtered = sorted.filter(e => {
+      if (ft && e.type !== ft) return false;
+      if (!q) return true;
+      const hay = [e.type, e.carType, e.notes, e.amount, e.date, e.odometer]
+        .filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '';
+      emptyState.hidden = false;
+      return;
+    }
+    emptyState.hidden = true;
+
+    tbody.innerHTML = filtered.map(e => {
+      const oilBadge = e.isOilChange
+        ? `<span class="badge oil">تبديل زيت</span>`
+        : '';
+      const oilCell = e.isOilChange
+        ? `${escapeHtml(e.carType || '—')}<br><small>${e.odometer ? Number(e.odometer).toLocaleString('ar-EG') + ' كم' : '—'}</small>`
+        : '<span style="color:var(--muted)">—</span>';
+      return `
+        <tr>
+          <td>${formatDate(e.date)}</td>
+          <td>${formatTime(e.time)}</td>
+          <td><span class="badge">${escapeHtml(e.type || '—')}</span> ${oilBadge}</td>
+          <td class="amount-cell">${formatMoney(e.amount)} <small style="color:var(--muted);font-weight:600">ريال</small></td>
+          <td class="oil-cell">${oilCell}</td>
+          <td>
+            <div class="row-actions">
+              <button class="icon-btn" data-action="delete" data-id="${escapeAttr(e.id)}" title="حذف">حذف</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const amount = parseFloat(amountEl.value);
+    if (!(amount > 0)) {
+      showToast('الرجاء إدخال مبلغ صحيح', 'error');
+      amountEl.focus();
+      return;
+    }
+    if (!typeEl.value) {
+      showToast('الرجاء اختيار نوع الشراء', 'error');
+      typeEl.focus();
+      return;
+    }
+    if (!dateEl.value) {
+      showToast('الرجاء إدخال التاريخ', 'error');
+      dateEl.focus();
+      return;
+    }
+    if (!timeEl.value) {
+      showToast('الرجاء إدخال الساعة', 'error');
+      timeEl.focus();
+      return;
+    }
+
+    const isOil = oilToggle.checked;
+    if (isOil) {
+      if (!carTypeEl.value.trim()) {
+        showToast('أدخل نوع السيارة', 'error');
+        carTypeEl.focus();
+        return;
+      }
+      if (!(parseFloat(odometerEl.value) >= 0)) {
+        showToast('أدخل قراءة العداد', 'error');
+        odometerEl.focus();
+        return;
+      }
+    }
+
+    const record = {
+      id: uid(),
+      amount: Number(amount.toFixed(2)),
+      type: typeEl.value,
+      date: dateEl.value,
+      time: timeEl.value,
+      isOilChange: isOil,
+      carType: isOil ? carTypeEl.value.trim() : '',
+      odometer: isOil ? Number(odometerEl.value) : null,
+      createdAt: new Date().toISOString(),
+    };
+
+    expenses.push(record);
+    save();
+    render();
+    showToast('تم حفظ المصروف بنجاح', 'success');
+
+    form.reset();
+    oilToggle.checked = false;
+    updateOilVisibility();
+    setDefaults();
+    amountEl.focus();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    setTimeout(() => {
+      oilToggle.checked = false;
+      updateOilVisibility();
+      setDefaults();
+    }, 0);
+  });
+
+  oilToggle.addEventListener('change', updateOilVisibility);
+
+  tbody.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-action="delete"]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    const item = expenses.find(e => e.id === id);
+    if (!item) return;
+    const confirmMsg = `هل تريد حذف مصروف بقيمة ${formatMoney(item.amount)} ريال؟`;
+    if (!confirm(confirmMsg)) return;
+    expenses = expenses.filter(e => e.id !== id);
+    save();
+    render();
+    showToast('تم حذف المصروف');
+  });
+
+  searchInput.addEventListener('input', render);
+  filterType.addEventListener('change', render);
+
+  clearBtn.addEventListener('click', () => {
+    if (expenses.length === 0) {
+      showToast('لا توجد مصاريف لمسحها');
+      return;
+    }
+    if (!confirm('سيتم حذف كل المصاريف بشكل نهائي. هل أنت متأكد؟')) return;
+    expenses = [];
+    save();
+    render();
+    showToast('تم مسح جميع المصاريف');
+  });
+
+  exportBtn.addEventListener('click', () => {
+    if (expenses.length === 0) {
+      showToast('لا توجد بيانات للتصدير');
+      return;
+    }
+    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)'];
+    const rows = expenses.map(e => [
+      e.date, e.time, e.type, e.amount,
+      e.isOilChange ? 'نعم' : 'لا',
+      e.carType || '', e.odometer ?? ''
+    ]);
+    const csv = [headers, ...rows]
+      .map(r => r.map(v => {
+        const s = String(v ?? '');
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      }).join(','))
+      .join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expenses-${todayISO()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('تم تصدير البيانات', 'success');
+  });
+
+  setDefaults();
+  updateOilVisibility();
+  render();
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+})();
+
+</script>
+</body>
+</html>
