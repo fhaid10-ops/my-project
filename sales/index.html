@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>المبيعات اليومية</title>
+  <meta name="description" content="تطبيق لتتبع المبيعات اليومية وتسجيل العملاء وطرق الدفع" />
+  <meta name="theme-color" content="#059669" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="المبيعات" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo">$</div>
+        <div>
+          <h1>المبيعات اليومية</h1>
+          <p class="subtitle">سجّل كل عملية بيع وتابع أرباحك اليومية</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="../" class="btn btn-ghost" title="الانتقال للمصاريف">
+          <span>المصاريف ←</span>
+        </a>
+        <button id="exportBtn" class="btn btn-ghost" title="تصدير البيانات">
+          <span>تصدير</span>
+        </button>
+        <button id="clearBtn" class="btn btn-danger-ghost" title="مسح كل المبيعات">
+          <span>مسح الكل</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="stat-card">
+        <span class="stat-label">مبيعات اليوم</span>
+        <span class="stat-value" id="statToday">0.00</span>
+        <span class="stat-hint">ريال</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">مبيعات الشهر</span>
+        <span class="stat-value" id="statMonth">0.00</span>
+        <span class="stat-hint">ريال</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">المجموع الكلي</span>
+        <span class="stat-value" id="statTotal">0.00</span>
+        <span class="stat-hint">ريال</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">عدد المبيعات</span>
+        <span class="stat-value" id="statCount">0</span>
+        <span class="stat-hint">عملية</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card form-card">
+        <div class="card-header">
+          <h2>إضافة عملية بيع</h2>
+          <p>عبّي البيانات وسيتم حفظها تلقائياً في جهازك</p>
+        </div>
+
+        <form id="saleForm" class="form" novalidate>
+          <div class="field">
+            <label for="amount">مبلغ البيع</label>
+            <div class="input-with-suffix">
+              <input type="number" id="amount" name="amount" min="0" step="0.01" placeholder="0.00" required />
+              <span class="suffix">ريال</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="product">المنتج / الخدمة</label>
+            <input type="text" id="product" name="product" placeholder="مثال: زيت محرك، خدمة صيانة" required />
+          </div>
+
+          <div class="field">
+            <label for="quantity">الكمية</label>
+            <input type="number" id="quantity" name="quantity" min="1" step="1" value="1" />
+          </div>
+
+          <div class="field">
+            <label for="payment">طريقة الدفع</label>
+            <select id="payment" name="payment" required>
+              <option value="نقدي">نقدي</option>
+              <option value="شبكة">شبكة (مدى)</option>
+              <option value="تحويل بنكي">تحويل بنكي</option>
+              <option value="آجل">آجل</option>
+              <option value="أخرى">أخرى</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="customer">اسم العميل (اختياري)</label>
+            <input type="text" id="customer" name="customer" placeholder="اسم العميل أو رقم الجوال" />
+          </div>
+
+          <div class="field">
+            <label for="date">التاريخ</label>
+            <input type="date" id="date" name="date" required />
+          </div>
+
+          <div class="field">
+            <label for="time">الساعة</label>
+            <input type="time" id="time" name="time" required />
+          </div>
+
+          <div class="field field-full">
+            <label for="notes">ملاحظات (اختياري)</label>
+            <input type="text" id="notes" name="notes" placeholder="أي ملاحظة إضافية" />
+          </div>
+
+          <div class="form-actions field-full">
+            <button type="submit" class="btn btn-primary">
+              <span>حفظ عملية البيع</span>
+            </button>
+            <button type="reset" class="btn btn-ghost" id="resetBtn">إعادة تعيين</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card list-card">
+        <div class="card-header row">
+          <div>
+            <h2>سجل المبيعات</h2>
+            <p>كل المبيعات مرتبة من الأحدث للأقدم</p>
+          </div>
+          <div class="filters">
+            <input type="search" id="searchInput" placeholder="بحث..." />
+            <select id="filterPayment">
+              <option value="">كل طرق الدفع</option>
+              <option value="نقدي">نقدي</option>
+              <option value="شبكة">شبكة</option>
+              <option value="تحويل بنكي">تحويل بنكي</option>
+              <option value="آجل">آجل</option>
+              <option value="أخرى">أخرى</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="expenses-table">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>الساعة</th>
+                <th>المنتج</th>
+                <th>الكمية</th>
+                <th>المبلغ</th>
+                <th>الدفع</th>
+                <th>العميل</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="salesBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty">
+            <div class="empty-icon">💰</div>
+            <p>لا توجد مبيعات بعد. ابدأ بإضافة أول عملية بيع من النموذج.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <p>يتم حفظ بياناتك محلياً في متصفحك فقط.</p>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
