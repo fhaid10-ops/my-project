@@ -9,7 +9,10 @@
   <meta name="apple-mobile-web-app-title" content="مبيعات">
   <title>مبيعات</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <style>
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
     body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:linear-gradient(160deg,#0b141a 0%,#1f2c34 50%,#111b21 100%);background-color:#0b141a;color:#e9edef;min-height:100vh;color-scheme:dark}
@@ -62,6 +65,11 @@
     .toast.show{transform:translateX(-50%) translateY(0)}
     .toast.success{border-color:#00a884;color:#00a884;font-weight:600}
     .toast.error{border-color:#ea4335;color:#ea4335}
+    .install-bar{display:none;background:#202c33;border:1px solid #2a3942;border-radius:12px;padding:.85rem 1rem;margin-bottom:1rem;align-items:center;gap:.75rem}
+    .install-bar.show{display:flex}
+    .install-bar p{flex:1;font-size:.9rem;color:#e9edef;margin:0}
+    .install-bar button{background:#00a884;color:#fff;font-weight:600;padding:.55rem .95rem;white-space:nowrap}
+    .install-bar .dismiss{background:transparent;color:#8696a0;padding:.35rem .5rem;font-size:1.1rem}
     @media (min-width:520px){.cards{grid-template-columns:repeat(3,1fr)}.target-banner{grid-template-columns:repeat(3,1fr)}}
   </style>
 </head>
@@ -72,6 +80,12 @@
       <p class="subtitle">متابعة تنفيذات ماجد وعبدالرحمن وفايز</p>
       <span class="offline-badge">يعمل بدون إنترنت</span>
     </header>
+
+    <div id="installBar" class="install-bar" role="region" aria-label="تثبيت التطبيق">
+      <p>يمكنك تثبيت التطبيق كأيقونة على شاشتك للوصول السريع.</p>
+      <button type="button" id="installBtn">تثبيت</button>
+      <button type="button" class="dismiss" id="installDismiss" aria-label="إخفاء">×</button>
+    </div>
 
     <section class="list-section">
       <div class="list-header"><h2>إضافة تنفيذ</h2></div>
@@ -211,7 +225,51 @@ function syncFiltersToDate(dk){document.getElementById('monthInput').value=dk.sl
 function renderStats(){const month=document.getElementById('monthInput').value;const date=document.getElementById('dateInput').value;const stats=buildStats(loadData(),month,date);document.getElementById('totalDailyAmount').textContent=formatMoney(stats.totals.dailyAmount);document.getElementById('totalDailyContracts').textContent=stats.totals.dailyContracts;document.getElementById('totalMonthlyAmount').textContent=formatMoney(stats.totals.monthlyAmount);document.getElementById('branchTarget').textContent=formatMoney(stats.branchTarget);document.getElementById('employeeTarget').textContent=formatMoney(stats.employeeTarget);const bp=stats.branchTarget?Math.round(stats.totals.monthlyAmount/stats.branchTarget*1000)/10:0;document.getElementById('branchProgress').textContent=formatMoney(stats.totals.monthlyAmount)+' ('+bp+'%)';document.querySelector('#employeeTable tbody').innerHTML=stats.employees.map(function(e){return'<tr><td><strong>'+escapeHtml(e.name)+'</strong></td><td>'+e.dailyContracts+'</td><td>'+formatMoney(e.dailyAmount)+'</td><td>'+e.monthlyContracts+'</td><td>'+formatMoney(e.monthlyAmount)+'</td><td><span class="progress-pill">'+e.progressPercent+'%</span></td></tr>';}).join('')||'<tr><td colspan="6" class="empty-cell">لا توجد بيانات</td></tr>';document.querySelector('#dailyTable tbody').innerHTML=stats.dailyBreakdown.map(function(day){const cells=['majed','abdulrahman','faiz'].map(function(id){const info=day.byEmployee[id];return info?'<td>'+info.contracts+' / '+formatMoney(info.amount)+'</td>':'<td>—</td>';}).join('');return'<tr><td>'+formatDateKey(day.date)+'</td>'+cells+'<td>'+day.contracts+'</td><td>'+formatMoney(day.amount)+'</td></tr>';}).join('')||'<tr><td colspan="6" class="empty-cell">لا توجد تنفيذات</td></tr>';const recent=document.getElementById('recentList');if(!stats.recent.length){recent.innerHTML='<p class="empty">لا توجد تنفيذات بعد</p>';return;}recent.innerHTML=stats.recent.map(function(i){return'<article class="contact"><div class="contact-top"><strong>'+escapeHtml(i.employeeName)+'</strong><span class="badge">'+formatMoney(i.amount)+'</span></div><div class="phone">طلب: '+escapeHtml(i.orderNumber)+'</div><div class="date">تاريخ التنفيذ: '+formatDateKey(i.executionDate)+'</div></article>';}).join('');}
 function handleSave(ev){if(ev)ev.preventDefault();const msg=document.getElementById('formMessage');msg.textContent='';msg.className='form-hint';const empId=document.getElementById('employeeSelect').value;if(!empId){msg.textContent=ERROR_MESSAGES.employee_not_found;msg.className='form-hint error';showToast(ERROR_MESSAGES.employee_not_found,'error');return;}const result=addExecution(loadData(),{employeeId:empId,orderNumber:document.getElementById('orderNumber').value.trim(),amount:document.getElementById('amount').value,executionDate:document.getElementById('executionDate').value});if(result.error){msg.textContent=ERROR_MESSAGES[result.error]||result.error;msg.className='form-hint error';showToast(msg.textContent,'error');return;}const s=result.execution;syncFiltersToDate(s.executionDate);msg.textContent='تم الحفظ — '+s.employeeName+' — طلب '+s.orderNumber+' — '+formatMoney(s.amount);msg.className='form-hint success';showToast('تم إضافة العقد بنجاح ✓  '+formatMoney(s.amount),'success');document.getElementById('orderNumber').value='';document.getElementById('amount').value='';renderStats();document.getElementById('statsSection').scrollIntoView({behavior:'smooth',block:'start'});}
 function initApp(){const today=localDateKey();const month=localMonthKey();document.getElementById('monthInput').value=month;document.getElementById('dateInput').value=today;document.getElementById('executionDate').value=today;document.getElementById('refreshBtn').addEventListener('click',renderStats);document.getElementById('monthInput').addEventListener('change',renderStats);document.getElementById('dateInput').addEventListener('change',renderStats);document.getElementById('saveBtn').addEventListener('click',handleSave);document.getElementById('addForm').addEventListener('submit',function(e){e.preventDefault();handleSave();});document.getElementById('exportBtn').addEventListener('click',exportData);document.getElementById('importFile').addEventListener('change',function(ev){const file=ev.target.files[0];if(!file)return;const hint=document.getElementById('importHint');importData(file).then(function(){hint.textContent='تم استيراد البيانات بنجاح';hint.className='form-hint success';showToast('تم استيراد البيانات','success');renderStats();}).catch(function(){hint.textContent='ملف غير صالح';hint.className='form-hint error';showToast('ملف غير صالح','error');});ev.target.value='';});try{localStorage.setItem('__test__','1');localStorage.removeItem('__test__');}catch(e){showToast('افتح الملف في Chrome للحفظ','error');}renderStats();}
-if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initApp);}else{initApp();}
+function setupInstallPrompt(){
+  const bar=document.getElementById('installBar');
+  const btn=document.getElementById('installBtn');
+  const dismiss=document.getElementById('installDismiss');
+  const dismissKey='mabiat_install_dismissed';
+  let deferred=null;
+  if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches){return;}
+  if(window.navigator && window.navigator.standalone){return;}
+  window.addEventListener('beforeinstallprompt',function(e){
+    e.preventDefault();
+    deferred=e;
+    if(localStorage.getItem(dismissKey)==='1')return;
+    bar.classList.add('show');
+  });
+  btn.addEventListener('click',function(){
+    if(!deferred){
+      showToast('لتثبيت التطبيق: افتحيه في Chrome أو Safari ثم "إضافة إلى الشاشة الرئيسية"','success');
+      return;
+    }
+    deferred.prompt();
+    deferred.userChoice.then(function(){deferred=null;bar.classList.remove('show');});
+  });
+  dismiss.addEventListener('click',function(){
+    bar.classList.remove('show');
+    try{localStorage.setItem(dismissKey,'1');}catch(e){}
+  });
+  window.addEventListener('appinstalled',function(){bar.classList.remove('show');showToast('تم تثبيت التطبيق ✓','success');});
+  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+  if(isIOS && localStorage.getItem(dismissKey)!=='1'){
+    bar.querySelector('p').textContent='لتثبيت التطبيق: اضغطي زر المشاركة ⬆︎ في سفاري ثم "إضافة إلى الشاشة الرئيسية".';
+    btn.style.display='none';
+    bar.classList.add('show');
+  }
+}
+function registerServiceWorker(){
+  if(!('serviceWorker' in navigator))return;
+  if(location.protocol!=='https:' && location.hostname!=='localhost' && location.hostname!=='127.0.0.1' && location.protocol!=='file:'){
+    return;
+  }
+  if(location.protocol==='file:')return;
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){initApp();setupInstallPrompt();registerServiceWorker();});}else{initApp();setupInstallPrompt();registerServiceWorker();}
   </script>
 </body>
 </html>
