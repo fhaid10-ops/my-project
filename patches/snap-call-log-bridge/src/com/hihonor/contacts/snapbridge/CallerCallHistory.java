@@ -77,13 +77,30 @@ public final class CallerCallHistory {
     }
 
     private static Cursor queryPhone(Context context, CallerGroupHelper.CallerGroup group, long since) {
-        String digits = group.number != null ? group.number.replaceAll("[^0-9+]", "") : "";
-        String selection = "(" + CallLog.Calls.NUMBER + "=? OR " + CallLog.Calls.NUMBER + "=?)"
+        String key = CallerGroupHelper.normalizePhoneKey(group.number);
+        if (!key.isEmpty()) {
+            String selection = CallLog.Calls.NUMBER + " LIKE ?"
+                    + " AND " + CallLog.Calls.TYPE + " IN (?,?)"
+                    + " AND " + CallLog.Calls.DATE + ">=?";
+            String[] args = new String[] {
+                    "%" + key,
+                    String.valueOf(CallLog.Calls.MISSED_TYPE),
+                    String.valueOf(CallLog.Calls.INCOMING_TYPE),
+                    String.valueOf(since)
+            };
+            return context.getContentResolver().query(
+                    CallLog.Calls.CONTENT_URI,
+                    projection(),
+                    selection,
+                    args,
+                    CallLog.Calls.DATE + " DESC");
+        }
+        String name = group.displayName != null ? group.displayName : "";
+        String selection = CallLog.Calls.CACHED_NAME + " LIKE ?"
                 + " AND " + CallLog.Calls.TYPE + " IN (?,?)"
                 + " AND " + CallLog.Calls.DATE + ">=?";
         String[] args = new String[] {
-                group.number != null ? group.number : "",
-                digits,
+                "%" + name + "%",
                 String.valueOf(CallLog.Calls.MISSED_TYPE),
                 String.valueOf(CallLog.Calls.INCOMING_TYPE),
                 String.valueOf(since)

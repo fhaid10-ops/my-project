@@ -106,16 +106,21 @@ public final class MissedCallScanner {
     static boolean isTargetEntry(String number, String cachedName, String phoneAccountId) {
         if (SnapPhoneAccount.ACCOUNT_ID.equals(phoneAccountId)) return true;
         if (cachedName != null && cachedName.contains("(Snapchat)")) return true;
-        if (number == null) return false;
-        return number.matches("[+0-9*#\\- ]{3,}");
+        if (number != null && number.matches("[+0-9*#\\- ]{3,}")) return true;
+        if (cachedName != null) {
+            String name = cachedName.replace(" (Snapchat)", "").trim();
+            if (!name.isEmpty() && !name.equalsIgnoreCase("unknown")) return true;
+        }
+        return false;
     }
 
     static String resolveDisplayName(String number, String cachedName) {
         if (cachedName != null && !cachedName.isEmpty()) {
-            return cachedName.replace(" (Snapchat)", "").trim();
+            String name = cachedName.replace(" (Snapchat)", "").trim();
+            if (!name.isEmpty() && !name.equalsIgnoreCase("unknown")) return name;
         }
-        if (number == null || number.isEmpty()) return "مكالمة فائتة";
-        return number;
+        if (number != null && !number.isEmpty()) return number;
+        return "مكالمة فائتة";
     }
 
     private static String safeSource(String geoLabel) {

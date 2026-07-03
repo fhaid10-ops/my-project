@@ -49,18 +49,52 @@ public final class CallerGroupHelper {
 
     public static String callerKey(MissedCallQueueStore.Item item) {
         if (item == null) return "";
+        String nameKey = normalizeNameKey(item.bestName());
         if (item.isSnap) {
+            if (nameKey != null) return "snap:" + nameKey;
             if (item.snapAddress != null && !item.snapAddress.isEmpty()) {
                 return "snap:addr:" + item.snapAddress.toLowerCase(Locale.ROOT);
             }
-            if (item.number != null && item.number.startsWith("888")) {
-                return "snap:num:" + item.number;
-            }
-            return "snap:name:" + item.bestName().toLowerCase(Locale.ROOT);
+            String phone = normalizePhoneKey(item.number);
+            if (!phone.isEmpty()) return "snap:num:" + phone;
+            return "";
         }
-        String digits = digitsOnly(item.number);
-        if (!digits.isEmpty()) return "phone:" + digits;
-        return "phone:name:" + item.bestName().toLowerCase(Locale.ROOT);
+        String phone = normalizePhoneKey(item.number);
+        if (!phone.isEmpty()) return "phone:" + phone;
+        if (nameKey != null) return "phone:name:" + nameKey;
+        return "";
+    }
+
+    public static String normalizePhoneKey(String number) {
+        if (number == null) return "";
+        String digits = number.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) return "";
+        if (digits.startsWith("966") && digits.length() > 9) {
+            digits = digits.substring(3);
+        }
+        if (digits.startsWith("00") && digits.length() > 11) {
+            digits = digits.substring(2);
+            if (digits.startsWith("966") && digits.length() > 9) {
+                digits = digits.substring(3);
+            }
+        }
+        if (digits.startsWith("0") && digits.length() > 9) {
+            digits = digits.substring(1);
+        }
+        if (digits.length() >= 9) {
+            return digits.substring(digits.length() - 9);
+        }
+        return digits;
+    }
+
+    static String normalizeNameKey(String name) {
+        if (name == null) return null;
+        String n = name.replace(" (Snapchat)", "").trim().toLowerCase(Locale.ROOT);
+        if (n.isEmpty()) return null;
+        if (n.equals("مكالمة فائتة") || n.equals("unknown")) return null;
+        if (n.matches("^[+0-9*#\\-\\s]+$")) return null;
+        if (n.startsWith("888") && n.length() >= 10) return null;
+        return n;
     }
 
     public static List<CallerGroup> groupAll(Context context) {
@@ -122,10 +156,5 @@ public final class CallerGroupHelper {
             if (MissedCallQueueStore.remove(context, item.id)) removed++;
         }
         return removed;
-    }
-
-    private static String digitsOnly(String raw) {
-        if (raw == null) return "";
-        return raw.replaceAll("[^0-9+]", "");
     }
 }

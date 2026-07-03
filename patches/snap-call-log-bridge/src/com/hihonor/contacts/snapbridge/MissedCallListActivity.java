@@ -95,6 +95,7 @@ public class MissedCallListActivity extends Activity {
     }
 
     private void render() {
+        MissedCallAutoWatcher.scanNow(this);
         listContainer.removeAllViews();
         List<CallerGroupHelper.CallerGroup> groups = CallerGroupHelper.groupAll(this);
         int totalMissed = MissedCallQueueStore.size(this);

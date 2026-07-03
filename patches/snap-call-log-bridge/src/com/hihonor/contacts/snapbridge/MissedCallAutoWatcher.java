@@ -3,17 +3,22 @@ package com.hihonor.contacts.snapbridge;
 import android.content.Context;
 import android.database.ContentObserver;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
 import android.provider.CallLog;
 
 public final class MissedCallAutoWatcher {
-    private static final long SCAN_WINDOW_MS = 30 * 60 * 1000L;
-    private static final long DEBOUNCE_MS = 600L;
+    private static final long SCAN_WINDOW_MS = 24 * 60 * 60 * 1000L;
+    private static final long DEBOUNCE_MS = 400L;
+    private static final long POLL_MS = 20_000L;
 
     private static MissedCallAutoWatcher instance;
     private ContentObserver observer;
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private HandlerThread observerThread;
+    private Handler observerHandler;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingScan;
+    private Runnable pollRunnable;
     private Context appContext;
 
     private MissedCallAutoWatcher() {}
@@ -25,61 +30,87 @@ public final class MissedCallAutoWatcher {
         instance.start(context.getApplicationContext());
     }
 
-    public static synchronized void stop(Context context) {
+    public static void scanNow(Context context) {
+        if (context == null || !hasCallLogAccess(context)) return;
+        Context app = context.getApplicationContext();
+        if (instance != null) {
+            instance.scanNowInternal(app);
+        } else {
+            doScan(app);
+        }
+    }
+
+    public static synchronized void startPolling(Context context) {
+        ensureStarted(context);
         if (instance == null) return;
-        instance.unregister(context != null ? context.getApplicationContext() : null);
+        instance.startPoll(context.getApplicationContext());
+    }
+
+    public static synchronized void stopPolling() {
+        if (instance != null && instance.pollRunnable != null) {
+            instance.mainHandler.removeCallbacks(instance.pollRunnable);
+            instance.pollRunnable = null;
+        }
     }
 
     private void start(Context app) {
-        if (observer != null) {
-            appContext = app;
-            scanNow(app);
-            return;
-        }
         appContext = app;
-        observer = new ContentObserver(handler) {
-            @Override
-            public void onChange(boolean selfChange) {
-                scheduleScan(app);
+        if (observer == null) {
+            observerThread = new HandlerThread("missed-call-watcher");
+            observerThread.start();
+            observerHandler = new Handler(observerThread.getLooper());
+            observer = new ContentObserver(observerHandler) {
+                @Override
+                public void onChange(boolean selfChange) {
+                    scheduleScan(app);
+                }
+            };
+            try {
+                app.getContentResolver().registerContentObserver(
+                        CallLog.Calls.CONTENT_URI, true, observer);
+            } catch (Exception ignored) {
+                observer = null;
             }
-        };
-        try {
-            app.getContentResolver().registerContentObserver(
-                    CallLog.Calls.CONTENT_URI, true, observer);
-            scanNow(app);
-        } catch (Exception ignored) {
-            observer = null;
         }
+        scanNowInternal(app);
     }
 
-    private void unregister(Context app) {
-        if (observer != null && app != null) {
-            try {
-                app.getContentResolver().unregisterContentObserver(observer);
-            } catch (Exception ignored) {
+    private void startPoll(Context app) {
+        appContext = app;
+        if (pollRunnable != null) return;
+        pollRunnable = new Runnable() {
+            @Override
+            public void run() {
+                scanNowInternal(app);
+                mainHandler.postDelayed(this, POLL_MS);
             }
-        }
-        if (pendingScan != null) {
-            handler.removeCallbacks(pendingScan);
-            pendingScan = null;
-        }
-        observer = null;
-        appContext = null;
-        instance = null;
+        };
+        mainHandler.post(pollRunnable);
     }
 
     private void scheduleScan(Context app) {
-        if (pendingScan != null) handler.removeCallbacks(pendingScan);
-        pendingScan = () -> scanNow(app);
-        handler.postDelayed(pendingScan, DEBOUNCE_MS);
+        mainHandler.post(() -> {
+            if (pendingScan != null) mainHandler.removeCallbacks(pendingScan);
+            pendingScan = () -> scanNowInternal(app);
+            mainHandler.postDelayed(pendingScan, DEBOUNCE_MS);
+        });
     }
 
-    private void scanNow(Context app) {
+    private void scanNowInternal(Context app) {
         if (!hasCallLogAccess(app)) return;
+        if (observerHandler != null) {
+            observerHandler.post(() -> doScan(app));
+        } else {
+            doScan(app);
+        }
+    }
+
+    private static void doScan(Context app) {
         long since = System.currentTimeMillis() - SCAN_WINDOW_MS;
         int added = MissedCallScanner.enqueuePhoneMissedSince(app, since);
         if (added > 0) {
             SnapEventStore.append(app, "✓ فائت هاتف تلقائي: " + added);
+            new Handler(Looper.getMainLooper()).post(() -> MissedCallOverlayController.refresh(app));
         }
     }
 

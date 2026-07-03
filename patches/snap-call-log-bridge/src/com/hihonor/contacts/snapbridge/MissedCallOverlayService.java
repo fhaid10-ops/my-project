@@ -44,6 +44,7 @@ public class MissedCallOverlayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
+        MissedCallAutoWatcher.scanNow(this);
         int count = MissedCallQueueStore.size(this);
         if (count <= 0) {
             removeBubble();
