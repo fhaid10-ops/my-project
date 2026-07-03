@@ -25,6 +25,10 @@ cp "$ROOT/HorizontalOverlayView.smali" \
   "$WORK/decode/smali_classes3/mobi/drupe/app/overlay/"
 cp "$ROOT/LoginAndUploadContactsActivityViewModel.smali" \
   "$WORK/decode/smali_classes3/mobi/drupe/app/activities/login_and_upload_contacts/"
+cp "$ROOT/LoginAndUploadContactsActivity.smali" \
+  "$WORK/decode/smali_classes3/mobi/drupe/app/activities/login_and_upload_contacts/"
+cp "$ROOT/GoogleLoginHelper.smali" \
+  "$WORK/decode/smali_classes3/me/sync/caller_id_sdk/publics/"
 
 echo "==> Rebuilding APK"
 apktool b -f -o "$WORK/rebuilt_unsigned.apk" "$WORK/decode"
