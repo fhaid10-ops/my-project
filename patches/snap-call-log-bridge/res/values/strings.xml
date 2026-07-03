@@ -11,5 +11,5 @@
     <string name="status_no">✗ فعّل الوصول للإشعارات</string>
     <string name="perms_ok">✓ صلاحية سجل المكالمات ممنوحة</string>
     <string name="perms_no">✗ اضغط «منح صلاحية سجل المكالمات»</string>
-    <string name="note">لا تحتاج كمبيوتر. لا تحتاج استبدال تطبيق جهات الاتصال.</string>
+    <string name="note">لا تحتاج كمبيوتر. اضغط زر الاتصال في السجل لفتح Snapchat.</string>
 </resources>

@@ -1,9 +1,11 @@
 package com.hihonor.contacts.snapbridge;
 
+import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.CallLog;
 import android.util.Log;
 
@@ -13,23 +15,34 @@ public final class CallLogWriter {
 
     private CallLogWriter() {}
 
-    public static boolean write(Context context, String displayName, int type, long when, String reason) {
+    public static boolean write(Context context, String displayName, String snapUsername,
+                                int type, long when, String reason) {
         String label = displayName + " (Snapchat)";
         if (isDuplicate(context, label, type, when)) {
             SnapEventStore.append(context, "تخطي مكرر: " + label);
             return false;
         }
+        String address = SnapUserStore.addressFor(displayName, snapUsername);
+        SnapUserStore.save(context, address, displayName, snapUsername);
+
         ContentValues values = new ContentValues();
-        // Honor dialer shows NUMBER — use the contact name, not snap:hash
         values.put(CallLog.Calls.NUMBER, displayName);
         values.put(CallLog.Calls.CACHED_NAME, label);
         values.put(CallLog.Calls.CACHED_FORMATTED_NUMBER, label);
-        values.put(CallLog.Calls.GEOCODED_LOCATION, "Snapchat");
+        values.put(CallLog.Calls.GEOCODED_LOCATION, "Snapchat — اضغط للاتصال");
         values.put(CallLog.Calls.TYPE, type);
         values.put(CallLog.Calls.DATE, when);
         values.put(CallLog.Calls.DURATION, 0);
         values.put(CallLog.Calls.NEW, 1);
         values.put(CallLog.Calls.FEATURES, 0x4);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            ComponentName cn = new ComponentName(context, SnapConnectionService.class);
+            values.put(CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME, cn.flattenToString());
+            values.put(CallLog.Calls.PHONE_ACCOUNT_ID, SnapPhoneAccount.ACCOUNT_ID);
+            values.put("phone_account_address", address);
+        }
+
         try {
             Uri uri = context.getContentResolver().insert(CallLog.Calls.CONTENT_URI, values);
             if (uri == null) {
@@ -37,7 +50,7 @@ public final class CallLogWriter {
                 return false;
             }
             SnapEventStore.append(context, "✓ أُضيف للسجل: " + label + " (" + reason + ")");
-            Log.i(TAG, "Logged: " + label);
+            Log.i(TAG, "Logged: " + label + " addr=" + address);
             return true;
         } catch (SecurityException se) {
             SnapEventStore.append(context, "مرفوض: صلاحية سجل المكالمات غير ممنوحة");

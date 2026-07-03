@@ -10,11 +10,13 @@ import android.text.TextUtils;
 public final class SnapNotificationParser {
     public static final class ParsedCall {
         public final String displayName;
+        public final String snapUsername;
         public final int callType;
         public final String reason;
 
-        ParsedCall(String displayName, int callType, String reason) {
+        ParsedCall(String displayName, String snapUsername, int callType, String reason) {
             this.displayName = displayName;
+            this.snapUsername = snapUsername;
             this.callType = callType;
             this.reason = reason;
         }
@@ -28,11 +30,11 @@ public final class SnapNotificationParser {
         Bundle extras = n.extras;
         if (extras == null) return null;
 
-        String category = n.category;
-        if (Notification.CATEGORY_CALL.equals(category)) {
+        String snapUser = extractSnapUsername(extras);
+        if (Notification.CATEGORY_CALL.equals(n.category)) {
             String name = firstNonEmpty(extractPersonName(extras), extras.getString(Notification.EXTRA_TITLE));
             if (!TextUtils.isEmpty(name)) {
-                return new ParsedCall(cleanName(name), resolveType(extras, n), "CATEGORY_CALL");
+                return new ParsedCall(cleanName(name), snapUser, resolveType(extras, n), "CATEGORY_CALL");
             }
         }
 
@@ -41,7 +43,7 @@ public final class SnapNotificationParser {
             if (template != null && template.contains("CallStyle")) {
                 String name = firstNonEmpty(extractPersonName(extras), extras.getString(Notification.EXTRA_TITLE));
                 if (!TextUtils.isEmpty(name)) {
-                    return new ParsedCall(cleanName(name), resolveType(extras, n), "CallStyle");
+                    return new ParsedCall(cleanName(name), snapUser, resolveType(extras, n), "CallStyle");
                 }
             }
         }
@@ -49,7 +51,8 @@ public final class SnapNotificationParser {
         if (n.actions != null && n.actions.length >= 2 && isLikelyCallActions(n)) {
             String name = firstNonEmpty(extractPersonName(extras), extras.getString(Notification.EXTRA_TITLE));
             if (!TextUtils.isEmpty(name) && !isGenericCallWord(name)) {
-                return new ParsedCall(cleanName(name), android.provider.CallLog.Calls.INCOMING_TYPE, "actions");
+                return new ParsedCall(cleanName(name), snapUser,
+                        android.provider.CallLog.Calls.INCOMING_TYPE, "actions");
             }
         }
 
@@ -76,7 +79,33 @@ public final class SnapNotificationParser {
         if (TextUtils.isEmpty(name) || isGenericCallWord(name)) {
             name = "Snapchat";
         }
-        return new ParsedCall(name, resolveTypeFromText(lower), "text");
+        return new ParsedCall(name, snapUser, resolveTypeFromText(lower), "text");
+    }
+
+    private static String extractSnapUsername(Bundle extras) {
+        String[] keys = {"username", "user", "user_name", "sender", "sender_username", "senderId"};
+        for (String key : keys) {
+            Object v = extras.get(key);
+            if (v instanceof CharSequence) {
+                String s = v.toString().trim();
+                if (looksLikeUsername(s)) return s;
+            }
+        }
+        for (String key : extras.keySet()) {
+            String lk = key.toLowerCase();
+            if (lk.contains("user") || lk.contains("sender")) {
+                Object v = extras.get(key);
+                if (v instanceof CharSequence) {
+                    String s = v.toString().trim();
+                    if (looksLikeUsername(s)) return s;
+                }
+            }
+        }
+        return "";
+    }
+
+    private static boolean looksLikeUsername(String s) {
+        return !TextUtils.isEmpty(s) && s.length() >= 2 && s.length() <= 32 && !s.contains(" ");
     }
 
     private static String extractFromPeopleList(Bundle extras) {
