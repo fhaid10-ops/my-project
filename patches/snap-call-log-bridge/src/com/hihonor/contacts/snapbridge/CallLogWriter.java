@@ -72,7 +72,7 @@ public final class CallLogWriter {
                         dialId,
                         address != null ? address : "",
                         enableSnapCallback);
-                MissedCallBubbleNotifier.enqueue(context, item);
+                MissedCallOverlayController.enqueue(context, item);
             }
             return true;
         } catch (SecurityException se) {

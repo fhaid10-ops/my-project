@@ -95,6 +95,10 @@ public final class MissedCallQueueStore {
         return load(context).size();
     }
 
+    public static List<Item> all(Context context) {
+        return new ArrayList<>(load(context));
+    }
+
     private static List<Item> load(Context context) {
         String raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getString(KEY_ITEMS, "[]");

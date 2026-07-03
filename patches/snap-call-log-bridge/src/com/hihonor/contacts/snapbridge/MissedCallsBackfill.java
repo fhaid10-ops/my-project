@@ -69,7 +69,7 @@ public final class MissedCallsBackfill {
                         snapAddress = SnapUserStore.resolveAddress(context, number);
                     }
                 }
-                if (MissedCallBubbleNotifier.enqueue(context, new MissedCallQueueStore.Item(
+                if (MissedCallQueueStore.enqueue(context, new MissedCallQueueStore.Item(
                         String.valueOf(id),
                         displayName,
                         number,
@@ -82,6 +82,7 @@ public final class MissedCallsBackfill {
         } finally {
             if (cursor != null) cursor.close();
         }
+        MissedCallOverlayController.refresh(context);
         return queued;
     }
 

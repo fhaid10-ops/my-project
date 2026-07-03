@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.net.Uri;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -100,13 +101,18 @@ public class MainActivity extends Activity {
                 } else {
                     SnapEventStore.append(this, "لا توجد مكالمات فائتة جديدة من أمس");
                 }
-                MissedCallBubbleNotifier.refresh(this);
+                MissedCallOverlayController.refresh(this);
                 refreshUi();
             } else {
                 requestNeededPermissions();
             }
         });
         root.addView(btnBackfillMissed);
+
+        Button btnOverlay = new Button(this);
+        btnOverlay.setText(getString(R.string.btn_overlay));
+        btnOverlay.setOnClickListener(v -> requestOverlayPermission());
+        root.addView(btnOverlay);
 
         TextView logTitle = new TextView(this);
         logTitle.setText(getString(R.string.log_title));
@@ -168,7 +174,7 @@ public class MainActivity extends Activity {
             CallLogCleaner.cleanLegacy(this);
             CallLogFixer.fixSnapEntries(this);
         }
-        MissedCallBubbleNotifier.refresh(this);
+        MissedCallOverlayController.refresh(this);
         refreshUi();
     }
 
@@ -182,6 +188,9 @@ public class MainActivity extends Activity {
         status.append('\n');
         status.append(SnapRoleHelper.isCallRedirectionHeld(this)
                 ? getString(R.string.redirect_ok) : getString(R.string.redirect_no));
+        status.append('\n');
+        status.append(hasOverlayPermission()
+                ? getString(R.string.overlay_ok) : getString(R.string.overlay_no));
         statusView.setText(status.toString());
         logView.setText(SnapEventStore.read(this));
     }
@@ -225,6 +234,24 @@ public class MainActivity extends Activity {
     private boolean hasContactsPermission() {
         return checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
                 && checkSelfPermission(Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasOverlayPermission() {
+        return Settings.canDrawOverlays(this);
+    }
+
+    private void requestOverlayPermission() {
+        if (hasOverlayPermission()) {
+            MissedCallOverlayController.refresh(this);
+            return;
+        }
+        try {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+        } catch (Exception e) {
+            SnapEventStore.append(this, "تعذر فتح إعدادات الفقاعة العائمة");
+        }
     }
 
     private boolean isListenerEnabled() {
