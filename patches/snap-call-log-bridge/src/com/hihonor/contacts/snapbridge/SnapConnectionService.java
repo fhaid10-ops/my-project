@@ -14,8 +14,10 @@ public class SnapConnectionService extends ConnectionService {
     @Override
     public Connection onCreateOutgoingConnection(PhoneAccountHandle connectionManagerPhoneAccount,
                                                    ConnectionRequest request) {
-        String address = request.getAddress() != null
-                ? request.getAddress().getSchemeSpecificPart() : "";
+        String address = extractAddress(request);
+        if (address.isEmpty()) {
+            address = "snap:";
+        }
         SnapEventStore.append(this, "اتصال من السجل: " + address);
         boolean ok = SnapchatLauncher.open(this, address);
         if (!ok) {
@@ -31,5 +33,15 @@ public class SnapConnectionService extends ConnectionService {
     public Connection onCreateIncomingConnection(PhoneAccountHandle connectionManagerPhoneAccount,
                                                    ConnectionRequest request) {
         return Connection.createFailedConnection(new DisconnectCause(DisconnectCause.MISSED));
+    }
+
+    private static String extractAddress(ConnectionRequest request) {
+        if (request == null || request.getAddress() == null) return "";
+        String raw = request.getAddress().getSchemeSpecificPart();
+        if (raw == null) return "";
+        raw = Uri.decode(raw);
+        if (raw.startsWith("snap:")) return raw;
+        if (raw.contains("snap%3A")) return Uri.decode(raw);
+        return "snap:" + Uri.encode(raw);
     }
 }

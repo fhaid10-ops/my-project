@@ -67,8 +67,9 @@ public class MainActivity extends Activity {
         btnClean.setOnClickListener(v -> {
             if (hasCallLogPermissions()) {
                 int n = CallLogCleaner.cleanLegacy(this);
-                if (n == 0) {
-                    SnapEventStore.append(this, "لا توجد سجلات snap: قديمة");
+                int f = CallLogFixer.fixSnapEntries(this);
+                if (n == 0 && f == 0) {
+                    SnapEventStore.append(this, "لا توجد سجلات تحتاج إصلاح");
                 }
                 refreshUi();
             } else {
@@ -125,6 +126,7 @@ public class MainActivity extends Activity {
         super.onResume();
         if (hasCallLogPermissions()) {
             CallLogCleaner.cleanLegacy(this);
+            CallLogFixer.fixSnapEntries(this);
         }
         refreshUi();
     }

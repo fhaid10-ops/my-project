@@ -54,10 +54,15 @@ public final class SnapRecentCalls {
                 if (projection.length > 3) {
                     address = cursor.getString(3);
                 }
-                if (number != null && number.startsWith("snap:")) continue;
-                String name = number != null && !number.isEmpty() ? number : stripSnapchat(cached);
-                if (address == null || address.isEmpty()) {
-                    address = SnapUserStore.addressFor(name, "");
+                String name;
+                if (number != null && number.startsWith("snap:")) {
+                    name = stripSnapchat(cached);
+                    if (address == null || address.isEmpty()) address = number;
+                } else {
+                    name = number != null && !number.isEmpty() ? number : stripSnapchat(cached);
+                    if (address == null || address.isEmpty()) {
+                        address = SnapUserStore.addressFor(name, "");
+                    }
                 }
                 out.add(new Entry(name, address, date));
             }

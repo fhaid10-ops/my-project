@@ -26,9 +26,9 @@ public final class CallLogWriter {
         SnapUserStore.save(context, address, displayName, snapUsername);
 
         ContentValues values = new ContentValues();
-        values.put(CallLog.Calls.NUMBER, displayName);
+        values.put(CallLog.Calls.NUMBER, address);
         values.put(CallLog.Calls.CACHED_NAME, label);
-        values.put(CallLog.Calls.CACHED_FORMATTED_NUMBER, label);
+        values.put(CallLog.Calls.CACHED_FORMATTED_NUMBER, displayName);
         values.put(CallLog.Calls.GEOCODED_LOCATION, "Snapchat — اضغط للاتصال");
         values.put(CallLog.Calls.TYPE, type);
         values.put(CallLog.Calls.DATE, when);
