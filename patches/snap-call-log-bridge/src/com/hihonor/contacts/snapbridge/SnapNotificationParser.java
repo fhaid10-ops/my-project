@@ -51,8 +51,13 @@ public final class SnapNotificationParser {
         if (n.actions != null && n.actions.length >= 2 && isLikelyCallActions(n)) {
             String name = firstNonEmpty(extractPersonName(extras), extras.getString(Notification.EXTRA_TITLE));
             if (!TextUtils.isEmpty(name) && !isGenericCallWord(name)) {
+                int fromText = resolveTypeFromText(join(
+                        extras.getCharSequence(Notification.EXTRA_TITLE),
+                        extras.getCharSequence(Notification.EXTRA_TEXT),
+                        extras.getCharSequence(Notification.EXTRA_BIG_TEXT),
+                        extras.getCharSequence(Notification.EXTRA_SUB_TEXT)));
                 return new ParsedCall(cleanName(name), snapUser,
-                        android.provider.CallLog.Calls.INCOMING_TYPE, "actions");
+                        fromText, "actions");
             }
         }
 
@@ -188,7 +193,11 @@ public final class SnapNotificationParser {
     }
 
     private static int resolveTypeFromText(String lower) {
-        if (lower.contains("missed") || lower.contains("فائت")) {
+        if (lower.contains("missed") || lower.contains("فائت")
+                || lower.contains("cancel") || lower.contains("canceled")
+                || lower.contains("declined") || lower.contains("unanswered")
+                || lower.contains("ملغ") || lower.contains("لم يتم الرد")
+                || lower.contains("لم يرد")) {
             return android.provider.CallLog.Calls.MISSED_TYPE;
         }
         if (lower.contains("outgoing") || lower.contains("صادر") || lower.contains("calling")) {

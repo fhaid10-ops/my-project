@@ -2,6 +2,7 @@ package com.hihonor.contacts.snapbridge;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.widget.Toast;
 
@@ -37,17 +38,14 @@ public final class SnapchatLauncher {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             intent.setPackage(SNAP_PKG);
+            ResolveInfo resolved = context.getPackageManager().resolveActivity(intent, 0);
+            if (resolved != null && resolved.activityInfo != null) {
+                intent.setClassName(resolved.activityInfo.packageName, resolved.activityInfo.name);
+            }
             context.startActivity(intent);
             return true;
         } catch (Exception e) {
-            try {
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intent);
-                return true;
-            } catch (Exception ignored) {
-                return false;
-            }
+            return false;
         }
     }
 

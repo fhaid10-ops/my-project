@@ -34,7 +34,9 @@ public final class CallLogWriter {
         values.put(CallLog.Calls.TYPE, type);
         values.put(CallLog.Calls.DATE, when);
         values.put(CallLog.Calls.DURATION, 0);
-        values.put(CallLog.Calls.NEW, 1);
+        boolean isMissed = type == CallLog.Calls.MISSED_TYPE;
+        values.put(CallLog.Calls.NEW, isMissed ? 1 : 0);
+        values.put(CallLog.Calls.IS_READ, isMissed ? 0 : 1);
         values.put(CallLog.Calls.FEATURES, 0x4);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
