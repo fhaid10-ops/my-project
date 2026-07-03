@@ -10,7 +10,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 public final class CallerActionButtons {
-    public static final String APP_VERSION = "2.14";
+    public static final String APP_VERSION = "2.15";
 
     public interface Listener {
         void onCallback();
