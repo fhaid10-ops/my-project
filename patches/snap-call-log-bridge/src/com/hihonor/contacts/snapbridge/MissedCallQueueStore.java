@@ -20,13 +20,43 @@ public final class MissedCallQueueStore {
         public final String number;
         public final String snapAddress;
         public final boolean isSnap;
+        public final long timestamp;
+        public final String sourceLabel;
+        public final String resolvedName;
+        public final String subtitle;
 
         public Item(String id, String displayName, String number, String snapAddress, boolean isSnap) {
+            this(id, displayName, number, snapAddress, isSnap, 0L, "", "", "");
+        }
+
+        public Item(String id, String displayName, String number, String snapAddress, boolean isSnap,
+                    long timestamp, String sourceLabel, String resolvedName, String subtitle) {
             this.id = id;
             this.displayName = displayName;
             this.number = number;
             this.snapAddress = snapAddress;
             this.isSnap = isSnap;
+            this.timestamp = timestamp;
+            this.sourceLabel = sourceLabel != null ? sourceLabel : "";
+            this.resolvedName = resolvedName != null ? resolvedName : "";
+            this.subtitle = subtitle != null ? subtitle : "";
+        }
+
+        public String bestName() {
+            if (resolvedName != null && !resolvedName.isEmpty()) return resolvedName;
+            if (displayName != null && !displayName.isEmpty()) return displayName;
+            return "مكالمة فائتة";
+        }
+
+        public String bestSubtitle() {
+            if (subtitle != null && !subtitle.isEmpty()) return subtitle;
+            if (isSnap) return "Snapchat";
+            return number != null ? number : "";
+        }
+
+        public String bestSourceLabel() {
+            if (sourceLabel != null && !sourceLabel.isEmpty()) return sourceLabel;
+            return isSnap ? "Snapchat" : "هاتف";
         }
 
         JSONObject toJson() {
@@ -37,6 +67,10 @@ public final class MissedCallQueueStore {
                 o.put("number", number);
                 o.put("snapAddress", snapAddress);
                 o.put("isSnap", isSnap);
+                o.put("timestamp", timestamp);
+                o.put("sourceLabel", sourceLabel);
+                o.put("resolvedName", resolvedName);
+                o.put("subtitle", subtitle);
             } catch (Exception ignored) {
             }
             return o;
@@ -49,8 +83,28 @@ public final class MissedCallQueueStore {
                     o.optString("name", ""),
                     o.optString("number", ""),
                     o.optString("snapAddress", ""),
-                    o.optBoolean("isSnap", false));
+                    o.optBoolean("isSnap", false),
+                    o.optLong("timestamp", 0L),
+                    o.optString("sourceLabel", ""),
+                    o.optString("resolvedName", ""),
+                    o.optString("subtitle", ""));
         }
+    }
+
+    public static Item build(Context context, String id, String displayName, String number,
+                             String snapAddress, boolean isSnap, long timestamp, String sourceLabel) {
+        CallerIdentityResolver.Identity identity = CallerIdentityResolver.resolve(
+                context, number, displayName, isSnap, sourceLabel);
+        return new Item(
+                id,
+                displayName,
+                number,
+                snapAddress,
+                isSnap,
+                timestamp,
+                identity.sourceLabel,
+                identity.displayName,
+                identity.subtitle);
     }
 
     public static boolean enqueue(Context context, Item item) {
@@ -108,12 +162,45 @@ public final class MissedCallQueueStore {
             for (int i = 0; i < arr.length(); i++) {
                 Item item = Item.fromJson(arr.optJSONObject(i));
                 if (item != null && item.id != null && !item.id.isEmpty()) {
-                    out.add(item);
+                    out.add(enrichIfNeeded(context, item));
                 }
             }
         } catch (Exception ignored) {
         }
         return out;
+    }
+
+    private static Item enrichIfNeeded(Context context, Item item) {
+        if (item.resolvedName != null && !item.resolvedName.isEmpty()
+                && item.timestamp > 0L && item.subtitle != null && !item.subtitle.isEmpty()) {
+            return item;
+        }
+        long timestamp = item.timestamp;
+        if (timestamp <= 0L) {
+            timestamp = lookupTimestamp(context, item.id);
+        }
+        return build(context, item.id, item.displayName, item.number,
+                item.snapAddress, item.isSnap, timestamp, item.sourceLabel);
+    }
+
+    private static long lookupTimestamp(Context context, String id) {
+        try {
+            android.database.Cursor cursor = context.getContentResolver().query(
+                    android.provider.CallLog.Calls.CONTENT_URI,
+                    new String[] {android.provider.CallLog.Calls.DATE},
+                    android.provider.CallLog.Calls._ID + "=?",
+                    new String[] {id},
+                    null);
+            if (cursor != null) {
+                try {
+                    if (cursor.moveToFirst()) return cursor.getLong(0);
+                } finally {
+                    cursor.close();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return 0L;
     }
 
     private static void save(Context context, List<Item> items) {
@@ -126,4 +213,3 @@ public final class MissedCallQueueStore {
                 .apply();
     }
 }
-

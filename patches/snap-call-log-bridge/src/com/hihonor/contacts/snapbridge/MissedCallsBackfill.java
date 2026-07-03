@@ -30,7 +30,9 @@ public final class MissedCallsBackfill {
                             CallLog.Calls.NEW,
                             CallLog.Calls.IS_READ,
                             CallLog.Calls.PHONE_ACCOUNT_ID,
-                            "phone_account_address"
+                            "phone_account_address",
+                            CallLog.Calls.DATE,
+                            CallLog.Calls.GEOCODED_LOCATION
                     },
                     CallLog.Calls.TYPE + "=? AND " + CallLog.Calls.DATE + ">=?",
                     new String[] {
@@ -47,6 +49,8 @@ public final class MissedCallsBackfill {
                 int isRead = cursor.getInt(5);
                 String phoneAccountId = cursor.getString(6);
                 String phoneAccountAddress = cursor.getString(7);
+                long callDate = cursor.getLong(8);
+                String geoLabel = cursor.getString(9);
 
                 if (!isTargetEntry(number, cachedName, phoneAccountId)) continue;
                 if (!(isNew == 1 && isRead == 0)) {
@@ -69,12 +73,16 @@ public final class MissedCallsBackfill {
                         snapAddress = SnapUserStore.resolveAddress(context, number);
                     }
                 }
-                if (MissedCallQueueStore.enqueue(context, new MissedCallQueueStore.Item(
+                String sourceLabel = isSnap ? "Snapchat" : safeSource(geoLabel);
+                if (MissedCallQueueStore.enqueue(context, MissedCallQueueStore.build(
+                        context,
                         String.valueOf(id),
                         displayName,
                         number,
                         snapAddress,
-                        isSnap))) {
+                        isSnap,
+                        callDate,
+                        sourceLabel))) {
                     queued++;
                 }
             }
@@ -100,6 +108,11 @@ public final class MissedCallsBackfill {
         }
         if (number == null || number.isEmpty()) return "مكالمة فائتة";
         return number;
+    }
+
+    private static String safeSource(String geoLabel) {
+        if (geoLabel != null && !geoLabel.trim().isEmpty()) return geoLabel.trim();
+        return "هاتف";
     }
 
     private static long startOfYesterdayMillis() {

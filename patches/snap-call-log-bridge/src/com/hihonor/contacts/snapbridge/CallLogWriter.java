@@ -66,12 +66,15 @@ public final class CallLogWriter {
             }
             if (isMissed) {
                 long rowId = ContentUris.parseId(uri);
-                MissedCallQueueStore.Item item = new MissedCallQueueStore.Item(
+                MissedCallQueueStore.Item item = MissedCallQueueStore.build(
+                        context,
                         String.valueOf(rowId),
                         displayName,
                         dialId,
                         address != null ? address : "",
-                        enableSnapCallback);
+                        enableSnapCallback,
+                        when,
+                        appLabel);
                 MissedCallOverlayController.enqueue(context, item);
             }
             return true;
