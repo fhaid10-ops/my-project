@@ -1,7 +1,6 @@
 package com.hihonor.contacts.snapbridge;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -63,44 +62,43 @@ public class MissedCallDetailActivity extends Activity {
         root.addView(scroll, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        LinearLayout actionsWrap = new LinearLayout(this);
-        actionsWrap.setOrientation(LinearLayout.VERTICAL);
-        actionsWrap.setPadding(0, pad, 0, 0);
+        CallerGroupHelper.CallerGroup group = CallerGroupHelper.findByKey(this, callerKey);
+        View actions = CallerActionButtons.build(this, new CallerActionButtons.Listener() {
+            @Override
+            public void onCallback() {
+                CallerGroupHelper.CallerGroup g = CallerGroupHelper.findByKey(MissedCallDetailActivity.this, callerKey);
+                CallerActionButtons.performCallback(MissedCallDetailActivity.this, g);
+                finish();
+            }
 
-        LinearLayout actionsRow1 = new LinearLayout(this);
-        actionsRow1.setOrientation(LinearLayout.HORIZONTAL);
+            @Override
+            public void onWhatsApp() {
+                CallerGroupHelper.CallerGroup g = CallerGroupHelper.findByKey(MissedCallDetailActivity.this, callerKey);
+                CallerActionButtons.performWhatsApp(MissedCallDetailActivity.this, g);
+                finish();
+            }
 
-        TextView call = CallUiHelper.makeActionButton(this, "معاودة", CallUiHelper.ACTION_CALL);
-        call.setLayoutParams(CallUiHelper.actionParams(this));
-        call.setOnClickListener(v -> doCallback());
-        actionsRow1.addView(call);
+            @Override
+            public void onWhatsAppBusiness() {
+                CallerGroupHelper.CallerGroup g = CallerGroupHelper.findByKey(MissedCallDetailActivity.this, callerKey);
+                CallerActionButtons.performWhatsAppBusiness(MissedCallDetailActivity.this, g);
+                finish();
+            }
 
-        TextView wa = CallUiHelper.makeActionButton(this, "واتساب", CallUiHelper.ACTION_WA);
-        wa.setLayoutParams(CallUiHelper.actionParams(this));
-        wa.setOnClickListener(v -> doWhatsApp());
-        actionsRow1.addView(wa);
-
-        LinearLayout actionsRow2 = new LinearLayout(this);
-        actionsRow2.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams row2Lp = new LinearLayout.LayoutParams(
+            @Override
+            public void onDelete() {
+                CallerGroupHelper.CallerGroup g = CallerGroupHelper.findByKey(MissedCallDetailActivity.this, callerKey);
+                CallerActionButtons.performDelete(MissedCallDetailActivity.this, g);
+                finish();
+            }
+        });
+        LinearLayout.LayoutParams actionsLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        row2Lp.topMargin = CallUiHelper.dp(this, 8);
-        actionsRow2.setLayoutParams(row2Lp);
+        actionsLp.topMargin = pad;
+        actions.setLayoutParams(actionsLp);
+        root.addView(actions);
 
-        TextView waBiz = CallUiHelper.makeActionButton(this, "واتساب بزنس", CallUiHelper.ACTION_WA_BUSINESS);
-        waBiz.setLayoutParams(CallUiHelper.actionParams(this));
-        waBiz.setOnClickListener(v -> doWhatsAppBusiness());
-        actionsRow2.addView(waBiz);
-
-        TextView del = CallUiHelper.makeActionButton(this, "حذف الكل", CallUiHelper.ACTION_DEL);
-        del.setLayoutParams(CallUiHelper.actionParams(this));
-        del.setOnClickListener(v -> doDeleteAll());
-        actionsRow2.addView(del);
-
-        actionsWrap.addView(actionsRow1);
-        actionsWrap.addView(actionsRow2);
-        root.addView(actionsWrap);
         setContentView(root);
         render();
     }
@@ -244,47 +242,8 @@ public class MissedCallDetailActivity extends Activity {
         return row;
     }
 
-    private void doCallback() {
-        CallerGroupHelper.CallerGroup group = CallerGroupHelper.findByKey(this, callerKey);
-        if (group == null) return;
-        MissedCallQueueStore.Item item = group.representative();
-        if (item != null && MissedCallActionHandler.callback(this, item)) {
-            CallerGroupHelper.removeByKey(this, callerKey);
-            MissedCallOverlayController.refresh(this);
-            finish();
-        }
-    }
-
-    private void doWhatsApp() {
-        CallerGroupHelper.CallerGroup group = CallerGroupHelper.findByKey(this, callerKey);
-        if (group == null) return;
-        MissedCallQueueStore.Item item = group.representative();
-        if (item != null && MissedCallActionHandler.openWhatsApp(this, item)) {
-            CallerGroupHelper.removeByKey(this, callerKey);
-            MissedCallOverlayController.refresh(this);
-            finish();
-        }
-    }
-
-    private void doWhatsAppBusiness() {
-        CallerGroupHelper.CallerGroup group = CallerGroupHelper.findByKey(this, callerKey);
-        if (group == null) return;
-        MissedCallQueueStore.Item item = group.representative();
-        if (item != null && MissedCallActionHandler.openWhatsAppBusiness(this, item)) {
-            CallerGroupHelper.removeByKey(this, callerKey);
-            MissedCallOverlayController.refresh(this);
-            finish();
-        }
-    }
-
-    private void doDeleteAll() {
-        CallerGroupHelper.removeByKey(this, callerKey);
-        MissedCallOverlayController.refresh(this);
-        finish();
-    }
-
     public static void open(Activity from, CallerGroupHelper.CallerGroup group) {
-        Intent i = new Intent(from, MissedCallDetailActivity.class);
+        android.content.Intent i = new android.content.Intent(from, MissedCallDetailActivity.class);
         i.putExtra(CallerGroupHelper.EXTRA_CALLER_KEY, group.key);
         from.startActivity(i);
     }

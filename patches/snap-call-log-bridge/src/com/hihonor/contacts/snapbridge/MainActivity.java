@@ -38,7 +38,12 @@ public class MainActivity extends Activity {
         root.setPadding(pad, pad, pad, pad);
 
         TextView title = new TextView(this);
-        title.setText(getString(R.string.title));
+        try {
+            String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            title.setText(getString(R.string.title) + "  v" + version);
+        } catch (Exception e) {
+            title.setText(getString(R.string.title));
+        }
         title.setTextSize(20f);
         title.setTypeface(null, Typeface.BOLD);
         title.setPadding(0, 0, 0, pad / 2);
