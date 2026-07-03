@@ -173,8 +173,19 @@ public class MainActivity extends Activity {
         if (hasCallLogPermissions()) {
             CallLogCleaner.cleanLegacy(this);
             CallLogFixer.fixSnapEntries(this);
+            MissedCallAutoWatcher.ensureStarted(this);
         }
         MissedCallOverlayController.refresh(this);
+        refreshUi();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_PERMS && hasCallLogPermissions()) {
+            MissedCallAutoWatcher.ensureStarted(this);
+            MissedCallOverlayController.refresh(this);
+        }
         refreshUi();
     }
 

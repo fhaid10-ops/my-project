@@ -9,7 +9,7 @@
     <string name="btn_redirect">فعّل الاتصال من السجل (مرة واحدة)</string>
     <string name="btn_refresh">تحديث السجل</string>
     <string name="btn_clean">إصلاح سجلات Snapchat</string>
-    <string name="btn_backfill_missed">إضافة فائت أمس للفقاعة (سناب + مكالمات)</string>
+    <string name="btn_backfill_missed">إضافة فائت قديم للفقاعة (اختياري)</string>
     <string name="btn_overlay">تفعيل الفقاعة العائمة فوق التطبيقات</string>
     <string name="btn_call">اتصل</string>
     <string name="call_from_title">اتصل من سجل المكالمات مباشرة</string>

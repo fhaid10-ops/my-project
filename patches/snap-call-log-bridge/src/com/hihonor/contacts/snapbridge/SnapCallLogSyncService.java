@@ -13,6 +13,12 @@ public class SnapCallLogSyncService extends NotificationListenerService {
     private static final String PREFS = "snap_active_calls";
 
     @Override
+    public void onListenerConnected() {
+        super.onListenerConnected();
+        MissedCallAutoWatcher.ensureStarted(this);
+    }
+
+    @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
         if (sbn == null || !SNAP_PKG.equals(sbn.getPackageName())) return;
         try {
