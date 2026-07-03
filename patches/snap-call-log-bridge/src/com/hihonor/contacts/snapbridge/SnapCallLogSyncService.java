@@ -1,10 +1,13 @@
 package com.hihonor.contacts.snapbridge;
 
 import android.app.Notification;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 import android.provider.CallLog;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
+import android.text.TextUtils;
 import android.util.Log;
 
 public class SnapCallLogSyncService extends NotificationListenerService {
@@ -14,18 +17,22 @@ public class SnapCallLogSyncService extends NotificationListenerService {
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
-        if (sbn == null || !SNAP_PKG.equals(sbn.getPackageName())) return;
+        if (sbn == null) return;
+        String pkg = sbn.getPackageName();
+        if (TextUtils.isEmpty(pkg) || isIgnoredDialerPackage(pkg) || getPackageName().equals(pkg)) return;
         try {
-            SnapEventStore.append(this, "إشعار: " + SnapNotificationParser.dumpExtras(sbn));
+            SnapEventStore.append(this, "إشعار [" + pkg + "]: " + SnapNotificationParser.dumpExtras(sbn));
             SnapNotificationParser.ParsedCall call = SnapNotificationParser.parse(sbn);
             if (call == null) {
-                SnapEventStore.append(this, "لم يُعرَف كمكالمة — ربما إشعار عادي");
+                SnapEventStore.append(this, "لم يُعرَف كمكالمة من " + pkg);
                 return;
             }
+            String appLabel = getAppLabel(pkg);
+            boolean isSnapchat = SNAP_PKG.equals(pkg);
             markActive(sbn.getKey(), call.displayName);
             boolean ok = CallLogWriter.write(this, call.displayName, call.snapUsername, call.callType,
-                    System.currentTimeMillis(), call.reason);
-            if (ok) {
+                    System.currentTimeMillis(), call.reason, appLabel, isSnapchat);
+            if (ok && isSnapchat) {
                 LastSnapStore.save(this, call.displayName,
                         SnapUserStore.addressFor(call.displayName, call.snapUsername));
             }
@@ -37,9 +44,9 @@ public class SnapCallLogSyncService extends NotificationListenerService {
 
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {
-        if (sbn == null || !SNAP_PKG.equals(sbn.getPackageName())) return;
+        if (sbn == null) return;
         clearActive(sbn.getKey());
-        SnapEventStore.append(this, "انتهى إشعار Snapchat");
+        SnapEventStore.append(this, "انتهى إشعار: " + sbn.getPackageName());
     }
 
     private void markActive(String key, String name) {
@@ -52,5 +59,25 @@ public class SnapCallLogSyncService extends NotificationListenerService {
 
     private void clearActive(String key) {
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(key).apply();
+    }
+
+    private boolean isIgnoredDialerPackage(String pkg) {
+        return pkg.startsWith("com.android.dialer")
+                || pkg.startsWith("com.google.android.dialer")
+                || pkg.startsWith("com.hihonor.contacts")
+                || pkg.startsWith("com.android.server.telecom")
+                || pkg.startsWith("com.huawei.contacts")
+                || pkg.startsWith("com.huawei.dialer");
+    }
+
+    private String getAppLabel(String pkg) {
+        try {
+            PackageManager pm = getPackageManager();
+            ApplicationInfo info = pm.getApplicationInfo(pkg, 0);
+            CharSequence label = pm.getApplicationLabel(info);
+            if (label != null && label.length() > 0) return label.toString();
+        } catch (Exception ignored) {
+        }
+        return pkg;
     }
 }

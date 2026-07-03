@@ -16,21 +16,27 @@ public final class CallLogWriter {
     private CallLogWriter() {}
 
     public static boolean write(Context context, String displayName, String snapUsername,
-                                int type, long when, String reason) {
-        String label = displayName + " (Snapchat)";
+                                int type, long when, String reason,
+                                String sourceLabel, boolean enableSnapCallback) {
+        String appLabel = safeLabel(sourceLabel);
+        String label = displayName + " (" + appLabel + ")";
         if (isDuplicate(context, label, type, when)) {
             SnapEventStore.append(context, "تخطي مكرر: " + label);
             return false;
         }
-        String address = SnapUserStore.addressFor(displayName, snapUsername);
-        String dialId = SnapUserStore.dialIdForAddress(address);
-        SnapUserStore.save(context, address, displayName, snapUsername);
+        String address = null;
+        String dialId = displayName;
+        if (enableSnapCallback) {
+            address = SnapUserStore.addressFor(displayName, snapUsername);
+            dialId = SnapUserStore.dialIdForAddress(address);
+            SnapUserStore.save(context, address, displayName, snapUsername);
+        }
 
         ContentValues values = new ContentValues();
         values.put(CallLog.Calls.NUMBER, dialId);
         values.put(CallLog.Calls.CACHED_NAME, label);
         values.put(CallLog.Calls.CACHED_FORMATTED_NUMBER, displayName);
-        values.put(CallLog.Calls.GEOCODED_LOCATION, "Snapchat");
+        values.put(CallLog.Calls.GEOCODED_LOCATION, appLabel);
         values.put(CallLog.Calls.TYPE, type);
         values.put(CallLog.Calls.DATE, when);
         values.put(CallLog.Calls.DURATION, 0);
@@ -39,7 +45,7 @@ public final class CallLogWriter {
         values.put(CallLog.Calls.IS_READ, isMissed ? 0 : 1);
         values.put(CallLog.Calls.FEATURES, 0x4);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        if (enableSnapCallback && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             ComponentName cn = new ComponentName(context, SnapConnectionService.class);
             values.put(CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME, cn.flattenToString());
             values.put(CallLog.Calls.PHONE_ACCOUNT_ID, SnapPhoneAccount.ACCOUNT_ID);
@@ -54,7 +60,9 @@ public final class CallLogWriter {
             }
             SnapEventStore.append(context, "✓ أُضيف للسجل: " + label + " (" + reason + ")");
             Log.i(TAG, "Logged: " + label + " dial=" + dialId);
-            SnapContactSync.upsert(context, displayName, dialId);
+            if (enableSnapCallback) {
+                SnapContactSync.upsert(context, displayName, dialId);
+            }
             return true;
         } catch (SecurityException se) {
             SnapEventStore.append(context, "مرفوض: صلاحية سجل المكالمات غير ممنوحة");
@@ -65,6 +73,14 @@ public final class CallLogWriter {
             Log.w(TAG, "write failed", e);
             return false;
         }
+    }
+
+    private static String safeLabel(String sourceLabel) {
+        if (sourceLabel == null || sourceLabel.trim().isEmpty()) {
+            return "VoIP";
+        }
+        String s = sourceLabel.trim();
+        return s.length() > 32 ? s.substring(0, 32) : s;
     }
 
     private static boolean isDuplicate(Context context, String cachedName, int type, long now) {
