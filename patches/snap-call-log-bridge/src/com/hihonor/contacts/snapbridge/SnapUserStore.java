@@ -8,6 +8,8 @@ import java.security.MessageDigest;
 
 public final class SnapUserStore {
     private static final String PREFS = "snap_users";
+    /** Numeric dial id prefix — Honor won't strip digits from 888xxxxxxxx */
+    private static final String DIAL_PREFIX = "888";
 
     private SnapUserStore() {}
 
@@ -16,11 +18,11 @@ public final class SnapUserStore {
         return "snap:" + shortHash(key);
     }
 
-    /** Dialable id stored in call log NUMBER, e.g. snap90463b2d */
     public static String dialIdForAddress(String address) {
-        if (address == null) return "";
-        if (address.startsWith("snap:")) return "snap" + address.substring(5);
-        return "snap" + shortHash(address);
+        String hash = address != null && address.startsWith("snap:")
+                ? address.substring(5) : shortHash(address != null ? address : "");
+        long v = Long.parseLong(hash, 16) % 1_000_000_000L;
+        return DIAL_PREFIX + String.format("%09d", v);
     }
 
     public static String dialIdFor(String displayName, String snapUsername) {
@@ -28,14 +30,18 @@ public final class SnapUserStore {
     }
 
     public static boolean isSnapDialId(String num) {
-        return num != null && num.matches("snap[0-9a-f]{8}");
+        if (num == null) return false;
+        if (num.matches(DIAL_PREFIX + "\\d{9}")) return true;
+        return num.matches("snap[0-9a-f]{8}");
     }
 
-    public static String addressFromDialId(String dialId) {
+    public static String addressFromDialId(Context context, String dialId) {
         if (dialId == null) return "";
-        if (dialId.startsWith("snap:")) return dialId;
-        if (isSnapDialId(dialId)) return "snap:" + dialId.substring(4);
-        return dialId;
+        String mapped = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString("dial:" + dialId, null);
+        if (mapped != null) return mapped;
+        if (dialId.matches("snap[0-9a-f]{8}")) return "snap:" + dialId.substring(4);
+        return "";
     }
 
     public static void save(Context context, String address, String displayName, String snapUsername) {
@@ -54,7 +60,8 @@ public final class SnapUserStore {
             String n = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                     .getString("name:" + addressOrDialId, null);
             if (n != null) return n;
-            addressOrDialId = addressFromDialId(addressOrDialId);
+            String addr = addressFromDialId(context, addressOrDialId);
+            if (!addr.isEmpty()) addressOrDialId = addr;
         }
         String stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getString("display:" + addressOrDialId, null);
@@ -65,7 +72,7 @@ public final class SnapUserStore {
     public static String getSnapUser(Context context, String address) {
         if (address == null) return "";
         if (isSnapDialId(address)) {
-            address = addressFromDialId(address);
+            address = addressFromDialId(context, address);
         }
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getString("user:" + address, "");
@@ -74,10 +81,8 @@ public final class SnapUserStore {
     public static String resolveAddress(Context context, String raw) {
         if (raw == null || raw.isEmpty()) return "";
         if (isSnapDialId(raw)) {
-            String mapped = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                    .getString("dial:" + raw, null);
-            if (mapped != null) return mapped;
-            return addressFromDialId(raw);
+            String mapped = addressFromDialId(context, raw);
+            if (!mapped.isEmpty()) return mapped;
         }
         String decoded = Uri.decode(raw);
         if (decoded.startsWith("snap:")) {

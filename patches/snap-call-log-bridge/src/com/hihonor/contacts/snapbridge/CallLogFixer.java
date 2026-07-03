@@ -78,10 +78,11 @@ public final class CallLogFixer {
     }
 
     private static String resolveDisplayName(Context context, String number, String cached) {
-        if (number != null && !number.isEmpty() && !number.startsWith("snap")) {
+        if (number != null && !number.isEmpty() && !number.startsWith("snap")
+                && !SnapUserStore.isSnapDialId(number)) {
             return number;
         }
-        if (number != null && number.startsWith("snap")) {
+        if (number != null && (number.startsWith("snap") || SnapUserStore.isSnapDialId(number))) {
             String fromStore = SnapUserStore.getDisplayName(context, number);
             if (fromStore != null && !fromStore.startsWith("snap")) return fromStore;
             if (number.startsWith("snap:")) {
