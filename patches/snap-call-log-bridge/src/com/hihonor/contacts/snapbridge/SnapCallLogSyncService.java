@@ -33,22 +33,8 @@ public class SnapCallLogSyncService extends NotificationListenerService {
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {
         if (sbn == null || !SNAP_PKG.equals(sbn.getPackageName())) return;
-        try {
-            String key = sbn.getKey();
-            String name = getActiveName(key);
-            if (name == null) {
-                SnapNotificationParser.ParsedCall call = SnapNotificationParser.parse(sbn);
-                if (call != null) name = call.displayName;
-            }
-            if (name != null) {
-                SnapEventStore.append(this, "انتهت مكالمة: " + name);
-                CallLogWriter.write(this, name, CallLog.Calls.MISSED_TYPE,
-                        System.currentTimeMillis(), "removed");
-            }
-            clearActive(key);
-        } catch (Exception e) {
-            Log.w(TAG, "onNotificationRemoved failed", e);
-        }
+        clearActive(sbn.getKey());
+        SnapEventStore.append(this, "انتهى إشعار Snapchat");
     }
 
     private void markActive(String key, String name) {

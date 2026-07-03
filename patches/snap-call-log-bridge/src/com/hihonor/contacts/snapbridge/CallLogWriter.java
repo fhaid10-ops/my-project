@@ -14,14 +14,17 @@ public final class CallLogWriter {
     private CallLogWriter() {}
 
     public static boolean write(Context context, String displayName, int type, long when, String reason) {
-        String cachedName = displayName + " (Snapchat)";
-        if (isDuplicate(context, cachedName, type, when)) {
-            SnapEventStore.append(context, "تخطي مكرر: " + cachedName);
+        String label = displayName + " (Snapchat)";
+        if (isDuplicate(context, label, type, when)) {
+            SnapEventStore.append(context, "تخطي مكرر: " + label);
             return false;
         }
         ContentValues values = new ContentValues();
-        values.put(CallLog.Calls.NUMBER, "snap:" + Integer.toHexString(displayName.hashCode()));
-        values.put(CallLog.Calls.CACHED_NAME, cachedName);
+        // Honor dialer shows NUMBER — use the contact name, not snap:hash
+        values.put(CallLog.Calls.NUMBER, displayName);
+        values.put(CallLog.Calls.CACHED_NAME, label);
+        values.put(CallLog.Calls.CACHED_FORMATTED_NUMBER, label);
+        values.put(CallLog.Calls.GEOCODED_LOCATION, "Snapchat");
         values.put(CallLog.Calls.TYPE, type);
         values.put(CallLog.Calls.DATE, when);
         values.put(CallLog.Calls.DURATION, 0);
@@ -33,8 +36,8 @@ public final class CallLogWriter {
                 SnapEventStore.append(context, "فشل الكتابة في السجل — تحقق من صلاحية سجل المكالمات");
                 return false;
             }
-            SnapEventStore.append(context, "✓ أُضيف للسجل: " + cachedName + " (" + reason + ")");
-            Log.i(TAG, "Logged: " + cachedName);
+            SnapEventStore.append(context, "✓ أُضيف للسجل: " + label + " (" + reason + ")");
+            Log.i(TAG, "Logged: " + label);
             return true;
         } catch (SecurityException se) {
             SnapEventStore.append(context, "مرفوض: صلاحية سجل المكالمات غير ممنوحة");

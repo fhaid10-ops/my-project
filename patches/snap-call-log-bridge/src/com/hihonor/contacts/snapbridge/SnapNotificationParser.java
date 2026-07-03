@@ -66,14 +66,45 @@ public final class SnapNotificationParser {
 
         String name = firstNonEmpty(
                 extractPersonName(extras),
+                extractFromPeopleList(extras),
                 extractNameFromText(title),
                 extractNameFromText(text),
-                extractNameFromPhrase(combined),
-                cleanName(combined));
+                extractNameFromPhrase(combined));
+        if (TextUtils.isEmpty(name) || isGenericCallWord(name)) {
+            name = firstMeaningfulExtraString(extras);
+        }
         if (TextUtils.isEmpty(name) || isGenericCallWord(name)) {
             name = "Snapchat";
         }
         return new ParsedCall(name, resolveTypeFromText(lower), "text");
+    }
+
+    private static String extractFromPeopleList(Bundle extras) {
+        if (Build.VERSION.SDK_INT >= 28) {
+            java.util.ArrayList<Person> people = extras.getParcelableArrayList(Notification.EXTRA_PEOPLE_LIST);
+            if (people != null) {
+                for (Person p : people) {
+                    if (p != null && p.getName() != null) {
+                        String n = p.getName().toString().trim();
+                        if (!TextUtils.isEmpty(n) && !isGenericCallWord(n)) return n;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String firstMeaningfulExtraString(Bundle extras) {
+        for (String key : extras.keySet()) {
+            Object v = extras.get(key);
+            if (v instanceof CharSequence) {
+                String s = v.toString().trim();
+                if (s.length() >= 2 && s.length() <= 60 && !isGenericCallWord(s) && !isCallRelated(s.toLowerCase())) {
+                    return s;
+                }
+            }
+        }
+        return null;
     }
 
     public static String dumpExtras(StatusBarNotification sbn) {
