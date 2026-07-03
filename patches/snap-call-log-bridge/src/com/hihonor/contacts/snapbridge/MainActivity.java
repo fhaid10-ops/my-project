@@ -90,6 +90,23 @@ public class MainActivity extends Activity {
         });
         root.addView(btnClean);
 
+        Button btnBackfillMissed = new Button(this);
+        btnBackfillMissed.setText(getString(R.string.btn_backfill_missed));
+        btnBackfillMissed.setOnClickListener(v -> {
+            if (hasCallLogPermissions()) {
+                int n = MissedCallsBackfill.markSinceYesterday(this);
+                if (n > 0) {
+                    SnapEventStore.append(this, "✓ تمت إضافة " + n + " مكالمة فائتة من أمس للفقاعة");
+                } else {
+                    SnapEventStore.append(this, "لا توجد مكالمات فائتة جديدة من أمس");
+                }
+                refreshUi();
+            } else {
+                requestNeededPermissions();
+            }
+        });
+        root.addView(btnBackfillMissed);
+
         TextView logTitle = new TextView(this);
         logTitle.setText(getString(R.string.log_title));
         logTitle.setTextSize(14f);

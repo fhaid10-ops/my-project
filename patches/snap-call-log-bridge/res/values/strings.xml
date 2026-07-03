@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">سناب → سجل المكالمات</string>
-    <string name="title">مكالمات Snapchat في سجل المكالمات</string>
-    <string name="desc">فعّل الإعدادات أدناه مرة واحدة — بعدها اتصل مباشرة من سجل المكالمات.</string>
+    <string name="title">سناب + المكالمات العادية في سجل المكالمات</string>
+    <string name="desc">التطبيق يضيف مكالمات Snapchat فقط، ويتيح إظهار فقاعة الفائت للمكالمات العادية + سناب من أمس.</string>
     <string name="btn_enable">تفعيل الوصول للإشعارات</string>
     <string name="btn_perms">منح صلاحية سجل المكالمات</string>
     <string name="btn_contacts">منح صلاحية جهات الاتصال</string>
     <string name="btn_redirect">فعّل الاتصال من السجل (مرة واحدة)</string>
     <string name="btn_refresh">تحديث السجل</string>
     <string name="btn_clean">إصلاح سجلات Snapchat</string>
+    <string name="btn_backfill_missed">إضافة فائت أمس للفقاعة</string>
     <string name="btn_call">اتصل</string>
     <string name="call_from_title">اتصل من سجل المكالمات مباشرة</string>
     <string name="call_from_steps">① فعّل الأزرار أدناه (مرة واحدة)\n② افتح سجل المكالمات → اضغط مكالمة\n③ يفتح Snapchat تلقائياً</string>
