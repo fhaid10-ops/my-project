@@ -10,6 +10,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 public final class CallerActionButtons {
+    public static final String APP_VERSION = "2.14";
+
     public interface Listener {
         void onCallback();
 
@@ -22,50 +24,49 @@ public final class CallerActionButtons {
 
     private CallerActionButtons() {}
 
-    /** قائمة خيارات واضحة داخل شاشة المتصل */
-    public static View buildMenu(Context context, Listener listener) {
+    /** شريط أزرار ثابت أسفل الشاشة — 4 خيارات واضحة */
+    public static View buildBottomBar(Context context, Listener listener) {
         LinearLayout wrap = new LinearLayout(context);
         wrap.setOrientation(LinearLayout.VERTICAL);
+        wrap.setBackgroundColor(Color.parseColor("#1A2332"));
+        int pad = CallUiHelper.dp(context, 12);
+        wrap.setPadding(pad, pad, pad, pad);
 
         TextView title = new TextView(context);
-        title.setText("اختر إجراء");
-        title.setTextColor(CallUiHelper.TEXT_PRIMARY);
-        title.setTextSize(16f);
-        title.setTypeface(null, Typeface.BOLD);
+        title.setText("اختر إجراء  ·  v" + APP_VERSION);
+        title.setTextColor(CallUiHelper.TEXT_SECONDARY);
+        title.setTextSize(12f);
+        title.setGravity(Gravity.CENTER);
         title.setPadding(0, 0, 0, CallUiHelper.dp(context, 8));
         wrap.addView(title);
 
-        wrap.addView(menuRow(context, "📞  معاودة اتصال", CallUiHelper.ACTION_CALL,
-                listener::onCallback));
-        wrap.addView(menuRow(context, "💬  واتساب", CallUiHelper.ACTION_WA,
-                listener::onWhatsApp));
-        wrap.addView(menuRow(context, "💼  واتساب بزنس", CallUiHelper.ACTION_WA_BUSINESS,
-                listener::onWhatsAppBusiness));
-        wrap.addView(menuRow(context, "🗑  حذف", CallUiHelper.ACTION_DEL,
-                listener::onDelete));
+        LinearLayout row1 = new LinearLayout(context);
+        row1.setOrientation(LinearLayout.HORIZONTAL);
+        row1.addView(gridBtn(context, "معاودة", CallUiHelper.ACTION_CALL, listener::onCallback));
+        row1.addView(gridBtn(context, "واتساب", CallUiHelper.ACTION_WA, listener::onWhatsApp));
 
+        LinearLayout row2 = new LinearLayout(context);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams row2Lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        row2Lp.topMargin = CallUiHelper.dp(context, 8);
+        row2.setLayoutParams(row2Lp);
+        row2.addView(gridBtn(context, "واتساب بزنس", CallUiHelper.ACTION_WA_BUSINESS,
+                listener::onWhatsAppBusiness));
+        row2.addView(gridBtn(context, "حذف", CallUiHelper.ACTION_DEL, listener::onDelete));
+
+        wrap.addView(row1);
+        wrap.addView(row2);
         return wrap;
     }
 
-    private static View menuRow(Context context, String label, int color, Runnable action) {
-        TextView row = new TextView(context);
-        row.setText(label);
-        row.setTextColor(Color.WHITE);
-        row.setTextSize(16f);
-        row.setTypeface(null, Typeface.BOLD);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        int hPad = CallUiHelper.dp(context, 16);
-        int vPad = CallUiHelper.dp(context, 14);
-        row.setPadding(hPad, vPad, hPad, vPad);
-        row.setBackground(CallUiHelper.roundedCard(color, Color.TRANSPARENT, context));
-        row.setOnClickListener(v -> action.run());
-
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.bottomMargin = CallUiHelper.dp(context, 8);
-        row.setLayoutParams(lp);
-        return row;
+    private static TextView gridBtn(Context context, String label, int color, Runnable action) {
+        TextView btn = CallUiHelper.makeActionButton(context, label, color);
+        btn.setLayoutParams(CallUiHelper.actionParams(context));
+        btn.setTextSize(label.length() > 8 ? 12f : 14f);
+        btn.setOnClickListener(v -> action.run());
+        return btn;
     }
 
     public static void performCallback(Activity activity, CallerGroupHelper.CallerGroup group) {

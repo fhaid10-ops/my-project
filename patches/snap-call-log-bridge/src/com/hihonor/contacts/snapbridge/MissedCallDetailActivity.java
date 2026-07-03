@@ -32,22 +32,44 @@ public class MissedCallDetailActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(CallUiHelper.BG_DARK);
-        root.setPadding(pad, pad, pad, pad);
+        root.setPadding(pad, pad, 0, 0);
 
         TextView back = new TextView(this);
         back.setText("← رجوع");
         back.setTextColor(CallUiHelper.PHONE_ACCENT);
         back.setTextSize(15f);
-        back.setPadding(0, 0, 0, pad / 2);
+        back.setPadding(pad, 0, pad, pad / 2);
         back.setOnClickListener(v -> finish());
         root.addView(back);
 
         headerCard = new LinearLayout(this);
         headerCard.setOrientation(LinearLayout.VERTICAL);
         headerCard.setPadding(pad, pad, pad, pad);
+        LinearLayout.LayoutParams headerLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        headerLp.setMarginStart(pad);
+        headerLp.setMarginEnd(pad);
+        headerCard.setLayoutParams(headerLp);
         root.addView(headerCard);
 
-        View actions = CallerActionButtons.buildMenu(this, new CallerActionButtons.Listener() {
+        TextView historyTitle = new TextView(this);
+        historyTitle.setText("سجل المكالمات (فائتة + واردة)");
+        historyTitle.setTextColor(CallUiHelper.TEXT_PRIMARY);
+        historyTitle.setTextSize(15f);
+        historyTitle.setTypeface(null, Typeface.BOLD);
+        historyTitle.setPadding(pad, pad, pad, CallUiHelper.dp(this, 8));
+        root.addView(historyTitle);
+
+        ScrollView scroll = new ScrollView(this);
+        historyContainer = new LinearLayout(this);
+        historyContainer.setOrientation(LinearLayout.VERTICAL);
+        historyContainer.setPadding(pad, 0, pad, pad);
+        scroll.addView(historyContainer);
+        root.addView(scroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        CallerActionButtons.Listener listener = new CallerActionButtons.Listener() {
             @Override
             public void onCallback() {
                 CallerGroupHelper.CallerGroup g = CallerGroupHelper.findByKey(MissedCallDetailActivity.this, callerKey);
@@ -75,29 +97,8 @@ public class MissedCallDetailActivity extends Activity {
                 CallerActionButtons.performDelete(MissedCallDetailActivity.this, g);
                 finish();
             }
-        });
-        LinearLayout.LayoutParams actionsLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        actionsLp.topMargin = pad;
-        actionsLp.bottomMargin = pad;
-        actions.setLayoutParams(actionsLp);
-        root.addView(actions);
-
-        TextView historyTitle = new TextView(this);
-        historyTitle.setText("سجل المكالمات (فائتة + واردة)");
-        historyTitle.setTextColor(CallUiHelper.TEXT_PRIMARY);
-        historyTitle.setTextSize(15f);
-        historyTitle.setTypeface(null, Typeface.BOLD);
-        historyTitle.setPadding(0, 0, 0, CallUiHelper.dp(this, 8));
-        root.addView(historyTitle);
-
-        ScrollView scroll = new ScrollView(this);
-        historyContainer = new LinearLayout(this);
-        historyContainer.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(historyContainer);
-        root.addView(scroll, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        };
+        root.addView(CallerActionButtons.buildBottomBar(this, listener));
 
         setContentView(root);
         render();
@@ -193,11 +194,11 @@ public class MissedCallDetailActivity extends Activity {
     }
 
     private View buildHistoryRow(long date, int type, int durationSec) {
-        int pad = CallUiHelper.dp(this, 12);
+        int rowPad = CallUiHelper.dp(this, 12);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(pad, pad, pad, pad);
+        row.setPadding(rowPad, rowPad, rowPad, rowPad);
         boolean missed = type == CallLog.Calls.MISSED_TYPE;
         row.setBackground(CallUiHelper.roundedCard(
                 Color.parseColor("#151C28"),

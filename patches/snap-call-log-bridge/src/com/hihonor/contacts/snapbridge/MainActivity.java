@@ -42,7 +42,7 @@ public class MainActivity extends Activity {
             String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             title.setText(getString(R.string.title) + "  v" + version);
         } catch (Exception e) {
-            title.setText(getString(R.string.title));
+            title.setText(getString(R.string.title) + "  v" + CallerActionButtons.APP_VERSION);
         }
         title.setTextSize(20f);
         title.setTypeface(null, Typeface.BOLD);
