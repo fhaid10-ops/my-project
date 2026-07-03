@@ -1,1 +1,4 @@
 apk-work/
+patches/*/build/
+patches/*/debug.keystore
+patches/*/*.idsig
