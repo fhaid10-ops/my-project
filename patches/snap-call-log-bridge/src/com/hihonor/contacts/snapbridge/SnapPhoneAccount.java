@@ -30,7 +30,8 @@ public final class SnapPhoneAccount {
                 extras.putBoolean(PhoneAccount.EXTRA_LOG_SELF_MANAGED_CALLS, true);
             }
             PhoneAccount account = PhoneAccount.builder(handle, "Snapchat")
-                    .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
+                    .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED
+                            | PhoneAccount.CAPABILITY_CALL_PROVIDER)
                     .setShortDescription("Snapchat")
                     .setExtras(extras)
                     .build();

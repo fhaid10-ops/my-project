@@ -23,13 +23,14 @@ public final class CallLogWriter {
             return false;
         }
         String address = SnapUserStore.addressFor(displayName, snapUsername);
+        String dialId = SnapUserStore.dialIdForAddress(address);
         SnapUserStore.save(context, address, displayName, snapUsername);
 
         ContentValues values = new ContentValues();
-        values.put(CallLog.Calls.NUMBER, displayName);
+        values.put(CallLog.Calls.NUMBER, dialId);
         values.put(CallLog.Calls.CACHED_NAME, label);
         values.put(CallLog.Calls.CACHED_FORMATTED_NUMBER, displayName);
-        values.put(CallLog.Calls.GEOCODED_LOCATION, "Snapchat — اضغط للاتصال");
+        values.put(CallLog.Calls.GEOCODED_LOCATION, "Snapchat");
         values.put(CallLog.Calls.TYPE, type);
         values.put(CallLog.Calls.DATE, when);
         values.put(CallLog.Calls.DURATION, 0);
@@ -50,7 +51,8 @@ public final class CallLogWriter {
                 return false;
             }
             SnapEventStore.append(context, "✓ أُضيف للسجل: " + label + " (" + reason + ")");
-            Log.i(TAG, "Logged: " + label + " addr=" + address);
+            Log.i(TAG, "Logged: " + label + " dial=" + dialId);
+            SnapContactSync.upsert(context, displayName, dialId);
             return true;
         } catch (SecurityException se) {
             SnapEventStore.append(context, "مرفوض: صلاحية سجل المكالمات غير ممنوحة");

@@ -55,9 +55,12 @@ public final class SnapRecentCalls {
                     address = cursor.getString(3);
                 }
                 String name;
-                if (number != null && number.startsWith("snap:")) {
-                    name = stripSnapchat(cached);
-                    if (address == null || address.isEmpty()) address = number;
+                if (number != null && number.startsWith("snap")) {
+                    name = SnapUserStore.getDisplayName(context, number);
+                    if (name.startsWith("snap")) name = stripSnapchat(cached);
+                    if (address == null || address.isEmpty()) {
+                        address = SnapUserStore.resolveAddress(context, number);
+                    }
                 } else {
                     name = number != null && !number.isEmpty() ? number : stripSnapchat(cached);
                     if (address == null || address.isEmpty()) {

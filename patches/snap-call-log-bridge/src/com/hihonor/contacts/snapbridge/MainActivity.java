@@ -12,7 +12,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.view.Gravity;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -25,7 +24,6 @@ public class MainActivity extends Activity {
     private static final int REQ_PERMS = 1001;
     private TextView statusView;
     private TextView logView;
-    private LinearLayout recentCallsLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,18 +43,7 @@ public class MainActivity extends Activity {
         title.setPadding(0, 0, 0, pad / 2);
         root.addView(title);
 
-        root.addView(buildCallFromBox(pad));
-
-        TextView recentTitle = new TextView(this);
-        recentTitle.setText(getString(R.string.recent_title));
-        recentTitle.setTextSize(16f);
-        recentTitle.setTypeface(null, Typeface.BOLD);
-        recentTitle.setPadding(0, pad / 2, 0, pad / 3);
-        root.addView(recentTitle);
-
-        recentCallsLayout = new LinearLayout(this);
-        recentCallsLayout.setOrientation(LinearLayout.VERTICAL);
-        root.addView(recentCallsLayout);
+        root.addView(buildSetupBox(pad));
 
         TextView setupTitle = new TextView(this);
         setupTitle.setText(getString(R.string.setup_title));
@@ -69,6 +56,11 @@ public class MainActivity extends Activity {
         statusView.setPadding(0, 0, 0, pad / 2);
         root.addView(statusView);
 
+        Button btnRedirect = new Button(this);
+        btnRedirect.setText(getString(R.string.btn_redirect));
+        btnRedirect.setOnClickListener(v -> SnapRoleHelper.requestCallRedirection(this));
+        root.addView(btnRedirect);
+
         Button btnNotif = new Button(this);
         btnNotif.setText(getString(R.string.btn_enable));
         btnNotif.setOnClickListener(v ->
@@ -80,15 +72,17 @@ public class MainActivity extends Activity {
         btnPerms.setOnClickListener(v -> requestNeededPermissions());
         root.addView(btnPerms);
 
+        Button btnContacts = new Button(this);
+        btnContacts.setText(getString(R.string.btn_contacts));
+        btnContacts.setOnClickListener(v -> requestContactsPermission());
+        root.addView(btnContacts);
+
         Button btnClean = new Button(this);
         btnClean.setText(getString(R.string.btn_clean));
         btnClean.setOnClickListener(v -> {
             if (hasCallLogPermissions()) {
-                int n = CallLogCleaner.cleanLegacy(this);
-                int f = CallLogFixer.fixSnapEntries(this);
-                if (n == 0 && f == 0) {
-                    SnapEventStore.append(this, "لا توجد سجلات تحتاج إصلاح");
-                }
+                CallLogCleaner.cleanLegacy(this);
+                CallLogFixer.fixSnapEntries(this);
                 refreshUi();
             } else {
                 requestNeededPermissions();
@@ -109,7 +103,7 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(logView);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, (int) (120 * getResources().getDisplayMetrics().density));
+                LinearLayout.LayoutParams.MATCH_PARENT, (int) (140 * getResources().getDisplayMetrics().density));
         scroll.setLayoutParams(lp);
         root.addView(scroll);
 
@@ -123,13 +117,13 @@ public class MainActivity extends Activity {
         setContentView(outer);
     }
 
-    private LinearLayout buildCallFromBox(int pad) {
+    private LinearLayout buildSetupBox(int pad) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         int inner = pad * 2 / 3;
         box.setPadding(inner, inner, inner, inner);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#FFF9C4"));
+        bg.setColor(Color.parseColor("#E8F5E9"));
         bg.setCornerRadius(pad / 2f);
         box.setBackground(bg);
 
@@ -137,28 +131,15 @@ public class MainActivity extends Activity {
         howTitle.setText(getString(R.string.call_from_title));
         howTitle.setTextSize(17f);
         howTitle.setTypeface(null, Typeface.BOLD);
-        howTitle.setTextColor(Color.parseColor("#333300"));
+        howTitle.setTextColor(Color.parseColor("#1B5E20"));
         box.addView(howTitle);
 
         TextView how = new TextView(this);
         how.setText(getString(R.string.call_from_steps));
         how.setTextSize(14f);
-        how.setTextColor(Color.parseColor("#333300"));
-        how.setPadding(0, pad / 3, 0, pad / 3);
+        how.setTextColor(Color.parseColor("#2E7D32"));
+        how.setPadding(0, pad / 3, 0, 0);
         box.addView(how);
-
-        Button lastCall = new Button(this);
-        lastCall.setText(getString(R.string.btn_call_last));
-        lastCall.setOnClickListener(v -> {
-            String address = LastSnapStore.getAddress(this);
-            if (address != null) {
-                SnapchatLauncher.open(this, address);
-            } else {
-                SnapEventStore.append(this, "لا توجد مكالمة سناب بعد");
-                refreshUi();
-            }
-        });
-        box.addView(lastCall);
         return box;
     }
 
@@ -169,63 +150,21 @@ public class MainActivity extends Activity {
             CallLogCleaner.cleanLegacy(this);
             CallLogFixer.fixSnapEntries(this);
         }
-        SnapQuickCallNotification.refresh(this);
         refreshUi();
     }
 
     private void refreshUi() {
-        boolean notif = isListenerEnabled();
-        boolean perms = hasCallLogPermissions();
         StringBuilder status = new StringBuilder();
-        status.append(notif ? getString(R.string.status_ok) : getString(R.string.status_no));
+        status.append(isListenerEnabled() ? getString(R.string.status_ok) : getString(R.string.status_no));
         status.append('\n');
-        status.append(perms ? getString(R.string.perms_ok) : getString(R.string.perms_no));
+        status.append(hasCallLogPermissions() ? getString(R.string.perms_ok) : getString(R.string.perms_no));
+        status.append('\n');
+        status.append(hasContactsPermission() ? getString(R.string.contacts_ok) : getString(R.string.contacts_no));
+        status.append('\n');
+        status.append(SnapRoleHelper.isCallRedirectionHeld(this)
+                ? getString(R.string.redirect_ok) : getString(R.string.redirect_no));
         statusView.setText(status.toString());
         logView.setText(SnapEventStore.read(this));
-        refreshRecentCalls();
-    }
-
-    private void refreshRecentCalls() {
-        recentCallsLayout.removeAllViews();
-        if (!hasCallLogPermissions()) {
-            TextView hint = new TextView(this);
-            hint.setText(getString(R.string.recent_need_perms));
-            hint.setTextSize(14f);
-            recentCallsLayout.addView(hint);
-            return;
-        }
-        List<SnapRecentCalls.Entry> entries = SnapRecentCalls.load(this, 8);
-        if (!entries.isEmpty() && LastSnapStore.getAddress(this) == null) {
-            LastSnapStore.save(this, entries.get(0).displayName, entries.get(0).address);
-        }
-        if (entries.isEmpty()) {
-            TextView empty = new TextView(this);
-            empty.setText(getString(R.string.recent_empty));
-            empty.setTextSize(14f);
-            recentCallsLayout.addView(empty);
-            return;
-        }
-        int gap = (int) (10 * getResources().getDisplayMetrics().density);
-        for (SnapRecentCalls.Entry entry : entries) {
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(0, gap, 0, gap);
-
-            TextView name = new TextView(this);
-            name.setText(entry.displayName);
-            name.setTextSize(17f);
-            name.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-            row.addView(name);
-
-            Button call = new Button(this);
-            call.setText(getString(R.string.btn_call));
-            call.setTextSize(16f);
-            call.setOnClickListener(v -> SnapchatLauncher.open(this, entry.address));
-            row.addView(call);
-
-            recentCallsLayout.addView(row);
-        }
     }
 
     private void requestNeededPermissions() {
@@ -243,11 +182,30 @@ public class MainActivity extends Activity {
         if (!needed.isEmpty()) {
             requestPermissions(needed.toArray(new String[0]), REQ_PERMS);
         }
+        requestContactsPermission();
+    }
+
+    private void requestContactsPermission() {
+        List<String> needed = new ArrayList<>();
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            needed.add(Manifest.permission.READ_CONTACTS);
+        }
+        if (checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            needed.add(Manifest.permission.WRITE_CONTACTS);
+        }
+        if (!needed.isEmpty()) {
+            requestPermissions(needed.toArray(new String[0]), REQ_PERMS);
+        }
     }
 
     private boolean hasCallLogPermissions() {
         return checkSelfPermission(Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
                 && checkSelfPermission(Manifest.permission.WRITE_CALL_LOG) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasContactsPermission() {
+        return checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+                && checkSelfPermission(Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED;
     }
 
     private boolean isListenerEnabled() {

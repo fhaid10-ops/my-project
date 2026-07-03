@@ -26,8 +26,8 @@ public class SnapCallLogSyncService extends NotificationListenerService {
             boolean ok = CallLogWriter.write(this, call.displayName, call.snapUsername, call.callType,
                     System.currentTimeMillis(), call.reason);
             if (ok) {
-                String address = SnapUserStore.addressFor(call.displayName, call.snapUsername);
-                SnapQuickCallNotification.update(this, call.displayName, address);
+                LastSnapStore.save(this, call.displayName,
+                        SnapUserStore.addressFor(call.displayName, call.snapUsername));
             }
         } catch (Exception e) {
             SnapEventStore.append(this, "خطأ: " + e.getMessage());
