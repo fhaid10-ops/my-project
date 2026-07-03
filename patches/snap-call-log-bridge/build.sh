@@ -27,17 +27,19 @@ javac --release 17 -cp "$PLATFORM:$BUILD/gen" -d "$BUILD/classes" \
 "$BT/aapt" package -f -M "$ROOT/AndroidManifest.xml" -S "$ROOT/res" \
   -I "$PLATFORM" -F "$BUILD/unsigned.apk"
 
-# Add dex
-"$BT/aapt" add "$BUILD/unsigned.apk" "$BUILD/classes.dex"
+# Add dex at APK root (run from build dir so zip entry is "classes.dex")
+( cd "$BUILD" && "$BT/aapt" add unsigned.apk classes.dex )
 
-# Sign
+# Sign with v1+v2+v3 for broad device compatibility
 if [ ! -f "$KEYSTORE" ]; then
   keytool -genkeypair -v -keystore "$KEYSTORE" -alias snapbridge -keyalg RSA \
     -keysize 2048 -validity 10000 -storepass android -keypass android \
     -dname "CN=Snap Call Log Bridge"
 fi
-"$BT/zipalign" -f 4 "$BUILD/unsigned.apk" "$BUILD/aligned.apk"
-"$BT/apksigner" sign --min-sdk-version 26 --ks "$KEYSTORE" --ks-pass pass:android \
+"$BT/zipalign" -f -p 4 "$BUILD/unsigned.apk" "$BUILD/aligned.apk"
+"$BT/apksigner" sign --min-sdk-version 26 \
+  --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+  --ks "$KEYSTORE" --ks-pass pass:android \
   --key-pass pass:android --out "$ROOT/snap_call_log_bridge.apk" "$BUILD/aligned.apk"
 
 echo "Built: $ROOT/snap_call_log_bridge.apk"
