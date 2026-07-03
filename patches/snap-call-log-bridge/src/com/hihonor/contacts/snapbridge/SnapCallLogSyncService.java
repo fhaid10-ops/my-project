@@ -23,8 +23,12 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                 return;
             }
             markActive(sbn.getKey(), call.displayName);
-            CallLogWriter.write(this, call.displayName, call.snapUsername, call.callType,
+            boolean ok = CallLogWriter.write(this, call.displayName, call.snapUsername, call.callType,
                     System.currentTimeMillis(), call.reason);
+            if (ok) {
+                String address = SnapUserStore.addressFor(call.displayName, call.snapUsername);
+                SnapQuickCallNotification.update(this, call.displayName, address);
+            }
         } catch (Exception e) {
             SnapEventStore.append(this, "خطأ: " + e.getMessage());
             Log.w(TAG, "onNotificationPosted failed", e);

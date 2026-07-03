@@ -5,10 +5,14 @@ import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.view.Gravity;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -37,14 +41,28 @@ public class MainActivity extends Activity {
         TextView title = new TextView(this);
         title.setText(getString(R.string.title));
         title.setTextSize(20f);
+        title.setTypeface(null, Typeface.BOLD);
         title.setPadding(0, 0, 0, pad / 2);
         root.addView(title);
 
-        TextView desc = new TextView(this);
-        desc.setText(getString(R.string.desc));
-        desc.setTextSize(16f);
-        desc.setPadding(0, 0, 0, pad);
-        root.addView(desc);
+        root.addView(buildCallFromBox(pad));
+
+        TextView recentTitle = new TextView(this);
+        recentTitle.setText(getString(R.string.recent_title));
+        recentTitle.setTextSize(16f);
+        recentTitle.setTypeface(null, Typeface.BOLD);
+        recentTitle.setPadding(0, pad / 2, 0, pad / 3);
+        root.addView(recentTitle);
+
+        recentCallsLayout = new LinearLayout(this);
+        recentCallsLayout.setOrientation(LinearLayout.VERTICAL);
+        root.addView(recentCallsLayout);
+
+        TextView setupTitle = new TextView(this);
+        setupTitle.setText(getString(R.string.setup_title));
+        setupTitle.setTextSize(14f);
+        setupTitle.setPadding(0, pad, 0, pad / 3);
+        root.addView(setupTitle);
 
         statusView = new TextView(this);
         statusView.setTextSize(15f);
@@ -78,16 +96,6 @@ public class MainActivity extends Activity {
         });
         root.addView(btnClean);
 
-        TextView recentTitle = new TextView(this);
-        recentTitle.setText(getString(R.string.recent_title));
-        recentTitle.setTextSize(14f);
-        recentTitle.setPadding(0, pad, 0, pad / 3);
-        root.addView(recentTitle);
-
-        recentCallsLayout = new LinearLayout(this);
-        recentCallsLayout.setOrientation(LinearLayout.VERTICAL);
-        root.addView(recentCallsLayout);
-
         TextView logTitle = new TextView(this);
         logTitle.setText(getString(R.string.log_title));
         logTitle.setTextSize(14f);
@@ -101,7 +109,7 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(logView);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, (int) (160 * getResources().getDisplayMetrics().density));
+                LinearLayout.LayoutParams.MATCH_PARENT, (int) (120 * getResources().getDisplayMetrics().density));
         scroll.setLayoutParams(lp);
         root.addView(scroll);
 
@@ -110,15 +118,48 @@ public class MainActivity extends Activity {
         btnRefresh.setOnClickListener(v -> refreshUi());
         root.addView(btnRefresh);
 
-        TextView note = new TextView(this);
-        note.setText(getString(R.string.note));
-        note.setTextSize(13f);
-        note.setPadding(0, pad / 2, 0, 0);
-        root.addView(note);
-
         ScrollView outer = new ScrollView(this);
         outer.addView(root);
         setContentView(outer);
+    }
+
+    private LinearLayout buildCallFromBox(int pad) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        int inner = pad * 2 / 3;
+        box.setPadding(inner, inner, inner, inner);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#FFF9C4"));
+        bg.setCornerRadius(pad / 2f);
+        box.setBackground(bg);
+
+        TextView howTitle = new TextView(this);
+        howTitle.setText(getString(R.string.call_from_title));
+        howTitle.setTextSize(17f);
+        howTitle.setTypeface(null, Typeface.BOLD);
+        howTitle.setTextColor(Color.parseColor("#333300"));
+        box.addView(howTitle);
+
+        TextView how = new TextView(this);
+        how.setText(getString(R.string.call_from_steps));
+        how.setTextSize(14f);
+        how.setTextColor(Color.parseColor("#333300"));
+        how.setPadding(0, pad / 3, 0, pad / 3);
+        box.addView(how);
+
+        Button lastCall = new Button(this);
+        lastCall.setText(getString(R.string.btn_call_last));
+        lastCall.setOnClickListener(v -> {
+            String address = LastSnapStore.getAddress(this);
+            if (address != null) {
+                SnapchatLauncher.open(this, address);
+            } else {
+                SnapEventStore.append(this, "لا توجد مكالمة سناب بعد");
+                refreshUi();
+            }
+        });
+        box.addView(lastCall);
+        return box;
     }
 
     @Override
@@ -128,6 +169,7 @@ public class MainActivity extends Activity {
             CallLogCleaner.cleanLegacy(this);
             CallLogFixer.fixSnapEntries(this);
         }
+        SnapQuickCallNotification.refresh(this);
         refreshUi();
     }
 
@@ -148,32 +190,37 @@ public class MainActivity extends Activity {
         if (!hasCallLogPermissions()) {
             TextView hint = new TextView(this);
             hint.setText(getString(R.string.recent_need_perms));
-            hint.setTextSize(13f);
+            hint.setTextSize(14f);
             recentCallsLayout.addView(hint);
             return;
         }
         List<SnapRecentCalls.Entry> entries = SnapRecentCalls.load(this, 8);
+        if (!entries.isEmpty() && LastSnapStore.getAddress(this) == null) {
+            LastSnapStore.save(this, entries.get(0).displayName, entries.get(0).address);
+        }
         if (entries.isEmpty()) {
             TextView empty = new TextView(this);
             empty.setText(getString(R.string.recent_empty));
-            empty.setTextSize(13f);
+            empty.setTextSize(14f);
             recentCallsLayout.addView(empty);
             return;
         }
-        int gap = (int) (8 * getResources().getDisplayMetrics().density);
+        int gap = (int) (10 * getResources().getDisplayMetrics().density);
         for (SnapRecentCalls.Entry entry : entries) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(0, gap, 0, gap);
 
             TextView name = new TextView(this);
             name.setText(entry.displayName);
-            name.setTextSize(15f);
+            name.setTextSize(17f);
             name.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
             row.addView(name);
 
             Button call = new Button(this);
             call.setText(getString(R.string.btn_call));
+            call.setTextSize(16f);
             call.setOnClickListener(v -> SnapchatLauncher.open(this, entry.address));
             row.addView(call);
 

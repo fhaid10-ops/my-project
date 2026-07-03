@@ -8,7 +8,11 @@
     <string name="btn_refresh">تحديث السجل</string>
     <string name="btn_clean">حذف سجلات snap: القديمة</string>
     <string name="btn_call">اتصل</string>
-    <string name="recent_title">اتصل من هنا (أسهل من السجل):</string>
+    <string name="btn_call_last">📞 اتصل بآخر مكالمة سناب</string>
+    <string name="call_from_title">منين اتصل؟</string>
+    <string name="call_from_steps">① من هنا ↓ اضغط «اتصل»\n② أو من الإشعار «اتصل: الاسم»\n③ لا تستخدم زر مكالمة جهات الاتصال — يظهر null على Honor</string>
+    <string name="recent_title">① اتصل من هنا:</string>
+    <string name="setup_title">الإعداد:</string>
     <string name="recent_empty">لا توجد مكالمات Snapchat بعد.</string>
     <string name="recent_need_perms">امنح صلاحية سجل المكالمات لعرض المكالمات هنا.</string>
     <string name="log_title">سجل الأحداث (للتشخيص):</string>
@@ -16,5 +20,4 @@
     <string name="status_no">✗ فعّل الوصول للإشعارات</string>
     <string name="perms_ok">✓ صلاحية سجل المكالمات ممنوحة</string>
     <string name="perms_no">✗ اضغط «منح صلاحية سجل المكالمات»</string>
-    <string name="note">⚠️ لا تضغط على snap:... في السجل — يفتح لوحة الأرقام.\n✓ اضغط «حذف سجلات snap: القديمة» ثم اتصل من قائمة «اتصل من هنا» أعلاه، أو زر الاتصال الأخضر بجانب الاسم في السجل.</string>
 </resources>
