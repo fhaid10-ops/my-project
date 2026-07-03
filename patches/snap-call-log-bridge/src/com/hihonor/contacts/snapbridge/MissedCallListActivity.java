@@ -50,7 +50,7 @@ public class MissedCallListActivity extends Activity {
         titles.addView(title);
 
         TextView sub = new TextView(this);
-        sub.setText("معاودة · واتساب · واتساب بزنس · حذف");
+        sub.setText("اضغط على الاسم لاختيار إجراء");
         sub.setTextColor(CallUiHelper.TEXT_SECONDARY);
         sub.setTextSize(13f);
         sub.setPadding(0, CallUiHelper.dp(this, 2), 0, 0);
@@ -137,13 +137,11 @@ public class MissedCallListActivity extends Activity {
         int pad = CallUiHelper.dp(this, 14);
 
         LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
+        card.setOrientation(LinearLayout.HORIZONTAL);
         card.setPadding(pad, pad, pad, pad);
+        card.setGravity(Gravity.CENTER_VERTICAL);
         card.setBackground(CallUiHelper.roundedCard(CallUiHelper.CARD_BG, accent, this));
-
-        LinearLayout top = new LinearLayout(this);
-        top.setOrientation(LinearLayout.HORIZONTAL);
-        top.setGravity(Gravity.CENTER_VERTICAL);
+        card.setOnClickListener(v -> MissedCallDetailActivity.open(this, group));
 
         TextView avatar = new TextView(this);
         avatar.setText(CallUiHelper.initial(group.displayName));
@@ -156,7 +154,7 @@ public class MissedCallListActivity extends Activity {
         avatarLp.setMarginEnd(CallUiHelper.dp(this, 12));
         avatar.setLayoutParams(avatarLp);
         avatar.setBackground(CallUiHelper.circle(CallUiHelper.colorForName(group.displayName), 48, this));
-        top.addView(avatar);
+        card.addView(avatar);
 
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
@@ -174,7 +172,7 @@ public class MissedCallListActivity extends Activity {
         String missedLabel = group.missedCount() == 1
                 ? "مكالمة فائتة واحدة"
                 : (group.missedCount() + " مكالمات فائتة");
-        subtitle.setText(missedLabel);
+        subtitle.setText(missedLabel + " · اضغط للخيارات");
         subtitle.setTextColor(CallUiHelper.TEXT_SECONDARY);
         subtitle.setTextSize(13f);
         subtitle.setPadding(0, CallUiHelper.dp(this, 2), 0, 0);
@@ -203,53 +201,14 @@ public class MissedCallListActivity extends Activity {
         timeView.setTextSize(12f);
         meta.addView(timeView);
         info.addView(meta);
-        top.addView(info);
+        card.addView(info);
 
-        TextView historyLink = new TextView(this);
-        historyLink.setText("السجل ›");
-        historyLink.setTextColor(CallUiHelper.PHONE_ACCENT);
-        historyLink.setTextSize(14f);
-        historyLink.setTypeface(null, Typeface.BOLD);
-        historyLink.setOnClickListener(v -> MissedCallDetailActivity.open(this, group));
-        top.addView(historyLink);
-
-        card.addView(top);
-
-        View divider = new View(this);
-        divider.setBackgroundColor(Color.parseColor("#2A3544"));
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 1);
-        divLp.topMargin = CallUiHelper.dp(this, 10);
-        divLp.bottomMargin = CallUiHelper.dp(this, 4);
-        divider.setLayoutParams(divLp);
-        card.addView(divider);
-
-        View actions = CallerActionButtons.build(this, new CallerActionButtons.Listener() {
-            @Override
-            public void onCallback() {
-                CallerActionButtons.performCallback(MissedCallListActivity.this, group);
-                render();
-            }
-
-            @Override
-            public void onWhatsApp() {
-                CallerActionButtons.performWhatsApp(MissedCallListActivity.this, group);
-                render();
-            }
-
-            @Override
-            public void onWhatsAppBusiness() {
-                CallerActionButtons.performWhatsAppBusiness(MissedCallListActivity.this, group);
-                render();
-            }
-
-            @Override
-            public void onDelete() {
-                CallerActionButtons.performDelete(MissedCallListActivity.this, group);
-                render();
-            }
-        });
-        card.addView(actions);
+        TextView chevron = new TextView(this);
+        chevron.setText("‹");
+        chevron.setTextColor(CallUiHelper.TEXT_SECONDARY);
+        chevron.setTextSize(28f);
+        chevron.setRotation(180f);
+        card.addView(chevron);
 
         return card;
     }

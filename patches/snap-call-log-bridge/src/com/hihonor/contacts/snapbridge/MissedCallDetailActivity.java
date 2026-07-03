@@ -47,23 +47,7 @@ public class MissedCallDetailActivity extends Activity {
         headerCard.setPadding(pad, pad, pad, pad);
         root.addView(headerCard);
 
-        TextView historyTitle = new TextView(this);
-        historyTitle.setText("سجل المكالمات (فائتة + واردة)");
-        historyTitle.setTextColor(CallUiHelper.TEXT_PRIMARY);
-        historyTitle.setTextSize(16f);
-        historyTitle.setTypeface(null, Typeface.BOLD);
-        historyTitle.setPadding(0, pad, 0, CallUiHelper.dp(this, 8));
-        root.addView(historyTitle);
-
-        ScrollView scroll = new ScrollView(this);
-        historyContainer = new LinearLayout(this);
-        historyContainer.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(historyContainer);
-        root.addView(scroll, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-
-        CallerGroupHelper.CallerGroup group = CallerGroupHelper.findByKey(this, callerKey);
-        View actions = CallerActionButtons.build(this, new CallerActionButtons.Listener() {
+        View actions = CallerActionButtons.buildMenu(this, new CallerActionButtons.Listener() {
             @Override
             public void onCallback() {
                 CallerGroupHelper.CallerGroup g = CallerGroupHelper.findByKey(MissedCallDetailActivity.this, callerKey);
@@ -96,8 +80,24 @@ public class MissedCallDetailActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         actionsLp.topMargin = pad;
+        actionsLp.bottomMargin = pad;
         actions.setLayoutParams(actionsLp);
         root.addView(actions);
+
+        TextView historyTitle = new TextView(this);
+        historyTitle.setText("سجل المكالمات (فائتة + واردة)");
+        historyTitle.setTextColor(CallUiHelper.TEXT_PRIMARY);
+        historyTitle.setTextSize(15f);
+        historyTitle.setTypeface(null, Typeface.BOLD);
+        historyTitle.setPadding(0, 0, 0, CallUiHelper.dp(this, 8));
+        root.addView(historyTitle);
+
+        ScrollView scroll = new ScrollView(this);
+        historyContainer = new LinearLayout(this);
+        historyContainer.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(historyContainer);
+        root.addView(scroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         setContentView(root);
         render();
@@ -127,7 +127,7 @@ public class MissedCallDetailActivity extends Activity {
             }
             if (group.queuedItems.isEmpty()) {
                 TextView empty = new TextView(this);
-                empty.setText("لا يوجد سجل.");
+                empty.setText("لا يوجد سجل إضافي.");
                 empty.setTextColor(CallUiHelper.TEXT_SECONDARY);
                 historyContainer.addView(empty);
             }
