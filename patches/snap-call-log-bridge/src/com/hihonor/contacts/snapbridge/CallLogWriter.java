@@ -1,6 +1,7 @@
 package com.hihonor.contacts.snapbridge;
 
 import android.content.ComponentName;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -62,6 +63,16 @@ public final class CallLogWriter {
             Log.i(TAG, "Logged: " + label + " dial=" + dialId);
             if (enableSnapCallback) {
                 SnapContactSync.upsert(context, displayName, dialId);
+            }
+            if (isMissed) {
+                long rowId = ContentUris.parseId(uri);
+                MissedCallQueueStore.Item item = new MissedCallQueueStore.Item(
+                        String.valueOf(rowId),
+                        displayName,
+                        dialId,
+                        address != null ? address : "",
+                        enableSnapCallback);
+                MissedCallBubbleNotifier.enqueue(context, item);
             }
             return true;
         } catch (SecurityException se) {

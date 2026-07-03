@@ -100,6 +100,7 @@ public class MainActivity extends Activity {
                 } else {
                     SnapEventStore.append(this, "لا توجد مكالمات فائتة جديدة من أمس");
                 }
+                MissedCallBubbleNotifier.refresh(this);
                 refreshUi();
             } else {
                 requestNeededPermissions();
@@ -167,6 +168,7 @@ public class MainActivity extends Activity {
             CallLogCleaner.cleanLegacy(this);
             CallLogFixer.fixSnapEntries(this);
         }
+        MissedCallBubbleNotifier.refresh(this);
         refreshUi();
     }
 

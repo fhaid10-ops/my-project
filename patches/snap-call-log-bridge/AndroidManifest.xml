@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.hihonor.contacts.snapbridge"
-    android:versionCode="15"
-    android:versionName="2.4">
+    android:versionCode="16"
+    android:versionName="2.5">
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
 
@@ -80,6 +80,10 @@
                 <action android:name="android.telecom.CallRedirectionService" />
             </intent-filter>
         </service>
+
+        <receiver
+            android:name="com.hihonor.contacts.snapbridge.MissedCallActionReceiver"
+            android:exported="false" />
 
         <receiver
             android:name="com.hihonor.contacts.snapbridge.BootReceiver"

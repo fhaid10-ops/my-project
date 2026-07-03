@@ -17,7 +17,7 @@ public final class MissedCallsBackfill {
      */
     public static int markSinceYesterday(Context context) {
         long start = startOfYesterdayMillis();
-        int updated = 0;
+        int queued = 0;
         Cursor cursor = null;
         try {
             cursor = context.getContentResolver().query(
@@ -29,7 +29,8 @@ public final class MissedCallsBackfill {
                             CallLog.Calls.TYPE,
                             CallLog.Calls.NEW,
                             CallLog.Calls.IS_READ,
-                            CallLog.Calls.PHONE_ACCOUNT_ID
+                            CallLog.Calls.PHONE_ACCOUNT_ID,
+                            "phone_account_address"
                     },
                     CallLog.Calls.TYPE + "=? AND " + CallLog.Calls.DATE + ">=?",
                     new String[] {
@@ -45,24 +46,43 @@ public final class MissedCallsBackfill {
                 int isNew = cursor.getInt(4);
                 int isRead = cursor.getInt(5);
                 String phoneAccountId = cursor.getString(6);
+                String phoneAccountAddress = cursor.getString(7);
 
                 if (!isTargetEntry(number, cachedName, phoneAccountId)) continue;
-                if (isNew == 1 && isRead == 0) continue;
-
-                ContentValues values = new ContentValues();
-                values.put(CallLog.Calls.NEW, 1);
-                values.put(CallLog.Calls.IS_READ, 0);
-                Uri row = CallLog.Calls.CONTENT_URI.buildUpon()
-                        .appendPath(String.valueOf(id))
-                        .build();
-                int rows = context.getContentResolver().update(row, values, null, null);
-                if (rows > 0) updated++;
+                if (!(isNew == 1 && isRead == 0)) {
+                    ContentValues values = new ContentValues();
+                    values.put(CallLog.Calls.NEW, 1);
+                    values.put(CallLog.Calls.IS_READ, 0);
+                    Uri row = CallLog.Calls.CONTENT_URI.buildUpon()
+                            .appendPath(String.valueOf(id))
+                            .build();
+                    context.getContentResolver().update(row, values, null, null);
+                }
+                boolean isSnap = SnapPhoneAccount.ACCOUNT_ID.equals(phoneAccountId)
+                        || (cachedName != null && cachedName.contains("(Snapchat)"));
+                String displayName = resolveDisplayName(number, cachedName);
+                String snapAddress = "";
+                if (isSnap) {
+                    if (phoneAccountAddress != null && !phoneAccountAddress.isEmpty()) {
+                        snapAddress = phoneAccountAddress;
+                    } else {
+                        snapAddress = SnapUserStore.resolveAddress(context, number);
+                    }
+                }
+                if (MissedCallBubbleNotifier.enqueue(context, new MissedCallQueueStore.Item(
+                        String.valueOf(id),
+                        displayName,
+                        number,
+                        snapAddress,
+                        isSnap))) {
+                    queued++;
+                }
             }
         } catch (Exception ignored) {
         } finally {
             if (cursor != null) cursor.close();
         }
-        return updated;
+        return queued;
     }
 
     private static boolean isTargetEntry(String number, String cachedName, String phoneAccountId) {
@@ -71,6 +91,14 @@ public final class MissedCallsBackfill {
         if (number == null) return false;
         // Regular phone calls (digits, +, *, #, spaces, hyphen)
         return number.matches("[+0-9*#\\- ]{3,}");
+    }
+
+    private static String resolveDisplayName(String number, String cachedName) {
+        if (cachedName != null && !cachedName.isEmpty()) {
+            return cachedName.replace(" (Snapchat)", "").trim();
+        }
+        if (number == null || number.isEmpty()) return "مكالمة فائتة";
+        return number;
     }
 
     private static long startOfYesterdayMillis() {
