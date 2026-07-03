@@ -9,7 +9,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.view.Gravity;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -22,6 +21,7 @@ public class MainActivity extends Activity {
     private static final int REQ_PERMS = 1001;
     private TextView statusView;
     private TextView logView;
+    private LinearLayout recentCallsLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +62,31 @@ public class MainActivity extends Activity {
         btnPerms.setOnClickListener(v -> requestNeededPermissions());
         root.addView(btnPerms);
 
+        Button btnClean = new Button(this);
+        btnClean.setText(getString(R.string.btn_clean));
+        btnClean.setOnClickListener(v -> {
+            if (hasCallLogPermissions()) {
+                int n = CallLogCleaner.cleanLegacy(this);
+                if (n == 0) {
+                    SnapEventStore.append(this, "لا توجد سجلات snap: قديمة");
+                }
+                refreshUi();
+            } else {
+                requestNeededPermissions();
+            }
+        });
+        root.addView(btnClean);
+
+        TextView recentTitle = new TextView(this);
+        recentTitle.setText(getString(R.string.recent_title));
+        recentTitle.setTextSize(14f);
+        recentTitle.setPadding(0, pad, 0, pad / 3);
+        root.addView(recentTitle);
+
+        recentCallsLayout = new LinearLayout(this);
+        recentCallsLayout.setOrientation(LinearLayout.VERTICAL);
+        root.addView(recentCallsLayout);
+
         TextView logTitle = new TextView(this);
         logTitle.setText(getString(R.string.log_title));
         logTitle.setTextSize(14f);
@@ -75,7 +100,7 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(logView);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, (int) (200 * getResources().getDisplayMetrics().density));
+                LinearLayout.LayoutParams.MATCH_PARENT, (int) (160 * getResources().getDisplayMetrics().density));
         scroll.setLayoutParams(lp);
         root.addView(scroll);
 
@@ -98,6 +123,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (hasCallLogPermissions()) {
+            CallLogCleaner.cleanLegacy(this);
+        }
         refreshUi();
     }
 
@@ -110,6 +138,45 @@ public class MainActivity extends Activity {
         status.append(perms ? getString(R.string.perms_ok) : getString(R.string.perms_no));
         statusView.setText(status.toString());
         logView.setText(SnapEventStore.read(this));
+        refreshRecentCalls();
+    }
+
+    private void refreshRecentCalls() {
+        recentCallsLayout.removeAllViews();
+        if (!hasCallLogPermissions()) {
+            TextView hint = new TextView(this);
+            hint.setText(getString(R.string.recent_need_perms));
+            hint.setTextSize(13f);
+            recentCallsLayout.addView(hint);
+            return;
+        }
+        List<SnapRecentCalls.Entry> entries = SnapRecentCalls.load(this, 8);
+        if (entries.isEmpty()) {
+            TextView empty = new TextView(this);
+            empty.setText(getString(R.string.recent_empty));
+            empty.setTextSize(13f);
+            recentCallsLayout.addView(empty);
+            return;
+        }
+        int gap = (int) (8 * getResources().getDisplayMetrics().density);
+        for (SnapRecentCalls.Entry entry : entries) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setPadding(0, gap, 0, gap);
+
+            TextView name = new TextView(this);
+            name.setText(entry.displayName);
+            name.setTextSize(15f);
+            name.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            row.addView(name);
+
+            Button call = new Button(this);
+            call.setText(getString(R.string.btn_call));
+            call.setOnClickListener(v -> SnapchatLauncher.open(this, entry.address));
+            row.addView(call);
+
+            recentCallsLayout.addView(row);
+        }
     }
 
     private void requestNeededPermissions() {
