@@ -1,7 +1,5 @@
 package com.hihonor.contacts.snapbridge;
 
-import android.content.Context;
-import android.content.Intent;
 import android.net.Uri;
 import android.telecom.Connection;
 import android.telecom.ConnectionRequest;
@@ -16,8 +14,12 @@ public class SnapConnectionService extends ConnectionService {
                                                    ConnectionRequest request) {
         String raw = extractAddress(request);
         String address = SnapUserStore.resolveAddress(this, raw);
-        SnapEventStore.append(this, "اتصال من السجل: " + SnapUserStore.getDisplayName(this, address));
-        boolean ok = SnapchatLauncher.open(this, address);
+        if (address == null || address.isEmpty()) {
+            address = LastSnapStore.getAddress(this);
+        }
+        String name = SnapUserStore.getDisplayName(this, address != null ? address : raw);
+        SnapEventStore.append(this, "اتصال من السجل: " + name);
+        boolean ok = SnapchatLauncher.open(this, address != null ? address : raw);
         if (!ok) {
             Toast.makeText(this, "تعذّر فتح Snapchat", Toast.LENGTH_SHORT).show();
         }

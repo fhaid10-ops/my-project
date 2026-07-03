@@ -8,7 +8,7 @@ import java.security.MessageDigest;
 
 public final class SnapUserStore {
     private static final String PREFS = "snap_users";
-    /** Numeric dial id prefix — Honor won't strip digits from 888xxxxxxxx */
+    // Numeric dial id prefix reserved for Snapchat bridge records.
     private static final String DIAL_PREFIX = "888";
 
     private SnapUserStore() {}
@@ -21,7 +21,12 @@ public final class SnapUserStore {
     public static String dialIdForAddress(String address) {
         String hash = address != null && address.startsWith("snap:")
                 ? address.substring(5) : shortHash(address != null ? address : "");
-        long v = Long.parseLong(hash, 16) % 1_000_000_000L;
+        long v;
+        try {
+            v = Long.parseLong(hash, 16) % 1_000_000_000L;
+        } catch (Exception ignored) {
+            v = Math.abs(hash.hashCode()) % 1_000_000_000L;
+        }
         return DIAL_PREFIX + String.format("%09d", v);
     }
 
@@ -31,7 +36,7 @@ public final class SnapUserStore {
 
     public static boolean isSnapDialId(String num) {
         if (num == null) return false;
-        if (num.matches(DIAL_PREFIX + "\\d{9}")) return true;
+        if (num.matches(DIAL_PREFIX + "\\d{0,9}")) return true;
         return num.matches("snap[0-9a-f]{8}");
     }
 
@@ -62,6 +67,10 @@ public final class SnapUserStore {
             if (n != null) return n;
             String addr = addressFromDialId(context, addressOrDialId);
             if (!addr.isEmpty()) addressOrDialId = addr;
+            else {
+                String last = LastSnapStore.getName(context);
+                if (last != null && !last.isEmpty()) return last;
+            }
         }
         String stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getString("display:" + addressOrDialId, null);
@@ -83,6 +92,8 @@ public final class SnapUserStore {
         if (isSnapDialId(raw)) {
             String mapped = addressFromDialId(context, raw);
             if (!mapped.isEmpty()) return mapped;
+            String last = LastSnapStore.getAddress(context);
+            if (last != null && !last.isEmpty()) return last;
         }
         String decoded = Uri.decode(raw);
         if (decoded.startsWith("snap:")) {
