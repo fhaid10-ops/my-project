@@ -11,10 +11,11 @@ public final class SnapchatLauncher {
     private SnapchatLauncher() {}
 
     public static boolean open(Context context, String addressKey) {
-        String snapUser = SnapUserStore.getSnapUser(context, addressKey);
-        String display = SnapUserStore.getDisplayName(context, addressKey);
+        String address = SnapUserStore.resolveAddress(context, addressKey);
+        String snapUser = SnapUserStore.getSnapUser(context, address);
+        String display = SnapUserStore.getDisplayName(context, address);
         if (snapUser == null || snapUser.isEmpty()) {
-            snapUser = display != null ? display : addressKey;
+            snapUser = display != null ? display : address;
         }
         return openSnapchat(context, snapUser, display);
     }

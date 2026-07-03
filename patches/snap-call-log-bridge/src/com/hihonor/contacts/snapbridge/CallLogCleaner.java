@@ -11,7 +11,7 @@ public final class CallLogCleaner {
 
     private CallLogCleaner() {}
 
-    /** Removes legacy entries where NUMBER was stored as snap:hash (v1.0–1.2). */
+    /** Removes legacy hash-only entries like snap:90463b2d (v1.0–1.2). */
     public static int cleanLegacy(Context context) {
         int deleted = 0;
         Cursor cursor = null;
@@ -26,6 +26,7 @@ public final class CallLogCleaner {
             while (cursor.moveToNext()) {
                 long id = cursor.getLong(0);
                 String number = cursor.getString(1);
+                if (!isLegacyHashOnly(number)) continue;
                 if (deleteById(context, id)) {
                     deleted++;
                     Log.i(TAG, "Deleted legacy entry: " + number);
@@ -39,9 +40,16 @@ public final class CallLogCleaner {
             if (cursor != null) cursor.close();
         }
         if (deleted > 0) {
-            SnapEventStore.append(context, "✓ حُذف " + deleted + " سجل قديم (snap:...)");
+            SnapEventStore.append(context, "✓ حُذف " + deleted + " سجل قديم (snap:hash)");
         }
         return deleted;
+    }
+
+    private static boolean isLegacyHashOnly(String number) {
+        if (number == null || !number.startsWith("snap:")) return false;
+        String rest = number.substring(5);
+        if (rest.contains("%")) return false;
+        return rest.matches("[0-9a-f]{6,32}");
     }
 
     private static boolean deleteById(Context context, long id) {

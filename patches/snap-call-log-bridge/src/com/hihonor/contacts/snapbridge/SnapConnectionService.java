@@ -15,10 +15,8 @@ public class SnapConnectionService extends ConnectionService {
     public Connection onCreateOutgoingConnection(PhoneAccountHandle connectionManagerPhoneAccount,
                                                    ConnectionRequest request) {
         String address = extractAddress(request);
-        if (address.isEmpty()) {
-            address = "snap:";
-        }
-        SnapEventStore.append(this, "اتصال من السجل: " + address);
+        address = SnapUserStore.resolveAddress(this, address);
+        SnapEventStore.append(this, "اتصال من السجل: " + SnapUserStore.getDisplayName(this, address));
         boolean ok = SnapchatLauncher.open(this, address);
         if (!ok) {
             Toast.makeText(this, "تعذّر فتح Snapchat", Toast.LENGTH_SHORT).show();
