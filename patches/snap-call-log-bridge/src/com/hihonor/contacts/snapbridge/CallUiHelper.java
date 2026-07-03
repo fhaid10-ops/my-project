@@ -23,6 +23,7 @@ public final class CallUiHelper {
     public static final int MISSED_ACCENT = Color.parseColor("#FF5252");
     public static final int ACTION_CALL = Color.parseColor("#43A047");
     public static final int ACTION_WA = Color.parseColor("#25D366");
+    public static final int ACTION_WA_BUSINESS = Color.parseColor("#128C7E");
     public static final int ACTION_DEL = Color.parseColor("#546E7A");
 
     private CallUiHelper() {}

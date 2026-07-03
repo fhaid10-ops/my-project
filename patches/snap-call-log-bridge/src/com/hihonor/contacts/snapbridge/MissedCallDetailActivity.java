@@ -63,26 +63,44 @@ public class MissedCallDetailActivity extends Activity {
         root.addView(scroll, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        LinearLayout actions = new LinearLayout(this);
-        actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.setPadding(0, pad, 0, 0);
+        LinearLayout actionsWrap = new LinearLayout(this);
+        actionsWrap.setOrientation(LinearLayout.VERTICAL);
+        actionsWrap.setPadding(0, pad, 0, 0);
+
+        LinearLayout actionsRow1 = new LinearLayout(this);
+        actionsRow1.setOrientation(LinearLayout.HORIZONTAL);
 
         TextView call = CallUiHelper.makeActionButton(this, "معاودة", CallUiHelper.ACTION_CALL);
         call.setLayoutParams(CallUiHelper.actionParams(this));
         call.setOnClickListener(v -> doCallback());
-        actions.addView(call);
+        actionsRow1.addView(call);
 
         TextView wa = CallUiHelper.makeActionButton(this, "واتساب", CallUiHelper.ACTION_WA);
         wa.setLayoutParams(CallUiHelper.actionParams(this));
         wa.setOnClickListener(v -> doWhatsApp());
-        actions.addView(wa);
+        actionsRow1.addView(wa);
+
+        LinearLayout actionsRow2 = new LinearLayout(this);
+        actionsRow2.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams row2Lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        row2Lp.topMargin = CallUiHelper.dp(this, 8);
+        actionsRow2.setLayoutParams(row2Lp);
+
+        TextView waBiz = CallUiHelper.makeActionButton(this, "واتساب بزنس", CallUiHelper.ACTION_WA_BUSINESS);
+        waBiz.setLayoutParams(CallUiHelper.actionParams(this));
+        waBiz.setOnClickListener(v -> doWhatsAppBusiness());
+        actionsRow2.addView(waBiz);
 
         TextView del = CallUiHelper.makeActionButton(this, "حذف الكل", CallUiHelper.ACTION_DEL);
         del.setLayoutParams(CallUiHelper.actionParams(this));
         del.setOnClickListener(v -> doDeleteAll());
-        actions.addView(del);
+        actionsRow2.addView(del);
 
-        root.addView(actions);
+        actionsWrap.addView(actionsRow1);
+        actionsWrap.addView(actionsRow2);
+        root.addView(actionsWrap);
         setContentView(root);
         render();
     }
@@ -242,6 +260,17 @@ public class MissedCallDetailActivity extends Activity {
         if (group == null) return;
         MissedCallQueueStore.Item item = group.representative();
         if (item != null && MissedCallActionHandler.openWhatsApp(this, item)) {
+            CallerGroupHelper.removeByKey(this, callerKey);
+            MissedCallOverlayController.refresh(this);
+            finish();
+        }
+    }
+
+    private void doWhatsAppBusiness() {
+        CallerGroupHelper.CallerGroup group = CallerGroupHelper.findByKey(this, callerKey);
+        if (group == null) return;
+        MissedCallQueueStore.Item item = group.representative();
+        if (item != null && MissedCallActionHandler.openWhatsAppBusiness(this, item)) {
             CallerGroupHelper.removeByKey(this, callerKey);
             MissedCallOverlayController.refresh(this);
             finish();
