@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.hihonor.contacts.snapbridge"
-    android:versionCode="18"
-    android:versionName="2.7">
+    android:versionCode="19"
+    android:versionName="2.8">
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
 
@@ -45,6 +45,11 @@
 
         <activity
             android:name="com.hihonor.contacts.snapbridge.MissedCallListActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+
+        <activity
+            android:name="com.hihonor.contacts.snapbridge.MissedCallDetailActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Material.NoActionBar" />
 

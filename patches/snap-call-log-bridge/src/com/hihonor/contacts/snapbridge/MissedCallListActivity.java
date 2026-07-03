@@ -1,6 +1,7 @@
 package com.hihonor.contacts.snapbridge;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -50,7 +51,7 @@ public class MissedCallListActivity extends Activity {
         titles.addView(title);
 
         TextView sub = new TextView(this);
-        sub.setText("اختر: معاودة · واتساب · حذف");
+        sub.setText("اضغط الاسم لعرض السجل الكامل");
         sub.setTextColor(CallUiHelper.TEXT_SECONDARY);
         sub.setTextSize(13f);
         sub.setPadding(0, CallUiHelper.dp(this, 2), 0, 0);
@@ -95,10 +96,11 @@ public class MissedCallListActivity extends Activity {
 
     private void render() {
         listContainer.removeAllViews();
-        List<MissedCallQueueStore.Item> items = MissedCallQueueStore.all(this);
-        updateCountBadge(items.size());
+        List<CallerGroupHelper.CallerGroup> groups = CallerGroupHelper.groupAll(this);
+        int totalMissed = MissedCallQueueStore.size(this);
+        updateCountBadge(groups.isEmpty() ? 0 : groups.size(), totalMissed);
 
-        if (items.isEmpty()) {
+        if (groups.isEmpty()) {
             TextView empty = new TextView(this);
             empty.setText("لا توجد مكالمات فائتة 🎉");
             empty.setTextColor(CallUiHelper.TEXT_SECONDARY);
@@ -111,14 +113,14 @@ public class MissedCallListActivity extends Activity {
         }
 
         int gap = CallUiHelper.dp(this, 10);
-        for (MissedCallQueueStore.Item item : items) {
-            listContainer.addView(buildCard(item), cardLayout(gap));
+        for (CallerGroupHelper.CallerGroup group : groups) {
+            listContainer.addView(buildCard(group), cardLayout(gap));
         }
     }
 
-    private void updateCountBadge(int count) {
+    private void updateCountBadge(int callers, int totalMissed) {
         if (countBadge != null) {
-            countBadge.setText(String.valueOf(count));
+            countBadge.setText(callers + (totalMissed > callers ? " (" + totalMissed + ")" : ""));
         }
     }
 
@@ -130,22 +132,19 @@ public class MissedCallListActivity extends Activity {
         return lp;
     }
 
-    private View buildCard(MissedCallQueueStore.Item item) {
-        int accent = CallUiHelper.accentForItem(item.isSnap);
+    private View buildCard(CallerGroupHelper.CallerGroup group) {
+        int accent = CallUiHelper.accentForItem(group.isSnap);
         int pad = CallUiHelper.dp(this, 14);
 
         LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
+        card.setOrientation(LinearLayout.HORIZONTAL);
         card.setPadding(pad, pad, pad, pad);
+        card.setGravity(Gravity.CENTER_VERTICAL);
         card.setBackground(CallUiHelper.roundedCard(CallUiHelper.CARD_BG, accent, this));
-
-        LinearLayout top = new LinearLayout(this);
-        top.setOrientation(LinearLayout.HORIZONTAL);
-        top.setGravity(Gravity.CENTER_VERTICAL);
+        card.setOnClickListener(v -> MissedCallDetailActivity.open(this, group));
 
         TextView avatar = new TextView(this);
-        String name = item.bestName();
-        avatar.setText(CallUiHelper.initial(name));
+        avatar.setText(CallUiHelper.initial(group.displayName));
         avatar.setTextColor(Color.WHITE);
         avatar.setTextSize(20f);
         avatar.setTypeface(null, Typeface.BOLD);
@@ -154,8 +153,8 @@ public class MissedCallListActivity extends Activity {
         LinearLayout.LayoutParams avatarLp = new LinearLayout.LayoutParams(avatarSize, avatarSize);
         avatarLp.setMarginEnd(CallUiHelper.dp(this, 12));
         avatar.setLayoutParams(avatarLp);
-        avatar.setBackground(CallUiHelper.circle(CallUiHelper.colorForName(name), 48, this));
-        top.addView(avatar);
+        avatar.setBackground(CallUiHelper.circle(CallUiHelper.colorForName(group.displayName), 48, this));
+        card.addView(avatar);
 
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
@@ -163,14 +162,17 @@ public class MissedCallListActivity extends Activity {
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView nameView = new TextView(this);
-        nameView.setText(name);
+        nameView.setText(group.displayName);
         nameView.setTextColor(CallUiHelper.TEXT_PRIMARY);
         nameView.setTextSize(17f);
         nameView.setTypeface(null, Typeface.BOLD);
         info.addView(nameView);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText(item.bestSubtitle());
+        String missedLabel = group.missedCount() == 1
+                ? "مكالمة فائتة واحدة"
+                : (group.missedCount() + " مكالمات فائتة");
+        subtitle.setText(missedLabel + " · اضغط للسجل");
         subtitle.setTextColor(CallUiHelper.TEXT_SECONDARY);
         subtitle.setTextSize(13f);
         subtitle.setPadding(0, CallUiHelper.dp(this, 2), 0, 0);
@@ -181,12 +183,11 @@ public class MissedCallListActivity extends Activity {
         meta.setPadding(0, CallUiHelper.dp(this, 6), 0, 0);
         meta.setGravity(Gravity.CENTER_VERTICAL);
 
-        String source = item.bestSourceLabel();
-        int badgeBg = item.isSnap
+        int badgeBg = group.isSnap
                 ? Color.parseColor("#3D3500")
                 : Color.parseColor("#0D2A3D");
-        int badgeFg = item.isSnap ? CallUiHelper.SNAP_ACCENT : CallUiHelper.PHONE_ACCENT;
-        TextView sourceBadge = CallUiHelper.makeBadge(this, source, badgeBg, badgeFg);
+        int badgeFg = group.isSnap ? CallUiHelper.SNAP_ACCENT : CallUiHelper.PHONE_ACCENT;
+        TextView sourceBadge = CallUiHelper.makeBadge(this, group.sourceLabel, badgeBg, badgeFg);
         LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -195,58 +196,20 @@ public class MissedCallListActivity extends Activity {
         meta.addView(sourceBadge);
 
         TextView timeView = new TextView(this);
-        timeView.setText(CallUiHelper.formatTimeAgo(this, item.timestamp));
+        timeView.setText(CallUiHelper.formatTimeAgo(this, group.latestTimestamp));
         timeView.setTextColor(CallUiHelper.MISSED_ACCENT);
         timeView.setTextSize(12f);
         meta.addView(timeView);
         info.addView(meta);
-        top.addView(info);
-        card.addView(top);
+        card.addView(info);
 
-        View divider = new View(this);
-        divider.setBackgroundColor(Color.parseColor("#2A3544"));
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 1);
-        divLp.topMargin = CallUiHelper.dp(this, 12);
-        divLp.bottomMargin = CallUiHelper.dp(this, 10);
-        divider.setLayoutParams(divLp);
-        card.addView(divider);
+        TextView chevron = new TextView(this);
+        chevron.setText("‹");
+        chevron.setTextColor(CallUiHelper.TEXT_SECONDARY);
+        chevron.setTextSize(28f);
+        chevron.setRotation(180f);
+        card.addView(chevron);
 
-        LinearLayout actions = new LinearLayout(this);
-        actions.setOrientation(LinearLayout.HORIZONTAL);
-
-        TextView call = CallUiHelper.makeActionButton(this, "معاودة", CallUiHelper.ACTION_CALL);
-        call.setLayoutParams(CallUiHelper.actionParams(this));
-        call.setOnClickListener(v -> {
-            if (MissedCallActionHandler.callback(this, item)) {
-                MissedCallQueueStore.remove(this, item.id);
-                MissedCallOverlayController.refresh(this);
-                render();
-            }
-        });
-        actions.addView(call);
-
-        TextView wa = CallUiHelper.makeActionButton(this, "واتساب", CallUiHelper.ACTION_WA);
-        wa.setLayoutParams(CallUiHelper.actionParams(this));
-        wa.setOnClickListener(v -> {
-            if (MissedCallActionHandler.openWhatsApp(this, item)) {
-                MissedCallQueueStore.remove(this, item.id);
-                MissedCallOverlayController.refresh(this);
-                render();
-            }
-        });
-        actions.addView(wa);
-
-        TextView del = CallUiHelper.makeActionButton(this, "حذف", CallUiHelper.ACTION_DEL);
-        del.setLayoutParams(CallUiHelper.actionParams(this));
-        del.setOnClickListener(v -> {
-            MissedCallQueueStore.remove(this, item.id);
-            MissedCallOverlayController.refresh(this);
-            render();
-        });
-        actions.addView(del);
-
-        card.addView(actions);
         return card;
     }
 }
