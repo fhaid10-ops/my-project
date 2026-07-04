@@ -167,6 +167,7 @@ public class MainActivity extends Activity {
         Button btnRefresh = new Button(this);
         btnRefresh.setText(getString(R.string.btn_refresh));
         btnRefresh.setOnClickListener(v -> {
+            SnapListenerHelper.requestScan(this);
             if (BubbleSnoozeStore.isSnoozed(this)) {
                 BubbleSnoozeStore.wakeNow(this);
             } else if (hasCallLogPermissions()) {
@@ -211,6 +212,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        SnapListenerHelper.requestRebind(this);
+        SnapListenerHelper.requestScan(this);
         if (hasCallLogPermissions()) {
             CallLogCleaner.cleanLegacy(this);
             CallLogFixer.fixSnapEntries(this);
@@ -246,6 +249,8 @@ public class MainActivity extends Activity {
         status.append('\n');
         status.append(BubbleSnoozeStore.isNotifyBeforeEndEnabled(this)
                 ? getString(R.string.snooze_notify_ok) : getString(R.string.snooze_notify_no));
+        status.append('\n');
+        status.append(SnapDiagStore.statusLine(this));
         status.append('\n');
         if (BubbleSnoozeStore.isSnoozed(this)) {
             long ends = BubbleSnoozeStore.snoozeEndsAt(this);

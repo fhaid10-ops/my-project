@@ -32,13 +32,15 @@ public class SnapCallLogSyncService extends NotificationListenerService {
         @Override
         public void run() {
             MissedCallAutoWatcher.scanNow(SnapCallLogSyncService.this);
-            pollHandler.postDelayed(this, 20_000L);
+            scanActiveSnapNotifications();
+            pollHandler.postDelayed(this, 10_000L);
         }
     };
 
     @Override
     public void onListenerConnected() {
         super.onListenerConnected();
+        SnapEventStore.append(this, "✓ متصل بإشعارات النظام");
         MissedCallAutoWatcher.ensureStarted(this);
         MissedCallAutoWatcher.startPolling(this);
         pollHandler.removeCallbacks(pollRunnable);
@@ -51,6 +53,7 @@ public class SnapCallLogSyncService extends NotificationListenerService {
     public void onListenerDisconnected() {
         pollHandler.removeCallbacks(pollRunnable);
         MissedCallAutoWatcher.stopPolling();
+        SnapEventStore.append(this, "✗ انقطع الوصول للإشعارات");
         super.onListenerDisconnected();
     }
 
@@ -80,6 +83,8 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                     handleSnapchat(sbn, false);
                 }
             }
+        } catch (SecurityException se) {
+            SnapEventStore.append(this, "لا صلاحية قراءة الإشعارات النشطة");
         } catch (Exception e) {
             SnapEventStore.append(this, "تعذر فحص إشعارات Snapchat النشطة");
         }
@@ -89,19 +94,30 @@ public class SnapCallLogSyncService extends NotificationListenerService {
         return pkg != null && (SNAP_PKG.equals(pkg) || pkg.startsWith("com.snapchat.android"));
     }
 
+    private SnapNotificationParser.ParsedCall resolveCall(StatusBarNotification sbn) {
+        SnapNotificationParser.ParsedCall call = SnapNotificationParser.parseOrFallback(sbn);
+        if (call == null && SnapNotificationParser.isSnapProbableCall(sbn)) {
+            call = SnapNotificationParser.forcedCall(this, sbn);
+        }
+        return call;
+    }
+
     private void handleSnapchat(StatusBarNotification sbn, boolean removed) {
         try {
             String key = sbn.getKey();
+            String dump = SnapNotificationParser.dumpExtras(sbn);
+            SnapNotificationParser.ParsedCall call = resolveCall(sbn);
+
             if (!removed) {
-                SnapEventStore.append(this, "إشعار [Snapchat]: " + SnapNotificationParser.dumpExtras(sbn));
+                SnapEventStore.append(this, "إشعار [Snapchat]: " + dump);
             }
 
-            SnapNotificationParser.ParsedCall call = SnapNotificationParser.parseOrFallback(sbn);
             if (call == null) {
+                SnapDiagStore.record(this, dump, false, removed ? "انتهى بدون تعرّف" : "لم يُعرَف كمكالمة");
                 if (!removed) {
                     SnapEventStore.append(this, "لم يُعرَف كمكالمة من Snapchat");
                 } else {
-                    finalizeRemovedCall(key, null);
+                    finalizeRemovedCall(sbn, key, null);
                 }
                 return;
             }
@@ -113,10 +129,11 @@ public class SnapCallLogSyncService extends NotificationListenerService {
             }
 
             if (removed) {
-                finalizeRemovedCall(key, call);
+                finalizeRemovedCall(sbn, key, call);
                 return;
             }
 
+            SnapDiagStore.record(this, dump, true, "تعرّف: " + displayName);
             markActive(key, displayName, call.snapUsername, call.callType);
             boolean ok = CallLogWriter.write(this, displayName, call.snapUsername, call.callType,
                     System.currentTimeMillis(), call.reason, "Snapchat", true);
@@ -133,10 +150,20 @@ public class SnapCallLogSyncService extends NotificationListenerService {
         }
     }
 
-    private void finalizeRemovedCall(String key, SnapNotificationParser.ParsedCall call) {
+    private void finalizeRemovedCall(StatusBarNotification sbn, String key,
+                                     SnapNotificationParser.ParsedCall call) {
         android.content.SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         String activeName = prefs.getString(key + "_name", null);
+
         if (activeName == null) {
+            SnapNotificationParser.ParsedCall resolved = call != null ? call : resolveCall(sbn);
+            if (resolved != null) {
+                int type = resolved.callType;
+                if (type == CallLog.Calls.INCOMING_TYPE) type = CallLog.Calls.MISSED_TYPE;
+                if (type == CallLog.Calls.MISSED_TYPE) {
+                    writeMissedCall(resolved, type, "removed_only");
+                }
+            }
             SnapEventStore.append(this, "انتهى إشعار Snapchat");
             clearActive(key);
             return;
@@ -165,6 +192,7 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                     System.currentTimeMillis(), "removed", "Snapchat", true);
             if (ok) {
                 SnapEventStore.append(this, "✓ فائت Snapchat عند إغلاق الإشعار: " + displayName);
+                SnapDiagStore.record(this, "", true, "فائت: " + displayName);
                 LastSnapStore.save(this, displayName, SnapUserStore.addressFor(displayName, snapUser));
             } else if (!alreadyLogged) {
                 SnapEventStore.append(this, "تعذر تسجيل فائت Snapchat: " + displayName);
@@ -173,6 +201,22 @@ public class SnapCallLogSyncService extends NotificationListenerService {
             SnapEventStore.append(this, "انتهت مكالمة Snapchat: " + displayName);
         }
         clearActive(key);
+    }
+
+    private void writeMissedCall(SnapNotificationParser.ParsedCall call, int type, String reason) {
+        String displayName = call.displayName;
+        if (SnapNameHelper.isGenericAppName(displayName)
+                && call.snapUsername != null && !call.snapUsername.isEmpty()) {
+            displayName = call.snapUsername;
+        }
+        boolean ok = CallLogWriter.write(this, displayName, call.snapUsername, type,
+                System.currentTimeMillis(), reason, "Snapchat", true);
+        if (ok) {
+            SnapEventStore.append(this, "✓ فائت Snapchat: " + displayName);
+            SnapDiagStore.record(this, "", true, "فائت: " + displayName);
+            LastSnapStore.save(this, displayName,
+                    SnapUserStore.addressFor(displayName, call.snapUsername));
+        }
     }
 
     private void markActive(String key, String name, String snapUser, int type) {
