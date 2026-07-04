@@ -14,25 +14,27 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 public final class CallUiHelper {
-    public static final int BG_DARK = Color.parseColor("#121212");
-    public static final int CARD_BG = Color.parseColor("#121212");
-    public static final int TEXT_PRIMARY = Color.parseColor("#FFFFFF");
-    public static final int TEXT_SECONDARY = Color.parseColor("#9E9E9E");
-    public static final int SNAP_ACCENT = Color.parseColor("#FFCC00");
-    public static final int PHONE_ACCENT = Color.parseColor("#5AC8FA");
-    public static final int MISSED_ACCENT = Color.parseColor("#FF3B30");
-    public static final int BUBBLE_RED = Color.parseColor("#FF3B30");
-    public static final int CHIP_SNAP_BG = Color.parseColor("#3D3500");
-    public static final int CHIP_PHONE_BG = Color.parseColor("#0D2840");
-    public static final int CHIP_SIM_BG = Color.parseColor("#1A3320");
-    public static final int CHIP_SIM_FG = Color.parseColor("#4CD964");
-    public static final int CLOSE_BTN_BG = Color.parseColor("#2C2C2E");
-    public static final int ACTION_CALL = Color.parseColor("#4CD964");
-    public static final int ACTION_WA = Color.parseColor("#25D366");
-    public static final int ACTION_WA_BUSINESS = Color.parseColor("#128C7E");
-    public static final int ACTION_DEL = Color.parseColor("#3A3A3C");
-    public static final int CARD_STROKE_DP = 3;
-    public static final int BUBBLE_STROKE_DP = 4;
+    public static final int BG_DARK = Color.parseColor("#F5F5F7");
+    public static final int CARD_BG = Color.parseColor("#FFFFFF");
+    public static final int TEXT_PRIMARY = Color.parseColor("#000000");
+    public static final int TEXT_SECONDARY = Color.parseColor("#757575");
+    public static final int BORDER_LIGHT = Color.parseColor("#E0E0E0");
+    public static final int BORDER_MEDIUM = Color.parseColor("#BDBDBD");
+    public static final int SNAP_ACCENT = Color.parseColor("#9E9E9E");
+    public static final int PHONE_ACCENT = Color.parseColor("#757575");
+    public static final int MISSED_ACCENT = Color.parseColor("#616161");
+    public static final int BUBBLE_RED = Color.parseColor("#212121");
+    public static final int CHIP_SNAP_BG = Color.parseColor("#F0F0F0");
+    public static final int CHIP_PHONE_BG = Color.parseColor("#F0F0F0");
+    public static final int CHIP_SIM_BG = Color.parseColor("#EEEEEE");
+    public static final int CHIP_SIM_FG = Color.parseColor("#424242");
+    public static final int CLOSE_BTN_BG = Color.parseColor("#FFFFFF");
+    public static final int ACTION_CALL = Color.parseColor("#212121");
+    public static final int ACTION_WA = Color.parseColor("#424242");
+    public static final int ACTION_WA_BUSINESS = Color.parseColor("#616161");
+    public static final int ACTION_DEL = Color.parseColor("#9E9E9E");
+    public static final int CARD_STROKE_DP = 1;
+    public static final int BUBBLE_STROKE_DP = 2;
 
     private CallUiHelper() {}
 
@@ -129,7 +131,7 @@ public final class CallUiHelper {
         btn.setGravity(Gravity.CENTER);
         int vPad = dp(context, 14);
         btn.setPadding(dp(context, 16), vPad, dp(context, 16), vPad);
-        btn.setBackground(roundedCardBold(CLOSE_BTN_BG, Color.parseColor("#48484A"), context));
+        btn.setBackground(roundedCard(CLOSE_BTN_BG, BORDER_MEDIUM, context, 1));
         return btn;
     }
 
@@ -197,7 +199,7 @@ public final class CallUiHelper {
     }
 
     public static int accentForItem(boolean isSnap) {
-        return isSnap ? SNAP_ACCENT : PHONE_ACCENT;
+        return isSnap ? BORDER_MEDIUM : BORDER_LIGHT;
     }
 
     /** يعرض الرقم بصيغة سعودية واضحة بدون مسافات، مع عزل LTR في الواجهة العربية. */

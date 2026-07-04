@@ -36,6 +36,9 @@ public class MainActivity extends Activity {
             getWindow().setStatusBarColor(DashboardUiHelper.BG);
             getWindow().setNavigationBarColor(DashboardUiHelper.BG);
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        }
         SnapPhoneAccount.register(this);
         requestNeededPermissions();
 
@@ -64,19 +67,19 @@ public class MainActivity extends Activity {
 
         LinearLayout statusRow = DashboardUiHelper.statusRow(this);
         boolean serviceOk = isServiceReady();
-        statusRow.addView(DashboardUiHelper.statusTile(this, "●",
+        statusRow.addView(DashboardUiHelper.statusTile(this, "✓",
                 "حالة الخدمة",
                 serviceOk ? "تعمل" : "تحتاج إعداد",
-                serviceOk ? DashboardUiHelper.OK : DashboardUiHelper.WARN));
+                serviceOk ? DashboardUiHelper.OK : DashboardUiHelper.TEXT_SECONDARY));
         statusRow.addView(DashboardUiHelper.spacer(this, 10));
         int missed = MissedCallQueueStore.size(this);
-        statusRow.addView(DashboardUiHelper.statusTile(this, "📵",
+        statusRow.addView(DashboardUiHelper.statusTile(this, "📞",
                 "فائت في الفقاعة",
                 String.valueOf(missed),
-                missed > 0 ? DashboardUiHelper.BAD : DashboardUiHelper.ACCENT));
+                DashboardUiHelper.TEXT_PRIMARY));
         root.addView(statusRow);
 
-        LinearLayout setupCard = DashboardUiHelper.card(this, DashboardUiHelper.OK);
+        LinearLayout setupCard = DashboardUiHelper.card(this, DashboardUiHelper.CARD_STROKE);
         TextView setupTitle = new TextView(this);
         setupTitle.setText(getString(R.string.call_from_title));
         setupTitle.setTextColor(DashboardUiHelper.TEXT_PRIMARY);
@@ -103,15 +106,15 @@ public class MainActivity extends Activity {
 
         root.addView(DashboardUiHelper.sectionTitle(this, "الإجراءات"));
 
-        root.addView(action(getString(R.string.btn_redirect), null, DashboardUiHelper.WARN,
+        root.addView(action(getString(R.string.btn_redirect), null, DashboardUiHelper.CARD_STROKE,
                 v -> SnapRoleHelper.requestCallRedirection(this)));
-        root.addView(action(getString(R.string.btn_enable), "Snapchat + المكالمات", DashboardUiHelper.ACCENT,
+        root.addView(action(getString(R.string.btn_enable), "Snapchat + المكالمات", DashboardUiHelper.CARD_STROKE,
                 v -> startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
-        root.addView(action(getString(R.string.btn_perms), "قراءة وكتابة السجل", DashboardUiHelper.ACCENT,
+        root.addView(action(getString(R.string.btn_perms), "قراءة وكتابة السجل", DashboardUiHelper.CARD_STROKE,
                 v -> requestNeededPermissions()));
-        root.addView(action(getString(R.string.btn_contacts), "لعرض الأسماء", DashboardUiHelper.ACCENT,
+        root.addView(action(getString(R.string.btn_contacts), "لعرض الأسماء", DashboardUiHelper.CARD_STROKE,
                 v -> requestContactsPermission()));
-        root.addView(action(getString(R.string.btn_clean), null, DashboardUiHelper.WARN,
+        root.addView(action(getString(R.string.btn_clean), null, DashboardUiHelper.CARD_STROKE,
                 v -> {
                     if (hasCallLogPermissions()) {
                         CallLogCleaner.cleanLegacy(this);
@@ -136,7 +139,7 @@ public class MainActivity extends Activity {
                         requestNeededPermissions();
                     }
                 }));
-        root.addView(action(getString(R.string.btn_overlay), "فوق التطبيقات", DashboardUiHelper.ACCENT,
+        root.addView(action(getString(R.string.btn_overlay), "فوق التطبيقات", DashboardUiHelper.CARD_STROKE,
                 v -> requestOverlayPermission()));
 
         btnSnoozeNotify = action(getString(R.string.btn_snooze_notify_off), null,
@@ -152,7 +155,7 @@ public class MainActivity extends Activity {
         btnSnoozeNotify.setTag("snooze_notify_btn");
         root.addView(btnSnoozeNotify);
 
-        btnWakeBubble = action(getString(R.string.btn_wake_bubble), null, DashboardUiHelper.OK,
+        btnWakeBubble = action(getString(R.string.btn_wake_bubble), null, DashboardUiHelper.CARD_STROKE,
                 v -> {
                     BubbleSnoozeStore.wakeNow(this);
                     refreshUi();
@@ -175,7 +178,10 @@ public class MainActivity extends Activity {
         root.addView(logCard);
 
         TextView btnRefresh = DashboardUiHelper.actionButton(this,
-                getString(R.string.btn_refresh), "تحديث الفقاعة والأسماء", DashboardUiHelper.OK);
+                getString(R.string.btn_refresh), "تحديث الفقاعة والأسماء", DashboardUiHelper.ACCENT);
+        btnRefresh.setTextColor(android.graphics.Color.WHITE);
+        btnRefresh.setBackground(CallUiHelper.roundedCard(
+                CallUiHelper.ACTION_CALL, CallUiHelper.ACTION_CALL, this, 0));
         btnRefresh.setOnClickListener(v -> {
             SnapListenerHelper.requestScan(this);
             if (hasCallLogPermissions()) {

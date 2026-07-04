@@ -10,15 +10,15 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 public final class DashboardUiHelper {
-    public static final int BG = Color.parseColor("#121212");
-    public static final int CARD = Color.parseColor("#1C1C1E");
-    public static final int CARD_STROKE = Color.parseColor("#2C2C2E");
-    public static final int TEXT_PRIMARY = Color.parseColor("#FFFFFF");
-    public static final int TEXT_SECONDARY = Color.parseColor("#9E9E9E");
-    public static final int OK = Color.parseColor("#4CD964");
-    public static final int WARN = Color.parseColor("#FFCC00");
-    public static final int BAD = Color.parseColor("#FF3B30");
-    public static final int ACCENT = Color.parseColor("#5AC8FA");
+    public static final int BG = Color.parseColor("#F5F5F7");
+    public static final int CARD = Color.parseColor("#FFFFFF");
+    public static final int CARD_STROKE = Color.parseColor("#E0E0E0");
+    public static final int TEXT_PRIMARY = Color.parseColor("#000000");
+    public static final int TEXT_SECONDARY = Color.parseColor("#757575");
+    public static final int OK = Color.parseColor("#2E7D32");
+    public static final int WARN = Color.parseColor("#757575");
+    public static final int BAD = Color.parseColor("#616161");
+    public static final int ACCENT = Color.parseColor("#424242");
 
     private DashboardUiHelper() {}
 
@@ -46,7 +46,7 @@ public final class DashboardUiHelper {
         card.setOrientation(LinearLayout.VERTICAL);
         int pad = dp(context, 14);
         card.setPadding(pad, pad, pad, pad);
-        card.setBackground(CallUiHelper.roundedCard(CARD, strokeColor, context, 2));
+        card.setBackground(CallUiHelper.roundedCard(CARD, strokeColor, context, 1));
         return card;
     }
 
@@ -63,13 +63,14 @@ public final class DashboardUiHelper {
 
     public static View statusTile(Context context, String icon, String title, String value,
                                   int accent) {
-        LinearLayout tile = card(context, accent);
+        LinearLayout tile = card(context, CARD_STROKE);
         tile.setLayoutParams(new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView iconView = new TextView(context);
         iconView.setText(icon);
         iconView.setTextSize(22f);
+        iconView.setTextColor(accent);
         tile.addView(iconView);
 
         TextView titleView = new TextView(context);
@@ -102,8 +103,8 @@ public final class DashboardUiHelper {
         row.setPadding(0, dp(context, 6), 0, dp(context, 6));
 
         TextView dot = new TextView(context);
-        dot.setText(ok ? "✓" : "✗");
-        dot.setTextColor(ok ? OK : BAD);
+        dot.setText(ok ? "✓" : "○");
+        dot.setTextColor(ok ? OK : TEXT_SECONDARY);
         dot.setTextSize(16f);
         dot.setTypeface(null, Typeface.BOLD);
         dot.setPadding(0, 0, dp(context, 10), 0);
@@ -124,7 +125,7 @@ public final class DashboardUiHelper {
         btn.setTextColor(TEXT_PRIMARY);
         btn.setTextSize(15f);
         btn.setTypeface(null, Typeface.BOLD);
-        btn.setBackground(CallUiHelper.roundedCard(CARD, strokeColor, context, 2));
+        btn.setBackground(CallUiHelper.roundedCard(CARD, strokeColor, context, 1));
         int pad = dp(context, 14);
         btn.setPadding(pad, pad, pad, pad);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(

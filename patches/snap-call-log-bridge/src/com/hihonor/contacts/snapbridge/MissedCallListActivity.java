@@ -64,8 +64,8 @@ public class MissedCallListActivity extends Activity {
         countBadge.setGravity(Gravity.CENTER);
         int badgePad = CallUiHelper.dp(this, 10);
         countBadge.setPadding(badgePad, badgePad / 2, badgePad, badgePad / 2);
-        GradientDrawable badgeBg = CallUiHelper.roundedCardBold(
-                CallUiHelper.MISSED_ACCENT, Color.WHITE, this);
+        GradientDrawable badgeBg = CallUiHelper.roundedCard(
+                CallUiHelper.BUBBLE_RED, CallUiHelper.BORDER_LIGHT, this, 1);
         countBadge.setBackground(badgeBg);
         header.addView(countBadge);
         root.addView(header);
@@ -138,7 +138,7 @@ public class MissedCallListActivity extends Activity {
         card.setOrientation(LinearLayout.HORIZONTAL);
         card.setPadding(pad, pad, pad, pad);
         card.setGravity(Gravity.CENTER_VERTICAL);
-        card.setBackground(CallUiHelper.roundedCardBold(CallUiHelper.CARD_BG, accent, this));
+        card.setBackground(CallUiHelper.roundedCard(CallUiHelper.CARD_BG, accent, this, 1));
         card.setOnClickListener(v -> {
             CallerGroupCache.setPendingDetail(group);
             MissedCallDetailActivity.open(MissedCallListActivity.this, group);
@@ -171,11 +171,11 @@ public class MissedCallListActivity extends Activity {
         meta.setPadding(0, CallUiHelper.dp(this, 6), 0, 0);
         meta.setGravity(Gravity.CENTER_VERTICAL);
 
-        int badgeBg = group.isSnap ? CallUiHelper.CHIP_SNAP_BG : CallUiHelper.CHIP_PHONE_BG;
-        int badgeFg = group.isSnap ? CallUiHelper.SNAP_ACCENT : CallUiHelper.PHONE_ACCENT;
-        int badgeStroke = group.isSnap ? CallUiHelper.SNAP_ACCENT : CallUiHelper.PHONE_ACCENT;
+        int badgeBg = CallUiHelper.CHIP_SNAP_BG;
+        int badgeFg = CallUiHelper.TEXT_PRIMARY;
+        int badgeStroke = CallUiHelper.BORDER_LIGHT;
         TextView sourceBadge = CallUiHelper.makeBadge(
-                this, group.sourceLabel, badgeBg, badgeFg, badgeStroke, 2);
+                this, group.sourceLabel, badgeBg, badgeFg, badgeStroke, 1);
         LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -186,7 +186,7 @@ public class MissedCallListActivity extends Activity {
         if (group.simLabel != null && !group.simLabel.isEmpty()) {
             TextView simBadge = CallUiHelper.makeBadge(
                     this, group.simLabel, CallUiHelper.CHIP_SIM_BG, CallUiHelper.CHIP_SIM_FG,
-                    CallUiHelper.CHIP_SIM_FG, 2);
+                    CallUiHelper.BORDER_LIGHT, 1);
             LinearLayout.LayoutParams simLp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -197,9 +197,9 @@ public class MissedCallListActivity extends Activity {
 
         TextView timeView = new TextView(this);
         timeView.setText(CallUiHelper.formatTimeAgo(this, group.latestTimestamp));
-        timeView.setTextColor(CallUiHelper.MISSED_ACCENT);
+        timeView.setTextColor(CallUiHelper.TEXT_SECONDARY);
         timeView.setTextSize(12f);
-        timeView.setTypeface(null, Typeface.BOLD);
+        timeView.setTypeface(null, Typeface.NORMAL);
         meta.addView(timeView);
         info.addView(meta);
         card.addView(info);

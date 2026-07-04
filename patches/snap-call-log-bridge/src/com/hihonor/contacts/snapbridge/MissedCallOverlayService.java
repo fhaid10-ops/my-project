@@ -158,8 +158,8 @@ public class MissedCallOverlayService extends Service {
     private GradientDrawable createHintBackground() {
         GradientDrawable d = new GradientDrawable();
         d.setCornerRadius(dp(12));
-        d.setColor(Color.parseColor("#E6121212"));
-        d.setStroke(dp(2), Color.parseColor("#88FFFFFF"));
+        d.setColor(Color.parseColor("#CC212121"));
+        d.setStroke(dp(1), Color.parseColor("#E0E0E0"));
         return d;
     }
 

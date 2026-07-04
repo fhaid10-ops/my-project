@@ -1,7 +1,6 @@
 package com.hihonor.contacts.snapbridge;
 
 import android.app.Activity;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.provider.CallLog;
@@ -38,7 +37,7 @@ public class MissedCallDetailActivity extends Activity {
 
         TextView back = new TextView(this);
         back.setText("← رجوع");
-        back.setTextColor(CallUiHelper.PHONE_ACCENT);
+        back.setTextColor(CallUiHelper.TEXT_PRIMARY);
         back.setTextSize(15f);
         back.setPadding(pad, 0, pad, pad / 2);
         back.setOnClickListener(v -> finish());
@@ -170,7 +169,7 @@ public class MissedCallDetailActivity extends Activity {
     private void buildHeader(CallerGroupHelper.CallerGroup group) {
         headerCard.removeAllViews();
         int accent = CallUiHelper.accentForItem(group.isSnap);
-        headerCard.setBackground(CallUiHelper.roundedCardBold(CallUiHelper.CARD_BG, accent, this));
+        headerCard.setBackground(CallUiHelper.roundedCard(CallUiHelper.CARD_BG, accent, this, 1));
 
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.VERTICAL);
@@ -210,18 +209,18 @@ public class MissedCallDetailActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(rowPad, rowPad, rowPad, rowPad);
         boolean missed = type == CallLog.Calls.MISSED_TYPE;
-        row.setBackground(CallUiHelper.roundedCardBold(
+        row.setBackground(CallUiHelper.roundedCard(
                 CallUiHelper.CARD_BG,
-                missed ? CallUiHelper.MISSED_ACCENT : CallUiHelper.ACTION_CALL,
-                this));
+                CallUiHelper.BORDER_LIGHT,
+                this, 1));
 
         TextView typeBadge = CallUiHelper.makeBadge(
                 this,
                 missed ? "فائتة" : "واردة",
-                missed ? Color.parseColor("#3D1515") : Color.parseColor("#0D2E14"),
-                missed ? CallUiHelper.MISSED_ACCENT : CallUiHelper.ACTION_CALL,
-                missed ? CallUiHelper.MISSED_ACCENT : CallUiHelper.ACTION_CALL,
-                2);
+                CallUiHelper.CHIP_SIM_BG,
+                CallUiHelper.TEXT_PRIMARY,
+                CallUiHelper.BORDER_LIGHT,
+                1);
         LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -256,7 +255,7 @@ public class MissedCallDetailActivity extends Activity {
         if (simLabel != null && !simLabel.isEmpty()) {
             TextView sim = CallUiHelper.makeBadge(
                     this, simLabel, CallUiHelper.CHIP_SIM_BG, CallUiHelper.CHIP_SIM_FG,
-                    CallUiHelper.CHIP_SIM_FG, 2);
+                    CallUiHelper.BORDER_LIGHT, 1);
             row.addView(sim);
         }
         return row;
