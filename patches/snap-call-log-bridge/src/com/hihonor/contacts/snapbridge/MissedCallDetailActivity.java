@@ -173,33 +173,14 @@ public class MissedCallDetailActivity extends Activity {
         headerCard.setBackground(CallUiHelper.roundedCardBold(CallUiHelper.CARD_BG, accent, this));
 
         LinearLayout top = new LinearLayout(this);
-        top.setOrientation(LinearLayout.HORIZONTAL);
-        top.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView avatar = new TextView(this);
-        avatar.setText(CallUiHelper.initial(group.displayName));
-        avatar.setTextColor(Color.WHITE);
-        avatar.setTextSize(24f);
-        avatar.setTypeface(null, Typeface.BOLD);
-        avatar.setGravity(Gravity.CENTER);
-        int avatarSize = CallUiHelper.dp(this, 56);
-        LinearLayout.LayoutParams avatarLp = new LinearLayout.LayoutParams(avatarSize, avatarSize);
-        avatarLp.setMarginEnd(CallUiHelper.dp(this, 14));
-        avatar.setLayoutParams(avatarLp);
-        avatar.setBackground(CallUiHelper.circle(CallUiHelper.colorForName(group.displayName), 56, this));
-        top.addView(avatar);
-
-        LinearLayout info = new LinearLayout(this);
-        info.setOrientation(LinearLayout.VERTICAL);
-        info.setLayoutParams(new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        top.setOrientation(LinearLayout.VERTICAL);
 
         TextView name = new TextView(this);
         CallUiHelper.bindCallerLabel(name, group.displayName);
         name.setTextColor(CallUiHelper.TEXT_PRIMARY);
         name.setTextSize(20f);
         name.setTypeface(null, Typeface.BOLD);
-        info.addView(name);
+        top.addView(name);
 
         TextView sub = new TextView(this);
         String subText = group.missedCount() + " فائتة · " + group.sourceLabel;
@@ -210,8 +191,7 @@ public class MissedCallDetailActivity extends Activity {
         sub.setTextColor(CallUiHelper.TEXT_SECONDARY);
         sub.setTextSize(13f);
         sub.setPadding(0, CallUiHelper.dp(this, 4), 0, 0);
-        info.addView(sub);
-        top.addView(info);
+        top.addView(sub);
         headerCard.addView(top);
     }
 

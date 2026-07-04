@@ -5,19 +5,16 @@ import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.net.Uri;
-import android.widget.Button;
+import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.view.View;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -27,145 +24,158 @@ import java.util.Locale;
 
 public class MainActivity extends Activity {
     private static final int REQ_PERMS = 1001;
-    private TextView statusView;
+    private LinearLayout statusCard;
     private TextView logView;
-    private Button btnSnoozeNotify;
-    private Button btnWakeBubble;
+    private TextView btnSnoozeNotify;
+    private TextView btnWakeBubble;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(DashboardUiHelper.BG);
+            getWindow().setNavigationBarColor(DashboardUiHelper.BG);
+        }
         SnapPhoneAccount.register(this);
         requestNeededPermissions();
 
-        int pad = (int) (24 * getResources().getDisplayMetrics().density);
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(pad, pad, pad, pad);
+        LinearLayout root = DashboardUiHelper.verticalRoot(this);
 
-        TextView title = new TextView(this);
+        TextView header = new TextView(this);
+        String version;
         try {
-            String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-            title.setText(getString(R.string.title) + "  v" + version);
+            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception e) {
-            title.setText(getString(R.string.title) + "  v" + CallerActionButtons.APP_VERSION);
+            version = CallerActionButtons.APP_VERSION;
         }
-        title.setTextSize(20f);
-        title.setTypeface(null, Typeface.BOLD);
-        title.setPadding(0, 0, 0, pad / 2);
-        root.addView(title);
+        header.setText("لوحة التحكم  ·  v" + version);
+        header.setTextColor(DashboardUiHelper.TEXT_PRIMARY);
+        header.setTextSize(22f);
+        header.setTypeface(null, Typeface.BOLD);
+        header.setPadding(0, 0, 0, DashboardUiHelper.dp(this, 4));
+        root.addView(header);
 
-        root.addView(buildSetupBox(pad));
+        TextView subtitle = new TextView(this);
+        subtitle.setText("فقاعة المكالمات الفائتة — هوية المتصل وسجل ملوّن");
+        subtitle.setTextColor(DashboardUiHelper.TEXT_SECONDARY);
+        subtitle.setTextSize(13f);
+        subtitle.setPadding(0, 0, 0, DashboardUiHelper.dp(this, 14));
+        root.addView(subtitle);
 
+        LinearLayout statusRow = DashboardUiHelper.statusRow(this);
+        boolean serviceOk = isServiceReady();
+        statusRow.addView(DashboardUiHelper.statusTile(this, "●",
+                "حالة الخدمة",
+                serviceOk ? "تعمل" : "تحتاج إعداد",
+                serviceOk ? DashboardUiHelper.OK : DashboardUiHelper.WARN));
+        statusRow.addView(DashboardUiHelper.spacer(this, 10));
+        int missed = MissedCallQueueStore.size(this);
+        statusRow.addView(DashboardUiHelper.statusTile(this, "📵",
+                "فائت في الفقاعة",
+                String.valueOf(missed),
+                missed > 0 ? DashboardUiHelper.BAD : DashboardUiHelper.ACCENT));
+        root.addView(statusRow);
+
+        LinearLayout setupCard = DashboardUiHelper.card(this, DashboardUiHelper.OK);
         TextView setupTitle = new TextView(this);
-        setupTitle.setText(getString(R.string.setup_title));
-        setupTitle.setTextSize(14f);
-        setupTitle.setPadding(0, pad, 0, pad / 3);
-        root.addView(setupTitle);
+        setupTitle.setText(getString(R.string.call_from_title));
+        setupTitle.setTextColor(DashboardUiHelper.TEXT_PRIMARY);
+        setupTitle.setTextSize(16f);
+        setupTitle.setTypeface(null, Typeface.BOLD);
+        setupCard.addView(setupTitle);
+        TextView setupSteps = new TextView(this);
+        setupSteps.setText(getString(R.string.call_from_steps));
+        setupSteps.setTextColor(DashboardUiHelper.TEXT_SECONDARY);
+        setupSteps.setTextSize(13f);
+        setupSteps.setPadding(0, DashboardUiHelper.dp(this, 8), 0, 0);
+        setupCard.addView(setupSteps);
+        LinearLayout.LayoutParams setupLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        setupLp.bottomMargin = DashboardUiHelper.dp(this, 4);
+        setupCard.setLayoutParams(setupLp);
+        root.addView(setupCard);
 
-        statusView = new TextView(this);
-        statusView.setTextSize(15f);
-        statusView.setPadding(0, 0, 0, pad / 2);
-        root.addView(statusView);
+        root.addView(DashboardUiHelper.sectionTitle(this, getString(R.string.setup_title)));
 
-        Button btnRedirect = new Button(this);
-        btnRedirect.setText(getString(R.string.btn_redirect));
-        btnRedirect.setOnClickListener(v -> SnapRoleHelper.requestCallRedirection(this));
-        root.addView(btnRedirect);
+        statusCard = DashboardUiHelper.card(this, DashboardUiHelper.CARD_STROKE);
+        root.addView(statusCard);
 
-        Button btnNotif = new Button(this);
-        btnNotif.setText(getString(R.string.btn_enable));
-        btnNotif.setOnClickListener(v ->
-                startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)));
-        root.addView(btnNotif);
+        root.addView(DashboardUiHelper.sectionTitle(this, "الإجراءات"));
 
-        Button btnPerms = new Button(this);
-        btnPerms.setText(getString(R.string.btn_perms));
-        btnPerms.setOnClickListener(v -> requestNeededPermissions());
-        root.addView(btnPerms);
+        root.addView(action(getString(R.string.btn_redirect), null, DashboardUiHelper.WARN,
+                v -> SnapRoleHelper.requestCallRedirection(this)));
+        root.addView(action(getString(R.string.btn_enable), "Snapchat + المكالمات", DashboardUiHelper.ACCENT,
+                v -> startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
+        root.addView(action(getString(R.string.btn_perms), "قراءة وكتابة السجل", DashboardUiHelper.ACCENT,
+                v -> requestNeededPermissions()));
+        root.addView(action(getString(R.string.btn_contacts), "لعرض الأسماء", DashboardUiHelper.ACCENT,
+                v -> requestContactsPermission()));
+        root.addView(action(getString(R.string.btn_clean), null, DashboardUiHelper.WARN,
+                v -> {
+                    if (hasCallLogPermissions()) {
+                        CallLogCleaner.cleanLegacy(this);
+                        CallLogFixer.fixSnapEntries(this);
+                        refreshUi();
+                    } else {
+                        requestNeededPermissions();
+                    }
+                }));
+        root.addView(action(getString(R.string.btn_backfill_missed), "اختياري", DashboardUiHelper.CARD_STROKE,
+                v -> {
+                    if (hasCallLogPermissions()) {
+                        int n = MissedCallsBackfill.markSinceYesterday(this);
+                        if (n > 0) {
+                            SnapEventStore.append(this, "✓ تمت إضافة " + n + " مكالمة فائتة من أمس للفقاعة");
+                        } else {
+                            SnapEventStore.append(this, "لا توجد مكالمات فائتة جديدة من أمس");
+                        }
+                        MissedCallOverlayController.refresh(this);
+                        refreshUi();
+                    } else {
+                        requestNeededPermissions();
+                    }
+                }));
+        root.addView(action(getString(R.string.btn_overlay), "فوق التطبيقات", DashboardUiHelper.ACCENT,
+                v -> requestOverlayPermission()));
 
-        Button btnContacts = new Button(this);
-        btnContacts.setText(getString(R.string.btn_contacts));
-        btnContacts.setOnClickListener(v -> requestContactsPermission());
-        root.addView(btnContacts);
-
-        Button btnClean = new Button(this);
-        btnClean.setText(getString(R.string.btn_clean));
-        btnClean.setOnClickListener(v -> {
-            if (hasCallLogPermissions()) {
-                CallLogCleaner.cleanLegacy(this);
-                CallLogFixer.fixSnapEntries(this);
-                refreshUi();
-            } else {
-                requestNeededPermissions();
-            }
-        });
-        root.addView(btnClean);
-
-        Button btnBackfillMissed = new Button(this);
-        btnBackfillMissed.setText(getString(R.string.btn_backfill_missed));
-        btnBackfillMissed.setOnClickListener(v -> {
-            if (hasCallLogPermissions()) {
-                int n = MissedCallsBackfill.markSinceYesterday(this);
-                if (n > 0) {
-                    SnapEventStore.append(this, "✓ تمت إضافة " + n + " مكالمة فائتة من أمس للفقاعة");
-                } else {
-                    SnapEventStore.append(this, "لا توجد مكالمات فائتة جديدة من أمس");
-                }
-                MissedCallOverlayController.refresh(this);
-                refreshUi();
-            } else {
-                requestNeededPermissions();
-            }
-        });
-        root.addView(btnBackfillMissed);
-
-        Button btnOverlay = new Button(this);
-        btnOverlay.setText(getString(R.string.btn_overlay));
-        btnOverlay.setOnClickListener(v -> requestOverlayPermission());
-        root.addView(btnOverlay);
-
-        btnSnoozeNotify = new Button(this);
-        btnSnoozeNotify.setOnClickListener(v -> {
-            boolean next = !BubbleSnoozeStore.isNotifyBeforeEndEnabled(this);
-            BubbleSnoozeStore.setNotifyBeforeEndEnabled(this, next);
-            long ends = BubbleSnoozeStore.snoozeEndsAt(this);
-            if (next && ends > System.currentTimeMillis()) {
-                BubbleSnoozeStore.scheduleWake(this, ends);
-            }
-            refreshUi();
-        });
-        root.addView(btnSnoozeNotify);
+        btnSnoozeNotify = action(getString(R.string.btn_snooze_notify_off), null,
+                DashboardUiHelper.CARD_STROKE, v -> {
+                    boolean next = !BubbleSnoozeStore.isNotifyBeforeEndEnabled(this);
+                    BubbleSnoozeStore.setNotifyBeforeEndEnabled(this, next);
+                    long ends = BubbleSnoozeStore.snoozeEndsAt(this);
+                    if (next && ends > System.currentTimeMillis()) {
+                        BubbleSnoozeStore.scheduleWake(this, ends);
+                    }
+                    refreshUi();
+                });
         btnSnoozeNotify.setTag("snooze_notify_btn");
+        root.addView(btnSnoozeNotify);
 
-        btnWakeBubble = new Button(this);
-        btnWakeBubble.setText(getString(R.string.btn_wake_bubble));
-        btnWakeBubble.setOnClickListener(v -> {
-            BubbleSnoozeStore.wakeNow(this);
-            refreshUi();
-        });
+        btnWakeBubble = action(getString(R.string.btn_wake_bubble), null, DashboardUiHelper.OK,
+                v -> {
+                    BubbleSnoozeStore.wakeNow(this);
+                    refreshUi();
+                });
         btnWakeBubble.setTag("wake_bubble_btn");
         root.addView(btnWakeBubble);
 
-        TextView logTitle = new TextView(this);
-        logTitle.setText(getString(R.string.log_title));
-        logTitle.setTextSize(14f);
-        logTitle.setPadding(0, pad, 0, pad / 3);
-        root.addView(logTitle);
+        root.addView(DashboardUiHelper.sectionTitle(this, getString(R.string.log_title)));
 
+        LinearLayout logCard = DashboardUiHelper.card(this, DashboardUiHelper.CARD_STROKE);
         logView = new TextView(this);
         logView.setTextSize(12f);
+        logView.setTextColor(DashboardUiHelper.TEXT_SECONDARY);
         logView.setTextIsSelectable(true);
+        logCard.addView(logView);
+        LinearLayout.LayoutParams logLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                DashboardUiHelper.dp(this, 140));
+        logCard.setLayoutParams(logLp);
+        root.addView(logCard);
 
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(logView);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, (int) (140 * getResources().getDisplayMetrics().density));
-        scroll.setLayoutParams(lp);
-        root.addView(scroll);
-
-        Button btnRefresh = new Button(this);
-        btnRefresh.setText(getString(R.string.btn_refresh));
+        TextView btnRefresh = DashboardUiHelper.actionButton(this,
+                getString(R.string.btn_refresh), "تحديث الفقاعة والأسماء", DashboardUiHelper.OK);
         btnRefresh.setOnClickListener(v -> {
             SnapListenerHelper.requestScan(this);
             if (hasCallLogPermissions()) {
@@ -185,34 +195,16 @@ public class MainActivity extends Activity {
         root.addView(btnRefresh);
 
         ScrollView outer = new ScrollView(this);
+        outer.setBackgroundColor(DashboardUiHelper.BG);
         outer.addView(root);
         setContentView(outer);
     }
 
-    private LinearLayout buildSetupBox(int pad) {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        int inner = pad * 2 / 3;
-        box.setPadding(inner, inner, inner, inner);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#E8F5E9"));
-        bg.setCornerRadius(pad / 2f);
-        box.setBackground(bg);
-
-        TextView howTitle = new TextView(this);
-        howTitle.setText(getString(R.string.call_from_title));
-        howTitle.setTextSize(17f);
-        howTitle.setTypeface(null, Typeface.BOLD);
-        howTitle.setTextColor(Color.parseColor("#1B5E20"));
-        box.addView(howTitle);
-
-        TextView how = new TextView(this);
-        how.setText(getString(R.string.call_from_steps));
-        how.setTextSize(14f);
-        how.setTextColor(Color.parseColor("#2E7D32"));
-        how.setPadding(0, pad / 3, 0, 0);
-        box.addView(how);
-        return box;
+    private TextView action(String title, String subtitle, int stroke,
+                            View.OnClickListener listener) {
+        TextView btn = DashboardUiHelper.actionButton(this, title, subtitle, stroke);
+        btn.setOnClickListener(listener);
+        return btn;
     }
 
     @Override
@@ -240,40 +232,40 @@ public class MainActivity extends Activity {
     }
 
     private void refreshUi() {
-        StringBuilder status = new StringBuilder();
-        status.append(isListenerEnabled() ? getString(R.string.status_ok) : getString(R.string.status_no));
-        status.append('\n');
-        status.append(hasCallLogPermissions() ? getString(R.string.perms_ok) : getString(R.string.perms_no));
-        status.append('\n');
-        status.append(hasContactsPermission() ? getString(R.string.contacts_ok) : getString(R.string.contacts_no));
-        status.append('\n');
-        status.append(SnapRoleHelper.isCallRedirectionHeld(this)
-                ? getString(R.string.redirect_ok) : getString(R.string.redirect_no));
-        status.append('\n');
-        status.append(hasOverlayPermission()
-                ? getString(R.string.overlay_ok) : getString(R.string.overlay_no));
-        status.append('\n');
-        status.append(BubbleSnoozeStore.isNotifyBeforeEndEnabled(this)
-                ? getString(R.string.snooze_notify_ok) : getString(R.string.snooze_notify_no));
-        status.append('\n');
-        status.append(SnapDiagStore.statusLine(this));
-        status.append('\n');
+        statusCard.removeAllViews();
+        statusCard.addView(DashboardUiHelper.checklistItem(this, "الوصول للإشعارات", isListenerEnabled()));
+        statusCard.addView(DashboardUiHelper.checklistItem(this, "صلاحية سجل المكالمات", hasCallLogPermissions()));
+        statusCard.addView(DashboardUiHelper.checklistItem(this, "صلاحية جهات الاتصال", hasContactsPermission()));
+        statusCard.addView(DashboardUiHelper.checklistItem(this, "الاتصال من السجل", SnapRoleHelper.isCallRedirectionHeld(this)));
+        statusCard.addView(DashboardUiHelper.checklistItem(this, "الفقاعة العائمة", hasOverlayPermission()));
+        statusCard.addView(DashboardUiHelper.checklistItem(this, "إشعار قبل عودة الفقاعة",
+                BubbleSnoozeStore.isNotifyBeforeEndEnabled(this)));
+
+        String diag = SnapDiagStore.statusLine(this);
+        if (diag != null && !diag.isEmpty()) {
+            statusCard.addView(DashboardUiHelper.mutedNote(this, diag));
+        }
         String callerDiag = CallerIdDiagStore.statusLine(this);
         if (callerDiag != null && !callerDiag.isEmpty()) {
-            status.append(callerDiag);
-            status.append('\n');
+            statusCard.addView(DashboardUiHelper.mutedNote(this, callerDiag));
         }
         if (BubbleSnoozeStore.isSnoozed(this)) {
             long ends = BubbleSnoozeStore.snoozeEndsAt(this);
             String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date(ends));
-            status.append(getString(R.string.snooze_hidden, time));
+            statusCard.addView(DashboardUiHelper.mutedNote(this, getString(R.string.snooze_hidden, time)));
         } else {
-            status.append(getString(R.string.snooze_visible));
+            statusCard.addView(DashboardUiHelper.mutedNote(this, getString(R.string.snooze_visible)));
         }
-        statusView.setText(status.toString());
-        logView.setText(SnapEventStore.read(this));
+
+        if (logView != null) {
+            logView.setText(SnapEventStore.read(this));
+        }
         updateSnoozeNotifyButton();
         updateWakeBubbleButton();
+    }
+
+    private boolean isServiceReady() {
+        return isListenerEnabled() && hasCallLogPermissions() && hasOverlayPermission();
     }
 
     private void updateWakeBubbleButton() {
@@ -283,7 +275,7 @@ public class MainActivity extends Activity {
         if (snoozed) {
             long ends = BubbleSnoozeStore.snoozeEndsAt(this);
             String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date(ends));
-            btnWakeBubble.setText(getString(R.string.btn_wake_bubble) + " (حتى " + time + ")");
+            btnWakeBubble.setText(getString(R.string.btn_wake_bubble) + "\n(حتى " + time + ")");
         } else {
             btnWakeBubble.setText(getString(R.string.btn_wake_bubble));
         }

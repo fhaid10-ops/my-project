@@ -144,19 +144,6 @@ public class MissedCallListActivity extends Activity {
             MissedCallDetailActivity.open(MissedCallListActivity.this, group);
         });
 
-        TextView avatar = new TextView(this);
-        avatar.setText(CallUiHelper.initial(group.displayName));
-        avatar.setTextColor(Color.WHITE);
-        avatar.setTextSize(20f);
-        avatar.setTypeface(null, Typeface.BOLD);
-        avatar.setGravity(Gravity.CENTER);
-        int avatarSize = CallUiHelper.dp(this, 48);
-        LinearLayout.LayoutParams avatarLp = new LinearLayout.LayoutParams(avatarSize, avatarSize);
-        avatarLp.setMarginEnd(CallUiHelper.dp(this, 12));
-        avatar.setLayoutParams(avatarLp);
-        avatar.setBackground(CallUiHelper.circle(CallUiHelper.colorForName(group.displayName), 48, this));
-        card.addView(avatar);
-
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
         info.setLayoutParams(new LinearLayout.LayoutParams(
