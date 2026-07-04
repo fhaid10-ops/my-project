@@ -227,6 +227,14 @@ public final class MissedCallQueueStore {
         long timestamp = item.timestamp > 0L ? item.timestamp : lookupTimestamp(context, item.id);
         String cached = lookupCachedName(context, item.id);
         String display = pickDisplayName(item.displayName, cached);
+        if (item.isSnap) {
+            String restored = SnapCallLogNameGuard.resolveRealName(
+                    context, item.number, item.snapAddress,
+                    lookupCachedName(context, item.id), item.displayName);
+            if (!SnapNameHelper.isGenericAppName(restored)) {
+                display = restored;
+            }
+        }
         Item rebuilt = build(context, item.id, display, item.number, item.snapAddress, item.isSnap,
                 timestamp, item.sourceLabel, lookupPhoneAccountId(context, item.id));
         if (item.isSnap && SnapNameHelper.isGenericAppName(rebuilt.resolvedName)) {
@@ -285,7 +293,8 @@ public final class MissedCallQueueStore {
                         String value = cursor.getString(0);
                         if (value != null) {
                             value = value.replace(" (Snapchat)", "").trim();
-                            if (!value.isEmpty() && !value.equalsIgnoreCase("unknown")) {
+                            if (!value.isEmpty() && !value.equalsIgnoreCase("unknown")
+                                    && !SnapNameHelper.isHiddenSensitivePlaceholder(value)) {
                                 return value;
                             }
                         }

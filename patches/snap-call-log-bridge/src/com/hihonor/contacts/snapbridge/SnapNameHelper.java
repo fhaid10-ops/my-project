@@ -10,6 +10,7 @@ public final class SnapNameHelper {
 
     public static boolean isGenericAppName(String name) {
         if (TextUtils.isEmpty(name)) return true;
+        if (isHiddenSensitivePlaceholder(name)) return true;
         String n = name.trim().toLowerCase(Locale.ROOT);
         if (n.equals("snapchat") || n.equals("snap") || n.equals("سناب") || n.equals("سناب شات")
                 || n.equals("سنابشات") || n.equals("سناب شات")) {
@@ -20,6 +21,27 @@ public final class SnapNameHelper {
             return true;
         }
         return n.contains("مكالمة") && (n.contains("snap") || n.contains("سناب"));
+    }
+
+    /** Honor / Snapchat يستبدلان الاسم أحياناً بهذه العبارة — نرفضها ونستعيد الاسم المحفوظ. */
+    public static boolean isHiddenSensitivePlaceholder(String name) {
+        if (TextUtils.isEmpty(name)) return false;
+        String n = name.trim();
+        if (n.contains("البيانات الحساسة")) return true;
+        if (n.contains("حساسة") && n.contains("مخفية")) return true;
+        String lower = n.toLowerCase(Locale.ROOT);
+        return lower.contains("sensitive data") || lower.contains("hidden sensitive");
+    }
+
+    public static String pickBestSnapName(Context context, String number, String snapAddress,
+                                          String... candidates) {
+        if (candidates != null) {
+            for (String candidate : candidates) {
+                String cleaned = clean(candidate);
+                if (!isGenericAppName(cleaned)) return cleaned;
+            }
+        }
+        return resolve(context, number, snapAddress, "", "");
     }
 
     public static String clean(String name) {

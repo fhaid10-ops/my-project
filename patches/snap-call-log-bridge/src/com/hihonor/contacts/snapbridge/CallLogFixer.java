@@ -91,7 +91,11 @@ public final class CallLogFixer {
             }
         }
         if (cached != null) {
-            return cached.replace(" (Snapchat)", "").trim();
+            String cleaned = cached.replace(" (Snapchat)", "").trim();
+            if (!cleaned.isEmpty() && !cleaned.equalsIgnoreCase("unknown")
+                    && !SnapNameHelper.isHiddenSensitivePlaceholder(cleaned)) {
+                return cleaned;
+            }
         }
         return "Snapchat";
     }

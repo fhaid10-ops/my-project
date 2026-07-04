@@ -170,8 +170,10 @@ public class MainActivity extends Activity {
             SnapListenerHelper.requestScan(this);
             if (hasCallLogPermissions()) {
                 int rebuilt = MissedCallQueueStore.rebuildAll(this);
+                int restored = SnapCallLogNameGuard.restoreAll(this);
                 MissedCallAutoWatcher.scanNow(this);
-                SnapEventStore.append(this, "✓ تحديث الأسماء: " + rebuilt + " عنصر");
+                SnapEventStore.append(this, "✓ تحديث الأسماء: " + rebuilt
+                        + (restored > 0 ? " · استُعيد " + restored + " اسم سناب" : ""));
             }
             if (BubbleSnoozeStore.isSnoozed(this)) {
                 BubbleSnoozeStore.wakeNow(this);

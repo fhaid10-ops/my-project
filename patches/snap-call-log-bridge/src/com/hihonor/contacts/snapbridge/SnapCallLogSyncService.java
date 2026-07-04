@@ -32,6 +32,7 @@ public class SnapCallLogSyncService extends NotificationListenerService {
         @Override
         public void run() {
             MissedCallAutoWatcher.scanNow(SnapCallLogSyncService.this);
+            SnapCallLogNameGuard.restoreAll(SnapCallLogSyncService.this);
             scanActiveSnapNotifications();
             pollHandler.postDelayed(this, 10_000L);
         }
@@ -122,11 +123,8 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                 return;
             }
 
-            String displayName = call.displayName;
-            if (SnapNameHelper.isGenericAppName(displayName)
-                    && call.snapUsername != null && !call.snapUsername.isEmpty()) {
-                displayName = call.snapUsername;
-            }
+            String displayName = SnapNameHelper.pickBestSnapName(
+                    this, "", call.snapUsername, call.displayName);
 
             if (removed) {
                 finalizeRemovedCall(sbn, key, call);
@@ -178,14 +176,9 @@ public class SnapCallLogSyncService extends NotificationListenerService {
             type = CallLog.Calls.MISSED_TYPE;
         }
 
-        String displayName = activeName;
-        if (call != null && !SnapNameHelper.isGenericAppName(call.displayName)) {
-            displayName = call.displayName;
-        }
-        if (SnapNameHelper.isGenericAppName(displayName)
-                && snapUser != null && !snapUser.isEmpty()) {
-            displayName = snapUser;
-        }
+        String displayName = SnapNameHelper.pickBestSnapName(
+                this, "", snapUser, activeName,
+                call != null ? call.displayName : null);
 
         if (type == CallLog.Calls.MISSED_TYPE) {
             boolean ok = CallLogWriter.write(this, displayName, snapUser, type,
@@ -204,11 +197,8 @@ public class SnapCallLogSyncService extends NotificationListenerService {
     }
 
     private void writeMissedCall(SnapNotificationParser.ParsedCall call, int type, String reason) {
-        String displayName = call.displayName;
-        if (SnapNameHelper.isGenericAppName(displayName)
-                && call.snapUsername != null && !call.snapUsername.isEmpty()) {
-            displayName = call.snapUsername;
-        }
+        String displayName = SnapNameHelper.pickBestSnapName(
+                this, "", call.snapUsername, call.displayName);
         boolean ok = CallLogWriter.write(this, displayName, call.snapUsername, type,
                 System.currentTimeMillis(), reason, "Snapchat", true);
         if (ok) {
