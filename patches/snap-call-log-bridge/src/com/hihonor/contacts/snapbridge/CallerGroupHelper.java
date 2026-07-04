@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -258,55 +259,76 @@ public final class CallerGroupHelper {
     /** دمج بطاقات Snapchat المكررة لنفس الشخص. */
     private static void mergeSnapGroups(Context context,
                                         Map<String, List<MissedCallQueueStore.Item>> map) {
-        Map<String, String> mergeToKey = new LinkedHashMap<>();
-        ArrayList<String> keys = new ArrayList<>(map.keySet());
-        for (String key : keys) {
+        Map<String, List<String>> mergeIndex = new LinkedHashMap<>();
+        for (String key : new ArrayList<>(map.keySet())) {
             List<MissedCallQueueStore.Item> bucket = map.get(key);
             if (bucket == null || bucket.isEmpty() || !bucket.get(0).isSnap) continue;
-            String mergeId = snapGroupKey(context, bucket.get(0));
-            if (mergeId.isEmpty()) continue;
-            String canonical = mergeToKey.get(mergeId);
-            if (canonical == null) {
-                mergeToKey.put(mergeId, key);
-                continue;
-            }
-            if (canonical.equals(key)) continue;
-            List<MissedCallQueueStore.Item> target = map.get(canonical);
-            if (target != null) {
-                target.addAll(bucket);
-            }
-            map.remove(key);
-        }
 
-        // دمج إضافي عندما يضيع الاسم ويبقى رقم 888 — نعتمد الاسم المنسّق في السجل
-        Map<String, String> fmtToKey = new LinkedHashMap<>();
-        keys = new ArrayList<>(map.keySet());
-        for (String key : keys) {
-            List<MissedCallQueueStore.Item> bucket = map.get(key);
-            if (bucket == null || bucket.isEmpty() || !bucket.get(0).isSnap) continue;
-            String fmtKey = null;
+            LinkedHashSet<String> mergeIds = new LinkedHashSet<>();
             for (MissedCallQueueStore.Item item : bucket) {
-                String candidate = normalizeNameKey(
-                        SnapNameHelper.clean(lookupFormattedNumber(context, item.id)));
-                if (candidate != null && !isWeakSnapNameKey(candidate)) {
-                    fmtKey = candidate;
-                    break;
+                String id = snapMergeId(context, item);
+                if (!id.isEmpty()) mergeIds.add(id);
+                for (String name : collectSnapNameCandidates(context, item)) {
+                    String nk = normalizeNameKey(name);
+                    if (nk != null && !isWeakSnapNameKey(nk)) {
+                        mergeIds.add("name:" + nk);
+                    }
                 }
             }
-            if (fmtKey == null) continue;
-            String mergeId = "fmt:" + fmtKey;
-            String canonical = fmtToKey.get(mergeId);
-            if (canonical == null) {
-                fmtToKey.put(mergeId, key);
-                continue;
+            for (String mergeId : mergeIds) {
+                List<String> keyList = mergeIndex.get(mergeId);
+                if (keyList == null) {
+                    keyList = new ArrayList<>();
+                    mergeIndex.put(mergeId, keyList);
+                }
+                if (!keyList.contains(key)) keyList.add(key);
             }
-            if (canonical.equals(key)) continue;
-            List<MissedCallQueueStore.Item> target = map.get(canonical);
-            if (target != null) {
-                target.addAll(bucket);
-            }
-            map.remove(key);
         }
+
+        for (List<String> keyList : mergeIndex.values()) {
+            if (keyList.size() <= 1) continue;
+            String canonical = keyList.get(0);
+            List<MissedCallQueueStore.Item> target = map.get(canonical);
+            if (target == null) continue;
+            for (int i = 1; i < keyList.size(); i++) {
+                String other = keyList.get(i);
+                List<MissedCallQueueStore.Item> bucket = map.get(other);
+                if (bucket != null) {
+                    target.addAll(bucket);
+                    map.remove(other);
+                }
+            }
+        }
+    }
+
+    private static String snapMergeId(Context context, MissedCallQueueStore.Item item) {
+        String primary = snapGroupKey(context, item);
+        for (String name : collectSnapNameCandidates(context, item)) {
+            String nk = normalizeNameKey(name);
+            if (nk != null && !isWeakSnapNameKey(nk)) {
+                return "name:" + nk;
+            }
+        }
+        return primary;
+    }
+
+    private static List<String> collectSnapNameCandidates(Context context,
+                                                          MissedCallQueueStore.Item item) {
+        ArrayList<String> out = new ArrayList<>();
+        String addr = resolveSnapAddress(context, item);
+        String formatted = context != null ? lookupFormattedNumber(context, item.id) : "";
+        out.add(SnapNameHelper.resolve(context, item.number, addr, item.displayName, formatted));
+        out.add(SnapNameHelper.clean(formatted));
+        out.add(item.displayName);
+        out.add(item.resolvedName);
+        out.add(item.bestName());
+        if (context != null) {
+            if (item.number != null) out.add(SnapUserStore.getDisplayName(context, item.number));
+            if (addr != null && !addr.isEmpty()) {
+                out.add(SnapUserStore.getDisplayName(context, addr));
+            }
+        }
+        return out;
     }
 
     private static String summarizeSimLabels(List<MissedCallQueueStore.Item> items) {

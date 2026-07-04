@@ -21,16 +21,16 @@ public final class CallLogWriter {
                                 String sourceLabel, boolean enableSnapCallback) {
         String appLabel = safeLabel(sourceLabel);
         String label = displayName + " (" + appLabel + ")";
-        if (isDuplicate(context, label, type, when)) {
-            SnapEventStore.append(context, "تخطي مكرر: " + label);
-            return false;
-        }
         String address = null;
         String dialId = displayName;
         if (enableSnapCallback) {
             address = SnapUserStore.addressFor(displayName, snapUsername);
             dialId = SnapUserStore.dialIdForAddress(address);
             SnapUserStore.save(context, address, displayName, snapUsername);
+        }
+        if (isDuplicate(context, label, dialId, type, when, enableSnapCallback)) {
+            SnapEventStore.append(context, "تخطي مكرر: " + label);
+            return false;
         }
 
         ContentValues values = new ContentValues();
@@ -99,7 +99,8 @@ public final class CallLogWriter {
         return s.length() > 32 ? s.substring(0, 32) : s;
     }
 
-    private static boolean isDuplicate(Context context, String cachedName, int type, long now) {
+    private static boolean isDuplicate(Context context, String cachedName, String dialId,
+                                       int type, long now, boolean isSnap) {
         Uri uri = CallLog.Calls.CONTENT_URI.buildUpon().appendQueryParameter("limit", "20").build();
         String selection = CallLog.Calls.CACHED_NAME + "=? AND " + CallLog.Calls.TYPE + "=? AND "
                 + CallLog.Calls.DATE + ">?";
@@ -107,6 +108,22 @@ public final class CallLogWriter {
         Cursor cursor = null;
         try {
             cursor = context.getContentResolver().query(uri, new String[] {CallLog.Calls._ID}, selection, args, null);
+            if (cursor != null && cursor.moveToFirst()) return true;
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        if (!isSnap || dialId == null || dialId.isEmpty()) return false;
+        if (type != CallLog.Calls.MISSED_TYPE) return false;
+        try {
+            cursor = context.getContentResolver().query(
+                    uri,
+                    new String[] {CallLog.Calls._ID},
+                    CallLog.Calls.NUMBER + "=? AND " + CallLog.Calls.TYPE + "=? AND "
+                            + CallLog.Calls.DATE + ">?",
+                    new String[] {dialId, String.valueOf(CallLog.Calls.MISSED_TYPE),
+                            String.valueOf(now - DEDUP_WINDOW_MS)},
+                    null);
             return cursor != null && cursor.moveToFirst();
         } catch (Exception e) {
             return false;

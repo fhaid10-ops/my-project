@@ -181,14 +181,19 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                 call != null ? call.displayName : null);
 
         if (type == CallLog.Calls.MISSED_TYPE) {
-            boolean ok = CallLogWriter.write(this, displayName, snapUser, type,
-                    System.currentTimeMillis(), "removed", "Snapchat", true);
-            if (ok) {
-                SnapEventStore.append(this, "✓ فائت Snapchat عند إغلاق الإشعار: " + displayName);
-                SnapDiagStore.record(this, "", true, "فائت: " + displayName);
-                LastSnapStore.save(this, displayName, SnapUserStore.addressFor(displayName, snapUser));
-            } else if (!alreadyLogged) {
-                SnapEventStore.append(this, "تعذر تسجيل فائت Snapchat: " + displayName);
+            if (alreadyLogged) {
+                SnapEventStore.append(this, "تخطي فائت مكرر (سُجّل عند الإشعار): " + displayName);
+            } else {
+                boolean ok = CallLogWriter.write(this, displayName, snapUser, type,
+                        System.currentTimeMillis(), "removed", "Snapchat", true);
+                if (ok) {
+                    SnapEventStore.append(this, "✓ فائت Snapchat عند إغلاق الإشعار: " + displayName);
+                    SnapDiagStore.record(this, "", true, "فائت: " + displayName);
+                    LastSnapStore.save(this, displayName,
+                            SnapUserStore.addressFor(displayName, snapUser));
+                } else {
+                    SnapEventStore.append(this, "تعذر تسجيل فائت Snapchat: " + displayName);
+                }
             }
         } else {
             SnapEventStore.append(this, "انتهت مكالمة Snapchat: " + displayName);
