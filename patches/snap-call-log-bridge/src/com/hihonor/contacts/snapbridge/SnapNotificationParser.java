@@ -149,6 +149,7 @@ public final class SnapNotificationParser {
 
     /** إشعارات ليست مكالمات: رسائل، طلبات صداقة، قصص، إلخ. */
     public static boolean isNonCallNotification(StatusBarNotification sbn) {
+        if (hasDefiniteCallSignals(sbn)) return false;
         Notification n = sbn != null ? sbn.getNotification() : null;
         if (n == null) return true;
         String cat = n.category;
@@ -187,6 +188,10 @@ public final class SnapNotificationParser {
     private static boolean isNonCallChannel(String channel) {
         if (channel == null) return false;
         String lc = channel.toLowerCase(Locale.ROOT);
+        if (lc.contains("call") || lc.contains("voip") || lc.contains("ring")
+                || lc.contains("rtc") || lc.contains("voice")) {
+            return false;
+        }
         return lc.contains("message") || lc.contains("chat") || lc.contains("friend")
                 || lc.contains("social") || lc.contains("story") || lc.contains("stories")
                 || lc.contains("memory") || lc.contains("memories") || lc.contains("discover")
@@ -225,6 +230,37 @@ public final class SnapNotificationParser {
             if (lower.contains(phrase)) return true;
         }
         return lower.contains("call") || lower.contains("مكالم");
+    }
+
+    /** إشارة واضحة أن الإشعار مكالمة — لا نرفضه حتى لو كانت فئته social. */
+    public static boolean hasDefiniteCallSignals(StatusBarNotification sbn) {
+        Notification n = sbn != null ? sbn.getNotification() : null;
+        if (n == null) return false;
+        if (Notification.CATEGORY_CALL.equals(n.category)) return true;
+        Bundle extras = n.extras;
+        if (extras != null && hasCallExtraKeys(extras)) return true;
+        if (Build.VERSION.SDK_INT >= 31) {
+            String template = extras != null ? extras.getString("android.template") : null;
+            if (template != null && template.contains("CallStyle")) return true;
+        }
+        if (n.actions != null && n.actions.length >= 2 && isLikelyCallActions(n)) return true;
+        if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0 && n.fullScreenIntent != null) {
+            return true;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            String channel = n.getChannelId();
+            if (isCallChannel(channel)) return true;
+        }
+        if (extras != null) {
+            String combined = join(
+                    extras.getCharSequence(Notification.EXTRA_TITLE),
+                    extras.getCharSequence(Notification.EXTRA_TEXT),
+                    extras.getCharSequence(Notification.EXTRA_BIG_TEXT),
+                    extras.getCharSequence(Notification.EXTRA_SUB_TEXT),
+                    extras.getCharSequence(Notification.EXTRA_INFO_TEXT));
+            if (!TextUtils.isEmpty(combined) && hasExplicitCallPhrase(combined)) return true;
+        }
+        return false;
     }
 
     public static ParsedCall parseOrFallback(StatusBarNotification sbn) {

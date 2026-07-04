@@ -96,10 +96,12 @@ public class SnapCallLogSyncService extends NotificationListenerService {
     }
 
     private SnapNotificationParser.ParsedCall resolveCall(StatusBarNotification sbn) {
-        if (SnapNotificationParser.isNonCallNotification(sbn)) {
-            return null;
+        SnapNotificationParser.ParsedCall call = SnapNotificationParser.parseOrFallback(sbn);
+        if (call != null) return call;
+        if (SnapNotificationParser.hasDefiniteCallSignals(sbn)) {
+            return SnapNotificationParser.forcedCall(this, sbn);
         }
-        return SnapNotificationParser.parseOrFallback(sbn);
+        return null;
     }
 
     private void handleSnapchat(StatusBarNotification sbn, boolean removed) {
@@ -139,9 +141,11 @@ public class SnapCallLogSyncService extends NotificationListenerService {
             boolean ok = CallLogWriter.write(this, displayName, call.snapUsername, call.callType,
                     System.currentTimeMillis(), call.reason, "Snapchat", true);
             if (ok) {
-                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                        .putBoolean(key + "_logged", true)
-                        .apply();
+                if (call.callType == CallLog.Calls.MISSED_TYPE) {
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                            .putBoolean(key + "_logged", true)
+                            .apply();
+                }
                 LastSnapStore.save(this, displayName,
                         SnapUserStore.addressFor(displayName, call.snapUsername));
             }
@@ -185,7 +189,8 @@ public class SnapCallLogSyncService extends NotificationListenerService {
 
         if (type == CallLog.Calls.MISSED_TYPE) {
             if (alreadyLogged) {
-                SnapEventStore.append(this, "تخطي فائت مكرر (سُجّل عند الإشعار): " + displayName);
+                SnapMissedQueueHelper.ensureQueued(this, displayName, snapUser);
+                SnapEventStore.append(this, "تأكيد فائت Snapchat بالفقاعة: " + displayName);
             } else {
                 boolean ok = CallLogWriter.write(this, displayName, snapUser, type,
                         System.currentTimeMillis(), "removed", "Snapchat", true);
@@ -195,7 +200,8 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                     LastSnapStore.save(this, displayName,
                             SnapUserStore.addressFor(displayName, snapUser));
                 } else {
-                    SnapEventStore.append(this, "تعذر تسجيل فائت Snapchat: " + displayName);
+                    SnapMissedQueueHelper.ensureQueued(this, displayName, snapUser);
+                    SnapEventStore.append(this, "تعذر تسجيل فائت Snapchat — أُضيف للفقاعة: " + displayName);
                 }
             }
         } else {
