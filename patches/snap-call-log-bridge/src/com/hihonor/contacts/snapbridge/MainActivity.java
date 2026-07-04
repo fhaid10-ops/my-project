@@ -168,10 +168,14 @@ public class MainActivity extends Activity {
         btnRefresh.setText(getString(R.string.btn_refresh));
         btnRefresh.setOnClickListener(v -> {
             SnapListenerHelper.requestScan(this);
+            if (hasCallLogPermissions()) {
+                int rebuilt = MissedCallQueueStore.rebuildAll(this);
+                MissedCallAutoWatcher.scanNow(this);
+                SnapEventStore.append(this, "✓ تحديث الأسماء: " + rebuilt + " عنصر");
+            }
             if (BubbleSnoozeStore.isSnoozed(this)) {
                 BubbleSnoozeStore.wakeNow(this);
-            } else if (hasCallLogPermissions()) {
-                MissedCallAutoWatcher.scanNow(this);
+            } else {
                 MissedCallOverlayController.refresh(this);
             }
             refreshUi();
@@ -252,6 +256,11 @@ public class MainActivity extends Activity {
         status.append('\n');
         status.append(SnapDiagStore.statusLine(this));
         status.append('\n');
+        String callerDiag = CallerIdDiagStore.statusLine(this);
+        if (callerDiag != null && !callerDiag.isEmpty()) {
+            status.append(callerDiag);
+            status.append('\n');
+        }
         if (BubbleSnoozeStore.isSnoozed(this)) {
             long ends = BubbleSnoozeStore.snoozeEndsAt(this);
             String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date(ends));

@@ -193,6 +193,63 @@ public final class MissedCallQueueStore {
         return new ArrayList<>(load(context));
     }
 
+    /** يعيد بناء كل عناصر الفقاعة ويحفظ الأسماء المحدّثة (Truecaller / سجل المكالمات). */
+    public static int rebuildAll(Context context) {
+        String raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString(KEY_ITEMS, "[]");
+        ArrayList<Item> out = new ArrayList<>();
+        int named = 0;
+        try {
+            JSONArray arr = new JSONArray(raw);
+            for (int i = 0; i < arr.length(); i++) {
+                Item item = Item.fromJson(arr.optJSONObject(i));
+                if (item == null || item.id == null || item.id.isEmpty()) continue;
+                out.add(rebuildOne(context, item));
+                if (!CallUiHelper.isMostlyPhone(out.get(out.size() - 1).resolvedName)) named++;
+            }
+        } catch (Exception ignored) {
+        }
+        save(context, out, true);
+        CallerIdDiagStore.record(context, out.size(), named, isTruecallerInstalled(context));
+        return out.size();
+    }
+
+    private static boolean isTruecallerInstalled(Context context) {
+        try {
+            context.getPackageManager().getPackageInfo("com.truecaller", 0);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static Item rebuildOne(Context context, Item item) {
+        long timestamp = item.timestamp > 0L ? item.timestamp : lookupTimestamp(context, item.id);
+        String cached = lookupCachedName(context, item.id);
+        String display = pickDisplayName(item.displayName, cached);
+        Item rebuilt = build(context, item.id, display, item.number, item.snapAddress, item.isSnap,
+                timestamp, item.sourceLabel, lookupPhoneAccountId(context, item.id));
+        if (item.isSnap && SnapNameHelper.isGenericAppName(rebuilt.resolvedName)) {
+            String formatted = lookupFormattedNumber(context, item.id);
+            String resolved = SnapNameHelper.resolve(context, item.number, item.snapAddress,
+                    display, formatted);
+            if (!SnapNameHelper.isGenericAppName(resolved)) {
+                return new Item(
+                        rebuilt.id, rebuilt.displayName, rebuilt.number, rebuilt.snapAddress,
+                        rebuilt.isSnap, rebuilt.timestamp, rebuilt.sourceLabel, resolved,
+                        rebuilt.subtitle, rebuilt.simLabel);
+            }
+        }
+        return rebuilt;
+    }
+
+    private static String pickDisplayName(String stored, String cached) {
+        if (cached != null && !cached.isEmpty() && !CallUiHelper.isMostlyPhone(cached)) {
+            return cached;
+        }
+        return stored != null ? stored : "";
+    }
+
     private static List<Item> load(Context context) {
         String raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getString(KEY_ITEMS, "[]");
@@ -211,33 +268,35 @@ public final class MissedCallQueueStore {
     }
 
     private static Item enrichIfNeeded(Context context, Item item) {
-        long timestamp = item.timestamp;
-        if (timestamp <= 0L) {
-            timestamp = lookupTimestamp(context, item.id);
-        }
-        Item rebuilt = build(context, item.id, item.displayName, item.number,
-                item.snapAddress, item.isSnap, timestamp, item.sourceLabel,
-                lookupPhoneAccountId(context, item.id));
-        String simLabel = rebuilt.simLabel;
-        if (simLabel.isEmpty() && !item.simLabel.isEmpty()) simLabel = item.simLabel;
-        if (!simLabel.equals(rebuilt.simLabel)) {
-            rebuilt = new Item(
-                    rebuilt.id, rebuilt.displayName, rebuilt.number, rebuilt.snapAddress,
-                    rebuilt.isSnap, rebuilt.timestamp, rebuilt.sourceLabel, rebuilt.resolvedName,
-                    rebuilt.subtitle, simLabel);
-        }
-        if (item.isSnap && SnapNameHelper.isGenericAppName(rebuilt.resolvedName)) {
-            String formatted = lookupFormattedNumber(context, item.id);
-            String resolved = SnapNameHelper.resolve(context, item.number, item.snapAddress,
-                    item.displayName, formatted);
-            if (!SnapNameHelper.isGenericAppName(resolved)) {
-                return new Item(
-                        rebuilt.id, rebuilt.displayName, rebuilt.number, rebuilt.snapAddress,
-                        rebuilt.isSnap, rebuilt.timestamp, rebuilt.sourceLabel, resolved,
-                        rebuilt.subtitle, rebuilt.simLabel);
+        return rebuildOne(context, item);
+    }
+
+    private static String lookupCachedName(Context context, String id) {
+        try {
+            android.database.Cursor cursor = context.getContentResolver().query(
+                    android.provider.CallLog.Calls.CONTENT_URI,
+                    new String[] {android.provider.CallLog.Calls.CACHED_NAME},
+                    android.provider.CallLog.Calls._ID + "=?",
+                    new String[] {id},
+                    null);
+            if (cursor != null) {
+                try {
+                    if (cursor.moveToFirst()) {
+                        String value = cursor.getString(0);
+                        if (value != null) {
+                            value = value.replace(" (Snapchat)", "").trim();
+                            if (!value.isEmpty() && !value.equalsIgnoreCase("unknown")) {
+                                return value;
+                            }
+                        }
+                    }
+                } finally {
+                    cursor.close();
+                }
             }
+        } catch (Exception ignored) {
         }
-        return rebuilt;
+        return "";
     }
 
     private static String lookupPhoneAccountId(Context context, String id) {
