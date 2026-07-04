@@ -11,7 +11,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public final class CallerActionButtons {
-    public static final String APP_VERSION = "2.35";
+    public static final String APP_VERSION = "2.36";
 
     public interface Listener {
         void onCallback();
@@ -28,7 +28,7 @@ public final class CallerActionButtons {
     public static View buildBottomBar(Context context, Listener listener) {
         LinearLayout wrap = new LinearLayout(context);
         wrap.setOrientation(LinearLayout.VERTICAL);
-        wrap.setBackgroundColor(Color.parseColor("#1A2332"));
+        wrap.setBackgroundColor(CallUiHelper.BG_DARK);
         int pad = CallUiHelper.dp(context, 12);
         wrap.setPadding(pad, pad, pad, pad);
 

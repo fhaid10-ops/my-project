@@ -170,7 +170,7 @@ public class MissedCallDetailActivity extends Activity {
     private void buildHeader(CallerGroupHelper.CallerGroup group) {
         headerCard.removeAllViews();
         int accent = CallUiHelper.accentForItem(group.isSnap);
-        headerCard.setBackground(CallUiHelper.roundedCard(CallUiHelper.CARD_BG, accent, this));
+        headerCard.setBackground(CallUiHelper.roundedCardBold(CallUiHelper.CARD_BG, accent, this));
 
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
@@ -230,8 +230,8 @@ public class MissedCallDetailActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(rowPad, rowPad, rowPad, rowPad);
         boolean missed = type == CallLog.Calls.MISSED_TYPE;
-        row.setBackground(CallUiHelper.roundedCard(
-                Color.parseColor("#151C28"),
+        row.setBackground(CallUiHelper.roundedCardBold(
+                CallUiHelper.CARD_BG,
                 missed ? CallUiHelper.MISSED_ACCENT : CallUiHelper.ACTION_CALL,
                 this));
 
@@ -239,7 +239,9 @@ public class MissedCallDetailActivity extends Activity {
                 this,
                 missed ? "فائتة" : "واردة",
                 missed ? Color.parseColor("#3D1515") : Color.parseColor("#0D2E14"),
-                missed ? CallUiHelper.MISSED_ACCENT : CallUiHelper.ACTION_CALL);
+                missed ? CallUiHelper.MISSED_ACCENT : CallUiHelper.ACTION_CALL,
+                missed ? CallUiHelper.MISSED_ACCENT : CallUiHelper.ACTION_CALL,
+                2);
         LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -273,7 +275,8 @@ public class MissedCallDetailActivity extends Activity {
 
         if (simLabel != null && !simLabel.isEmpty()) {
             TextView sim = CallUiHelper.makeBadge(
-                    this, simLabel, Color.parseColor("#1A3320"), Color.parseColor("#4ADE80"));
+                    this, simLabel, CallUiHelper.CHIP_SIM_BG, CallUiHelper.CHIP_SIM_FG,
+                    CallUiHelper.CHIP_SIM_FG, 2);
             row.addView(sim);
         }
         return row;

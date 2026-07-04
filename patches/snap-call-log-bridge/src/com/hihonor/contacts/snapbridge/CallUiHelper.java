@@ -14,17 +14,25 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 public final class CallUiHelper {
-    public static final int BG_DARK = Color.parseColor("#0F1419");
-    public static final int CARD_BG = Color.parseColor("#1A2332");
-    public static final int TEXT_PRIMARY = Color.parseColor("#F5F7FA");
-    public static final int TEXT_SECONDARY = Color.parseColor("#9AA7B8");
-    public static final int SNAP_ACCENT = Color.parseColor("#FFFC00");
-    public static final int PHONE_ACCENT = Color.parseColor("#4FC3F7");
-    public static final int MISSED_ACCENT = Color.parseColor("#FF5252");
-    public static final int ACTION_CALL = Color.parseColor("#43A047");
+    public static final int BG_DARK = Color.parseColor("#121212");
+    public static final int CARD_BG = Color.parseColor("#121212");
+    public static final int TEXT_PRIMARY = Color.parseColor("#FFFFFF");
+    public static final int TEXT_SECONDARY = Color.parseColor("#9E9E9E");
+    public static final int SNAP_ACCENT = Color.parseColor("#FFCC00");
+    public static final int PHONE_ACCENT = Color.parseColor("#5AC8FA");
+    public static final int MISSED_ACCENT = Color.parseColor("#FF3B30");
+    public static final int BUBBLE_RED = Color.parseColor("#FF3B30");
+    public static final int CHIP_SNAP_BG = Color.parseColor("#3D3500");
+    public static final int CHIP_PHONE_BG = Color.parseColor("#0D2840");
+    public static final int CHIP_SIM_BG = Color.parseColor("#1A3320");
+    public static final int CHIP_SIM_FG = Color.parseColor("#4CD964");
+    public static final int CLOSE_BTN_BG = Color.parseColor("#2C2C2E");
+    public static final int ACTION_CALL = Color.parseColor("#4CD964");
     public static final int ACTION_WA = Color.parseColor("#25D366");
     public static final int ACTION_WA_BUSINESS = Color.parseColor("#128C7E");
-    public static final int ACTION_DEL = Color.parseColor("#546E7A");
+    public static final int ACTION_DEL = Color.parseColor("#3A3A3C");
+    public static final int CARD_STROKE_DP = 3;
+    public static final int BUBBLE_STROKE_DP = 4;
 
     private CallUiHelper() {}
 
@@ -69,28 +77,60 @@ public final class CallUiHelper {
     }
 
     public static GradientDrawable roundedCard(int fillColor, int strokeColor, Context context) {
+        return roundedCard(fillColor, strokeColor, context, 1);
+    }
+
+    public static GradientDrawable roundedCardBold(int fillColor, int strokeColor, Context context) {
+        return roundedCard(fillColor, strokeColor, context, CARD_STROKE_DP);
+    }
+
+    public static GradientDrawable roundedCard(int fillColor, int strokeColor, Context context,
+                                               int strokeDp) {
         GradientDrawable d = new GradientDrawable();
         d.setShape(GradientDrawable.RECTANGLE);
         d.setColor(fillColor);
         d.setCornerRadius(dp(context, 16));
-        d.setStroke(dp(context, 1), strokeColor);
+        if (strokeDp > 0) {
+            d.setStroke(dp(context, strokeDp), strokeColor);
+        }
         return d;
     }
 
     public static TextView makeBadge(Context context, String text, int bg, int fg) {
+        return makeBadge(context, text, bg, fg, 0, 0);
+    }
+
+    public static TextView makeBadge(Context context, String text, int bg, int fg,
+                                   int strokeColor, int strokeDp) {
         TextView badge = new TextView(context);
         badge.setText(text);
         badge.setTextColor(fg);
         badge.setTextSize(11f);
         badge.setTypeface(null, Typeface.BOLD);
         int hPad = dp(context, 8);
-        int vPad = dp(context, 3);
+        int vPad = dp(context, 4);
         badge.setPadding(hPad, vPad, hPad, vPad);
         GradientDrawable bgDrawable = new GradientDrawable();
         bgDrawable.setCornerRadius(dp(context, 10));
         bgDrawable.setColor(bg);
+        if (strokeDp > 0) {
+            bgDrawable.setStroke(dp(context, strokeDp), strokeColor);
+        }
         badge.setBackground(bgDrawable);
         return badge;
+    }
+
+    public static TextView makeCloseButton(Context context, String label) {
+        TextView btn = new TextView(context);
+        btn.setText(label);
+        btn.setTextColor(TEXT_PRIMARY);
+        btn.setTextSize(16f);
+        btn.setTypeface(null, Typeface.BOLD);
+        btn.setGravity(Gravity.CENTER);
+        int vPad = dp(context, 14);
+        btn.setPadding(dp(context, 16), vPad, dp(context, 16), vPad);
+        btn.setBackground(roundedCardBold(CLOSE_BTN_BG, Color.parseColor("#48484A"), context));
+        return btn;
     }
 
     public static TextView makeActionButton(Context context, String label, int color) {

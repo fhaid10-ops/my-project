@@ -88,7 +88,7 @@ public class MissedCallOverlayService extends Service {
 
         countText = new TextView(this);
         countText.setTextColor(Color.WHITE);
-        countText.setTextSize(18f);
+        countText.setTextSize(20f);
         countText.setTypeface(null, Typeface.BOLD);
         countText.setGravity(Gravity.CENTER);
         countText.setText("0");
@@ -102,15 +102,10 @@ public class MissedCallOverlayService extends Service {
         container.addView(phoneIcon);
         container.addView(countText);
 
-        GradientDrawable bg = new GradientDrawable(
-                GradientDrawable.Orientation.TL_BR,
-                new int[] {
-                        Color.parseColor("#FF6B6B"),
-                        Color.parseColor("#E53935"),
-                        Color.parseColor("#C62828")
-                });
+        GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.OVAL);
-        bg.setStroke(dp(3), Color.WHITE);
+        bg.setColor(CallUiHelper.BUBBLE_RED);
+        bg.setStroke(dp(CallUiHelper.BUBBLE_STROKE_DP), Color.WHITE);
 
         GradientDrawable shadow = new GradientDrawable();
         shadow.setShape(GradientDrawable.OVAL);
@@ -162,9 +157,9 @@ public class MissedCallOverlayService extends Service {
 
     private GradientDrawable createHintBackground() {
         GradientDrawable d = new GradientDrawable();
-        d.setCornerRadius(dp(10));
-        d.setColor(Color.parseColor("#CC1A2332"));
-        d.setStroke(dp(1), Color.parseColor("#55FFFFFF"));
+        d.setCornerRadius(dp(12));
+        d.setColor(Color.parseColor("#E6121212"));
+        d.setStroke(dp(2), Color.parseColor("#88FFFFFF"));
         return d;
     }
 
