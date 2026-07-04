@@ -11,7 +11,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public final class CallerActionButtons {
-    public static final String APP_VERSION = "2.18";
+    public static final String APP_VERSION = "2.19";
 
     public interface Listener {
         void onCallback();

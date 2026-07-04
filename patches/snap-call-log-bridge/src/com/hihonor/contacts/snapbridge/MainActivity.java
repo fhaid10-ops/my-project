@@ -29,6 +29,8 @@ public class MainActivity extends Activity {
     private static final int REQ_PERMS = 1001;
     private TextView statusView;
     private TextView logView;
+    private Button btnSnoozeNotify;
+    private Button btnWakeBubble;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,7 +125,7 @@ public class MainActivity extends Activity {
         btnOverlay.setOnClickListener(v -> requestOverlayPermission());
         root.addView(btnOverlay);
 
-        Button btnSnoozeNotify = new Button(this);
+        btnSnoozeNotify = new Button(this);
         btnSnoozeNotify.setOnClickListener(v -> {
             boolean next = !BubbleSnoozeStore.isNotifyBeforeEndEnabled(this);
             BubbleSnoozeStore.setNotifyBeforeEndEnabled(this, next);
@@ -136,7 +138,7 @@ public class MainActivity extends Activity {
         root.addView(btnSnoozeNotify);
         btnSnoozeNotify.setTag("snooze_notify_btn");
 
-        Button btnWakeBubble = new Button(this);
+        btnWakeBubble = new Button(this);
         btnWakeBubble.setText(getString(R.string.btn_wake_bubble));
         btnWakeBubble.setOnClickListener(v -> {
             BubbleSnoozeStore.wakeNow(this);
@@ -259,37 +261,21 @@ public class MainActivity extends Activity {
     }
 
     private void updateWakeBubbleButton() {
-        Button btn = findTaggedButton("wake_bubble_btn");
-        if (btn == null) return;
+        if (btnWakeBubble == null) return;
         boolean snoozed = BubbleSnoozeStore.isSnoozed(this);
-        btn.setVisibility(snoozed ? View.VISIBLE : View.GONE);
+        btnWakeBubble.setVisibility(snoozed ? View.VISIBLE : View.GONE);
         if (snoozed) {
             long ends = BubbleSnoozeStore.snoozeEndsAt(this);
             String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date(ends));
-            btn.setText(getString(R.string.btn_wake_bubble) + " (حتى " + time + ")");
+            btnWakeBubble.setText(getString(R.string.btn_wake_bubble) + " (حتى " + time + ")");
+        } else {
+            btnWakeBubble.setText(getString(R.string.btn_wake_bubble));
         }
-    }
-
-    private Button findTaggedButton(String tag) {
-        ScrollView outer = (ScrollView) getWindow().getDecorView()
-                .findViewById(android.R.id.content);
-        if (outer == null || outer.getChildCount() == 0) return null;
-        View root = outer.getChildAt(0);
-        if (!(root instanceof LinearLayout)) return null;
-        LinearLayout layout = (LinearLayout) root;
-        for (int i = 0; i < layout.getChildCount(); i++) {
-            View child = layout.getChildAt(i);
-            if (child instanceof Button && tag.equals(child.getTag())) {
-                return (Button) child;
-            }
-        }
-        return null;
     }
 
     private void updateSnoozeNotifyButton() {
-        Button btn = findTaggedButton("snooze_notify_btn");
-        if (btn == null) return;
-        btn.setText(BubbleSnoozeStore.isNotifyBeforeEndEnabled(this)
+        if (btnSnoozeNotify == null) return;
+        btnSnoozeNotify.setText(BubbleSnoozeStore.isNotifyBeforeEndEnabled(this)
                 ? getString(R.string.btn_snooze_notify_on)
                 : getString(R.string.btn_snooze_notify_off));
     }
