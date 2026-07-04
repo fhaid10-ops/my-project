@@ -255,9 +255,12 @@ public final class MissedCallQueueStore {
     }
 
     private static String pickDisplayName(String stored, String cached) {
-        if (cached != null && !cached.isEmpty() && !CallUiHelper.isMostlyPhone(cached)) {
+        if (cached != null && !cached.isEmpty() && !CallUiHelper.isMostlyPhone(cached)
+                && !SnapNameHelper.isSnapAddress(cached)
+                && !SnapNameHelper.isGenericAppName(cached)) {
             return cached;
         }
+        if (stored != null && !SnapNameHelper.isSnapAddress(stored)) return stored;
         return stored != null ? stored : "";
     }
 
@@ -297,7 +300,9 @@ public final class MissedCallQueueStore {
                         if (value != null) {
                             value = value.replace(" (Snapchat)", "").trim();
                             if (!value.isEmpty() && !value.equalsIgnoreCase("unknown")
-                                    && !SnapNameHelper.isHiddenSensitivePlaceholder(value)) {
+                                    && !SnapNameHelper.isHiddenSensitivePlaceholder(value)
+                                    && !SnapNameHelper.isSnapAddress(value)
+                                    && !SnapNameHelper.isGenericAppName(value)) {
                                 return value;
                             }
                         }

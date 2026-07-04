@@ -141,6 +141,7 @@ public final class SnapUserStore {
     private static String decodeLegacyAddress(String address) {
         if (!address.startsWith("snap:")) return address;
         String suffix = address.substring(5);
+        if (suffix.matches("[0-9a-f]{8}")) return "";
         if (suffix.contains("%")) return Uri.decode(suffix);
         return address;
     }

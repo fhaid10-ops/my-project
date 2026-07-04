@@ -10,6 +10,7 @@ public final class SnapNameHelper {
 
     public static boolean isGenericAppName(String name) {
         if (TextUtils.isEmpty(name)) return true;
+        if (isSnapAddress(name)) return true;
         if (isHiddenSensitivePlaceholder(name)) return true;
         if (looksLikeDialId(name)) return true;
         String n = name.trim().toLowerCase(Locale.ROOT);
@@ -80,8 +81,15 @@ public final class SnapNameHelper {
     public static boolean looksLikeDialId(String name) {
         if (TextUtils.isEmpty(name)) return false;
         String n = name.trim();
+        if (isSnapAddress(n)) return true;
         if (SnapUserStore.isSnapDialId(n)) return true;
         return n.matches("888\\d{3,}");
+    }
+
+    /** عنوان داخلي مثل snap:cd08ff12 — ليس اسماً حقيقياً. */
+    public static boolean isSnapAddress(String name) {
+        if (TextUtils.isEmpty(name)) return false;
+        return name.trim().toLowerCase(Locale.ROOT).matches("snap:[0-9a-f]{8}");
     }
 
 }

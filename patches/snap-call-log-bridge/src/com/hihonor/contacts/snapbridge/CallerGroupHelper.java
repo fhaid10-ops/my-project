@@ -121,6 +121,7 @@ public final class CallerGroupHelper {
         if (key == null || key.isEmpty()) return true;
         if (key.equals("888")) return true;
         if (key.matches("888\\d+")) return true;
+        if (SnapNameHelper.isSnapAddress(key)) return true;
         return SnapNameHelper.isGenericAppName(key);
     }
 

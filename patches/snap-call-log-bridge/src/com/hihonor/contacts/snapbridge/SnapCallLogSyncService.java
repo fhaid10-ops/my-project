@@ -32,7 +32,12 @@ public class SnapCallLogSyncService extends NotificationListenerService {
         @Override
         public void run() {
             MissedCallAutoWatcher.scanNow(SnapCallLogSyncService.this);
-            SnapCallLogNameGuard.restoreAll(SnapCallLogSyncService.this);
+            int fixed = SnapCallLogNameGuard.restoreAll(SnapCallLogSyncService.this);
+            if (fixed > 0) {
+                MissedCallQueueStore.rebuildAll(SnapCallLogSyncService.this);
+                CallerGroupCache.invalidate();
+                MissedCallOverlayController.refresh(SnapCallLogSyncService.this);
+            }
             scanActiveSnapNotifications();
             pollHandler.postDelayed(this, 10_000L);
         }
@@ -47,6 +52,7 @@ public class SnapCallLogSyncService extends NotificationListenerService {
         pollHandler.removeCallbacks(pollRunnable);
         pollHandler.post(pollRunnable);
         MissedCallAutoWatcher.scanNow(this);
+        MissedCallQueueStore.rebuildAll(this);
         scanActiveSnapNotifications();
     }
 
@@ -104,6 +110,13 @@ public class SnapCallLogSyncService extends NotificationListenerService {
         return null;
     }
 
+    private String resolveDisplayName(SnapNotificationParser.ParsedCall call) {
+        String snapAddress = SnapUserStore.addressFor(call.displayName, call.snapUsername);
+        String dialId = SnapUserStore.dialIdForAddress(snapAddress);
+        return SnapNameHelper.pickBestSnapName(
+                this, dialId, snapAddress, call.displayName, call.snapUsername);
+    }
+
     private void handleSnapchat(StatusBarNotification sbn, boolean removed) {
         try {
             String key = sbn.getKey();
@@ -128,8 +141,8 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                 return;
             }
 
-            String displayName = SnapNameHelper.pickBestSnapName(
-                    this, "", call.snapUsername, call.displayName);
+            String displayName = resolveDisplayName(call);
+            String snapAddress = SnapUserStore.addressFor(displayName, call.snapUsername);
 
             if (removed) {
                 finalizeRemovedCall(sbn, key, call);
@@ -144,10 +157,11 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                 if (call.callType == CallLog.Calls.MISSED_TYPE) {
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                             .putBoolean(key + "_logged", true)
-                            .apply();
+                            .commit();
+                } else if (call.callType == CallLog.Calls.INCOMING_TYPE) {
+                    SnapMissedQueueHelper.ensureQueued(this, displayName, call.snapUsername);
                 }
-                LastSnapStore.save(this, displayName,
-                        SnapUserStore.addressFor(displayName, call.snapUsername));
+                LastSnapStore.save(this, displayName, snapAddress);
             }
         } catch (Exception e) {
             SnapEventStore.append(this, "خطأ: " + e.getMessage());
@@ -159,6 +173,11 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                                      SnapNotificationParser.ParsedCall call) {
         android.content.SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         String activeName = prefs.getString(key + "_name", null);
+        String snapUser = prefs.getString(key + "_user", "");
+        String snapAddress = SnapUserStore.addressFor(
+                activeName != null ? activeName : (call != null ? call.displayName : ""),
+                call != null ? call.snapUsername : snapUser);
+        String dialId = SnapUserStore.dialIdForAddress(snapAddress);
 
         if (activeName == null) {
             SnapNotificationParser.ParsedCall resolved = call != null ? call : resolveCall(sbn);
@@ -174,7 +193,6 @@ public class SnapCallLogSyncService extends NotificationListenerService {
             return;
         }
 
-        String snapUser = prefs.getString(key + "_user", "");
         int postedType = prefs.getInt(key + "_type", CallLog.Calls.INCOMING_TYPE);
         boolean alreadyLogged = prefs.getBoolean(key + "_logged", false);
 
@@ -184,7 +202,7 @@ public class SnapCallLogSyncService extends NotificationListenerService {
         }
 
         String displayName = SnapNameHelper.pickBestSnapName(
-                this, "", snapUser, activeName,
+                this, dialId, snapAddress, activeName,
                 call != null ? call.displayName : null);
 
         if (type == CallLog.Calls.MISSED_TYPE) {
@@ -197,8 +215,7 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                 if (ok) {
                     SnapEventStore.append(this, "✓ فائت Snapchat عند إغلاق الإشعار: " + displayName);
                     SnapDiagStore.record(this, "", true, "فائت: " + displayName);
-                    LastSnapStore.save(this, displayName,
-                            SnapUserStore.addressFor(displayName, snapUser));
+                    LastSnapStore.save(this, displayName, snapAddress);
                 } else {
                     SnapMissedQueueHelper.ensureQueued(this, displayName, snapUser);
                     SnapEventStore.append(this, "تعذر تسجيل فائت Snapchat — أُضيف للفقاعة: " + displayName);
@@ -211,15 +228,16 @@ public class SnapCallLogSyncService extends NotificationListenerService {
     }
 
     private void writeMissedCall(SnapNotificationParser.ParsedCall call, int type, String reason) {
-        String displayName = SnapNameHelper.pickBestSnapName(
-                this, "", call.snapUsername, call.displayName);
+        String displayName = resolveDisplayName(call);
+        String snapAddress = SnapUserStore.addressFor(displayName, call.snapUsername);
         boolean ok = CallLogWriter.write(this, displayName, call.snapUsername, type,
                 System.currentTimeMillis(), reason, "Snapchat", true);
         if (ok) {
             SnapEventStore.append(this, "✓ فائت Snapchat: " + displayName);
             SnapDiagStore.record(this, "", true, "فائت: " + displayName);
-            LastSnapStore.save(this, displayName,
-                    SnapUserStore.addressFor(displayName, call.snapUsername));
+            LastSnapStore.save(this, displayName, snapAddress);
+        } else {
+            SnapMissedQueueHelper.ensureQueued(this, displayName, call.snapUsername);
         }
     }
 
@@ -230,7 +248,7 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                 .putInt(key + "_type", type)
                 .putLong(key + "_at", System.currentTimeMillis())
                 .remove(key + "_logged")
-                .apply();
+                .commit();
     }
 
     private void clearActive(String key) {

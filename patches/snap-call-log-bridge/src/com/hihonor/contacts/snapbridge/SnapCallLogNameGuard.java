@@ -63,7 +63,14 @@ public final class SnapCallLogNameGuard {
         }
         if (!SnapNameHelper.isHiddenSensitivePlaceholder(currentLabel)
                 && !SnapNameHelper.isGenericAppName(currentLabel)
+                && !SnapNameHelper.isSnapAddress(currentLabel)
                 && !realName.equals(currentLabel)) {
+            return false;
+        }
+        if (!SnapNameHelper.isHiddenSensitivePlaceholder(currentFormatted)
+                && !SnapNameHelper.isGenericAppName(currentFormatted)
+                && !SnapNameHelper.isSnapAddress(currentFormatted)
+                && !realName.equals(currentFormatted)) {
             return false;
         }
 
