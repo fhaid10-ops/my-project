@@ -94,9 +94,8 @@ public class MissedCallListActivity extends Activity {
     }
 
     private void render() {
-        MissedCallAutoWatcher.scanNow(this);
         listContainer.removeAllViews();
-        List<CallerGroupHelper.CallerGroup> groups = CallerGroupHelper.groupAll(this);
+        List<CallerGroupHelper.CallerGroup> groups = CallerGroupCache.groupAll(this);
         int totalMissed = MissedCallQueueStore.size(this);
         updateCountBadge(groups.isEmpty() ? 0 : groups.size(), totalMissed);
 
@@ -141,7 +140,10 @@ public class MissedCallListActivity extends Activity {
         card.setPadding(pad, pad, pad, pad);
         card.setGravity(Gravity.CENTER_VERTICAL);
         card.setBackground(CallUiHelper.roundedCard(CallUiHelper.CARD_BG, accent, this));
-        card.setOnClickListener(v -> MissedCallDetailActivity.open(this, group));
+        card.setOnClickListener(v -> {
+            CallerGroupCache.setPendingDetail(group);
+            MissedCallDetailActivity.open(MissedCallListActivity.this, group);
+        });
 
         TextView avatar = new TextView(this);
         avatar.setText(CallUiHelper.initial(group.displayName));

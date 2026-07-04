@@ -16,8 +16,6 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import java.util.List;
-
 public class MissedCallOverlayService extends Service {
     public static final String ACTION_REFRESH = "com.hihonor.contacts.snapbridge.ACTION_REFRESH_OVERLAY";
     private static final int LONG_PRESS_MS = 550;
@@ -51,7 +49,6 @@ public class MissedCallOverlayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        MissedCallAutoWatcher.scanNow(this);
         int count = MissedCallQueueStore.size(this);
         if (count <= 0) {
             removeBubble();
@@ -60,13 +57,9 @@ public class MissedCallOverlayService extends Service {
         }
         ensureBubble();
         countText.setText(String.valueOf(count));
-        List<CallerGroupHelper.CallerGroup> groups = CallerGroupHelper.groupAll(this);
-        if (!groups.isEmpty() && hintText != null) {
-            CallerGroupHelper.CallerGroup first = groups.get(0);
-            String name = CallUiHelper.displayCallerLabel(first.displayName);
-            if (first.missedCount() > 1) {
-                name = name + " (" + first.missedCount() + ")";
-            }
+        MissedCallQueueStore.Item latest = MissedCallQueueStore.first(this);
+        if (latest != null && hintText != null) {
+            String name = CallUiHelper.displayCallerLabel(latest.bestName());
             if (name.length() > 12) name = name.substring(0, 11) + "…";
             hintText.setTextDirection(View.TEXT_DIRECTION_LTR);
             hintText.setText(name);

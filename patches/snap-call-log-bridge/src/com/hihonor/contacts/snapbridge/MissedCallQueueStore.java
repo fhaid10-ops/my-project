@@ -153,6 +153,7 @@ public final class MissedCallQueueStore {
         }
         items.add(item);
         save(context, items);
+        CallerGroupCache.invalidate();
         return true;
     }
 
@@ -181,6 +182,7 @@ public final class MissedCallQueueStore {
         }
         if (changed) {
             save(context, items, true);
+            CallerGroupCache.invalidate();
         }
         return changed;
     }
@@ -210,6 +212,7 @@ public final class MissedCallQueueStore {
         } catch (Exception ignored) {
         }
         save(context, out, true);
+        CallerGroupCache.invalidate();
         CallerIdDiagStore.record(context, out.size(), named, isTruecallerInstalled(context));
         return out.size();
     }
@@ -267,7 +270,7 @@ public final class MissedCallQueueStore {
             for (int i = 0; i < arr.length(); i++) {
                 Item item = Item.fromJson(arr.optJSONObject(i));
                 if (item != null && item.id != null && !item.id.isEmpty()) {
-                    out.add(enrichIfNeeded(context, item));
+                    out.add(item);
                 }
             }
         } catch (Exception ignored) {

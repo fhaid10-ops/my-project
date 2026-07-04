@@ -18,6 +18,8 @@ public class MissedCallDetailActivity extends Activity {
     private String callerKey;
     private LinearLayout headerCard;
     private LinearLayout historyContainer;
+    private CallerGroupHelper.CallerGroup currentGroup;
+    private boolean skipNextResumeRender;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,55 +74,77 @@ public class MissedCallDetailActivity extends Activity {
         CallerActionButtons.Listener listener = new CallerActionButtons.Listener() {
             @Override
             public void onCallback() {
-                CallerGroupHelper.CallerGroup g = CallerGroupHelper.findByKey(MissedCallDetailActivity.this, callerKey);
-                CallerActionButtons.performCallback(MissedCallDetailActivity.this, g);
+                CallerActionButtons.performCallback(MissedCallDetailActivity.this, currentGroup);
                 finish();
             }
 
             @Override
             public void onWhatsApp() {
-                CallerGroupHelper.CallerGroup g = CallerGroupHelper.findByKey(MissedCallDetailActivity.this, callerKey);
-                CallerActionButtons.performWhatsApp(MissedCallDetailActivity.this, g);
+                CallerActionButtons.performWhatsApp(MissedCallDetailActivity.this, currentGroup);
                 finish();
             }
 
             @Override
             public void onWhatsAppBusiness() {
-                CallerGroupHelper.CallerGroup g = CallerGroupHelper.findByKey(MissedCallDetailActivity.this, callerKey);
-                CallerActionButtons.performWhatsAppBusiness(MissedCallDetailActivity.this, g);
+                CallerActionButtons.performWhatsAppBusiness(MissedCallDetailActivity.this, currentGroup);
                 finish();
             }
 
             @Override
             public void onDelete() {
-                CallerGroupHelper.CallerGroup g = CallerGroupHelper.findByKey(MissedCallDetailActivity.this, callerKey);
-                CallerActionButtons.performDelete(MissedCallDetailActivity.this, g);
+                CallerActionButtons.performDelete(MissedCallDetailActivity.this, currentGroup);
                 finish();
             }
         };
         root.addView(CallerActionButtons.buildBottomBar(this, listener));
 
         setContentView(root);
+        skipNextResumeRender = true;
         render();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        if (skipNextResumeRender) {
+            skipNextResumeRender = false;
+            return;
+        }
         render();
     }
 
     private void render() {
-        CallerGroupHelper.CallerGroup group = CallerGroupHelper.findByKey(this, callerKey);
+        CallerGroupHelper.CallerGroup group = CallerGroupCache.takePendingDetail(callerKey);
+        if (group == null) {
+            group = CallerGroupCache.findByKey(this, callerKey);
+        }
         if (group == null) {
             finish();
             return;
         }
+        currentGroup = group;
 
         buildHeader(group);
         historyContainer.removeAllViews();
+        TextView loading = new TextView(this);
+        loading.setText("جاري التحميل…");
+        loading.setTextColor(CallUiHelper.TEXT_SECONDARY);
+        loading.setPadding(0, CallUiHelper.dp(this, 8), 0, 0);
+        historyContainer.addView(loading);
 
-        List<CallerCallHistory.Record> records = CallerCallHistory.forGroup(this, group);
+        final CallerGroupHelper.CallerGroup groupFinal = group;
+        new Thread(() -> {
+            final List<CallerCallHistory.Record> records =
+                    CallerCallHistory.forGroup(MissedCallDetailActivity.this, groupFinal);
+            runOnUiThread(() -> showHistory(groupFinal, records));
+        }).start();
+    }
+
+    private void showHistory(CallerGroupHelper.CallerGroup group,
+                             List<CallerCallHistory.Record> records) {
+        if (currentGroup == null || !group.key.equals(currentGroup.key)) return;
+        historyContainer.removeAllViews();
+
         if (records.isEmpty()) {
             for (MissedCallQueueStore.Item item : group.queuedItems) {
                 historyContainer.addView(buildHistoryRow(

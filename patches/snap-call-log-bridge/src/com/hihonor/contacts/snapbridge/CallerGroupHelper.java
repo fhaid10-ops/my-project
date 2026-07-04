@@ -57,9 +57,14 @@ public final class CallerGroupHelper {
     }
 
     public static String callerKey(Context context, MissedCallQueueStore.Item item) {
+        return callerKey(context, item, null);
+    }
+
+    public static String callerKey(Context context, MissedCallQueueStore.Item item,
+                                   CallLogRowCache rowCache) {
         if (item == null) return "";
         if (item.isSnap) {
-            String snapKey = snapGroupKey(context, item);
+            String snapKey = snapGroupKey(context, item, rowCache);
             if (!snapKey.isEmpty()) return "snap:" + snapKey;
             return "";
         }
@@ -72,9 +77,14 @@ public final class CallerGroupHelper {
 
     /** مفتاح تجميع Snapchat: الاسم الحقيقي أولاً، ثم العنوان، ثم رقم الاتصال الداخلي. */
     static String snapGroupKey(Context context, MissedCallQueueStore.Item item) {
+        return snapGroupKey(context, item, null);
+    }
+
+    static String snapGroupKey(Context context, MissedCallQueueStore.Item item,
+                               CallLogRowCache rowCache) {
         if (item == null) return "";
         String addr = resolveSnapAddress(context, item);
-        String formatted = context != null ? lookupFormattedNumber(context, item.id) : "";
+        String formatted = formattedForItem(context, item, rowCache);
         String resolved = SnapNameHelper.resolve(context, item.number, addr, item.displayName, formatted);
 
         String nameKey = normalizeNameKey(resolved);
@@ -127,6 +137,24 @@ public final class CallerGroupHelper {
             if (byIdentity != null && !byIdentity.isEmpty()) return byIdentity;
         }
         return "";
+    }
+
+    private static String formattedForItem(Context context, MissedCallQueueStore.Item item,
+                                           CallLogRowCache rowCache) {
+        if (item == null) return "";
+        if (!SnapNameHelper.isGenericAppName(item.displayName)
+                && !SnapNameHelper.looksLikeDialId(item.displayName)) {
+            return item.displayName;
+        }
+        if (!SnapNameHelper.isGenericAppName(item.resolvedName)
+                && !SnapNameHelper.looksLikeDialId(item.resolvedName)) {
+            return item.resolvedName;
+        }
+        if (rowCache != null) {
+            String cached = rowCache.formatted(item.id);
+            if (cached != null && !cached.isEmpty()) return cached;
+        }
+        return context != null ? lookupFormattedNumber(context, item.id) : "";
     }
 
     private static String lookupFormattedNumber(Context context, String id) {
@@ -190,10 +218,15 @@ public final class CallerGroupHelper {
     }
 
     public static List<CallerGroup> groupAll(Context context) {
+        return CallerGroupCache.groupAll(context);
+    }
+
+    static List<CallerGroup> buildGroups(Context context) {
         List<MissedCallQueueStore.Item> items = MissedCallQueueStore.all(context);
+        CallLogRowCache rowCache = CallLogRowCache.load(context, items);
         Map<String, List<MissedCallQueueStore.Item>> map = new LinkedHashMap<>();
         for (MissedCallQueueStore.Item item : items) {
-            String key = callerKey(context, item);
+            String key = callerKey(context, item, rowCache);
             if (key.isEmpty()) continue;
             List<MissedCallQueueStore.Item> bucket = map.get(key);
             if (bucket == null) {
@@ -202,7 +235,7 @@ public final class CallerGroupHelper {
             }
             bucket.add(item);
         }
-        mergeSnapGroups(context, map);
+        mergeSnapGroups(context, map, rowCache);
 
         ArrayList<CallerGroup> groups = new ArrayList<>();
         for (Map.Entry<String, List<MissedCallQueueStore.Item>> entry : map.entrySet()) {
@@ -215,7 +248,7 @@ public final class CallerGroupHelper {
             });
             MissedCallQueueStore.Item latest = bucket.get(0);
             String displayName = latest.isSnap
-                    ? pickBestSnapDisplayName(context, bucket)
+                    ? pickBestSnapDisplayName(context, bucket, rowCache)
                     : latest.bestName();
             groups.add(new CallerGroup(
                     entry.getKey(),
@@ -238,9 +271,10 @@ public final class CallerGroupHelper {
     }
 
     private static String pickBestSnapDisplayName(Context context,
-                                                  List<MissedCallQueueStore.Item> bucket) {
+                                                  List<MissedCallQueueStore.Item> bucket,
+                                                  CallLogRowCache rowCache) {
         for (MissedCallQueueStore.Item item : bucket) {
-            String formatted = lookupFormattedNumber(context, item.id);
+            String formatted = formattedForItem(context, item, rowCache);
             String resolved = SnapNameHelper.resolve(context, item.number,
                     resolveSnapAddress(context, item), item.displayName, formatted);
             if (!SnapNameHelper.isGenericAppName(resolved) && !SnapNameHelper.looksLikeDialId(resolved)) {
@@ -258,7 +292,8 @@ public final class CallerGroupHelper {
 
     /** دمج بطاقات Snapchat المكررة لنفس الشخص. */
     private static void mergeSnapGroups(Context context,
-                                        Map<String, List<MissedCallQueueStore.Item>> map) {
+                                        Map<String, List<MissedCallQueueStore.Item>> map,
+                                        CallLogRowCache rowCache) {
         Map<String, List<String>> mergeIndex = new LinkedHashMap<>();
         for (String key : new ArrayList<>(map.keySet())) {
             List<MissedCallQueueStore.Item> bucket = map.get(key);
@@ -266,9 +301,9 @@ public final class CallerGroupHelper {
 
             LinkedHashSet<String> mergeIds = new LinkedHashSet<>();
             for (MissedCallQueueStore.Item item : bucket) {
-                String id = snapMergeId(context, item);
+                String id = snapMergeId(context, item, rowCache);
                 if (!id.isEmpty()) mergeIds.add(id);
-                for (String name : collectSnapNameCandidates(context, item)) {
+                for (String name : collectSnapNameCandidates(context, item, rowCache)) {
                     String nk = normalizeNameKey(name);
                     if (nk != null && !isWeakSnapNameKey(nk)) {
                         mergeIds.add("name:" + nk);
@@ -301,9 +336,10 @@ public final class CallerGroupHelper {
         }
     }
 
-    private static String snapMergeId(Context context, MissedCallQueueStore.Item item) {
-        String primary = snapGroupKey(context, item);
-        for (String name : collectSnapNameCandidates(context, item)) {
+    private static String snapMergeId(Context context, MissedCallQueueStore.Item item,
+                                    CallLogRowCache rowCache) {
+        String primary = snapGroupKey(context, item, rowCache);
+        for (String name : collectSnapNameCandidates(context, item, rowCache)) {
             String nk = normalizeNameKey(name);
             if (nk != null && !isWeakSnapNameKey(nk)) {
                 return "name:" + nk;
@@ -313,10 +349,11 @@ public final class CallerGroupHelper {
     }
 
     private static List<String> collectSnapNameCandidates(Context context,
-                                                          MissedCallQueueStore.Item item) {
+                                                          MissedCallQueueStore.Item item,
+                                                          CallLogRowCache rowCache) {
         ArrayList<String> out = new ArrayList<>();
         String addr = resolveSnapAddress(context, item);
-        String formatted = context != null ? lookupFormattedNumber(context, item.id) : "";
+        String formatted = formattedForItem(context, item, rowCache);
         out.add(SnapNameHelper.resolve(context, item.number, addr, item.displayName, formatted));
         out.add(SnapNameHelper.clean(formatted));
         out.add(item.displayName);
@@ -348,11 +385,7 @@ public final class CallerGroupHelper {
     }
 
     public static CallerGroup findByKey(Context context, String key) {
-        if (key == null || key.isEmpty()) return null;
-        for (CallerGroup group : groupAll(context)) {
-            if (key.equals(group.key)) return group;
-        }
-        return null;
+        return CallerGroupCache.findByKey(context, key);
     }
 
     public static int removeByKey(Context context, String key) {
