@@ -9,6 +9,12 @@ import android.telephony.PhoneNumberUtils;
 
 public final class CallerIdentityResolver {
     private static final String PKG_NUMBERBOOK = "com.mobiles.numberbookdirectory";
+    private static final String PKG_CALLAPP = "com.callapp.contacts";
+    /** أدلة معرف المتصل — تُبحث أولاً حسب تفضيل المستخدم. */
+    private static final String[] PREFERRED_DIRECTORY_PACKAGES = {
+            PKG_CALLAPP,
+            PKG_NUMBERBOOK,
+    };
 
     private CallerIdentityResolver() {}
 
@@ -54,7 +60,19 @@ public final class CallerIdentityResolver {
                 "هاتف");
     }
 
-    /** يبحث في أدلة المتصلين المثبتة (نمر بوك، Truecaller، إلخ). */
+    private static final class DirectoryEntry {
+        final long id;
+        final String label;
+        final String packageName;
+
+        DirectoryEntry(long id, String label, String packageName) {
+            this.id = id;
+            this.label = label;
+            this.packageName = packageName;
+        }
+    }
+
+    /** يبحث في أدلة المتصلين المثبتة (CallApp، نمر بوك، Truecaller، إلخ). */
     private static Identity lookupExternalDirectories(Context context, String number) {
         if (number == null || number.isEmpty()) return null;
         if (number.startsWith("888") && number.length() >= 10) return null;
@@ -70,13 +88,28 @@ public final class CallerIdentityResolver {
                     },
                     null, null, null);
             if (dirs == null) return null;
+
+            java.util.ArrayList<DirectoryEntry> entries = new java.util.ArrayList<>();
             while (dirs.moveToNext()) {
                 long dirId = dirs.getLong(0);
                 if (dirId <= ContactsContract.Directory.DEFAULT) continue;
-                String dirLabel = dirs.getString(1);
-                String pkg = dirs.getString(2);
-                String source = sourceLabelForDirectory(pkg, dirLabel);
-                Identity hit = queryPhoneLookup(resolver, number, dirId, source);
+                entries.add(new DirectoryEntry(dirId, dirs.getString(1), dirs.getString(2)));
+            }
+
+            for (String preferredPkg : PREFERRED_DIRECTORY_PACKAGES) {
+                for (DirectoryEntry entry : entries) {
+                    if (!preferredPkg.equals(entry.packageName)) continue;
+                    Identity hit = queryPhoneLookup(
+                            resolver, number, entry.id,
+                            sourceLabelForDirectory(entry.packageName, entry.label));
+                    if (hit != null) return hit;
+                }
+            }
+            for (DirectoryEntry entry : entries) {
+                if (preferredPackageRank(entry.packageName) >= 0) continue;
+                Identity hit = queryPhoneLookup(
+                        resolver, number, entry.id,
+                        sourceLabelForDirectory(entry.packageName, entry.label));
                 if (hit != null) return hit;
             }
         } catch (Exception ignored) {
@@ -84,6 +117,14 @@ public final class CallerIdentityResolver {
             if (dirs != null) dirs.close();
         }
         return null;
+    }
+
+    private static int preferredPackageRank(String packageName) {
+        if (packageName == null) return -1;
+        for (int i = 0; i < PREFERRED_DIRECTORY_PACKAGES.length; i++) {
+            if (PREFERRED_DIRECTORY_PACKAGES[i].equals(packageName)) return i;
+        }
+        return -1;
     }
 
     private static Identity queryPhoneLookup(ContentResolver resolver, String number,
@@ -126,6 +167,7 @@ public final class CallerIdentityResolver {
     }
 
     private static String sourceLabelForDirectory(String packageName, String dirLabel) {
+        if (PKG_CALLAPP.equals(packageName)) return "CallApp";
         if (PKG_NUMBERBOOK.equals(packageName)) return "نمر بوك";
         if (packageName != null && packageName.contains("truecaller")) return "Truecaller";
         if (dirLabel != null && !dirLabel.trim().isEmpty()) return dirLabel.trim();
