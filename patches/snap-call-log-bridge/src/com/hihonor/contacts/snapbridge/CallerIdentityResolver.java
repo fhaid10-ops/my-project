@@ -5,7 +5,6 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.ContactsContract;
-import android.telephony.PhoneNumberUtils;
 
 public final class CallerIdentityResolver {
     private static final String PKG_NUMBERBOOK = "com.mobiles.numberbookdirectory";
@@ -183,13 +182,7 @@ public final class CallerIdentityResolver {
     }
 
     private static String formatNumber(String number) {
-        if (number == null || number.isEmpty()) return "";
-        try {
-            String formatted = PhoneNumberUtils.formatNumber(number, "SA");
-            if (formatted != null && !formatted.isEmpty()) return formatted;
-        } catch (Exception ignored) {
-        }
-        return number;
+        return CallUiHelper.compactPhone(number);
     }
 
     private static String clean(String value) {

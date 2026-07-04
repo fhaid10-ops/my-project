@@ -51,15 +51,20 @@ public final class MissedCallQueueStore {
         }
 
         public String bestName() {
-            if (resolvedName != null && !resolvedName.isEmpty()) return resolvedName;
-            if (displayName != null && !displayName.isEmpty()) return displayName;
-            return "مكالمة فائتة";
+            String name = resolvedName != null && !resolvedName.isEmpty()
+                    ? resolvedName : displayName;
+            if (name == null || name.isEmpty()) return "مكالمة فائتة";
+            if (CallUiHelper.isMostlyPhone(name)) return CallUiHelper.compactPhone(name);
+            return name;
         }
 
         public String bestSubtitle() {
-            if (subtitle != null && !subtitle.isEmpty()) return subtitle;
+            if (subtitle != null && !subtitle.isEmpty()) {
+                if (CallUiHelper.isMostlyPhone(subtitle)) return CallUiHelper.compactPhone(subtitle);
+                return subtitle;
+            }
             if (isSnap) return "Snapchat";
-            return number != null ? number : "";
+            return number != null ? CallUiHelper.compactPhone(number) : "";
         }
 
         public String bestSourceLabel() {

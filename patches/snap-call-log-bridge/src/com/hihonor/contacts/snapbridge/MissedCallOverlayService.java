@@ -63,11 +63,12 @@ public class MissedCallOverlayService extends Service {
         List<CallerGroupHelper.CallerGroup> groups = CallerGroupHelper.groupAll(this);
         if (!groups.isEmpty() && hintText != null) {
             CallerGroupHelper.CallerGroup first = groups.get(0);
-            String name = first.displayName;
+            String name = CallUiHelper.displayCallerLabel(first.displayName);
             if (first.missedCount() > 1) {
                 name = name + " (" + first.missedCount() + ")";
             }
             if (name.length() > 12) name = name.substring(0, 11) + "…";
+            hintText.setTextDirection(View.TEXT_DIRECTION_LTR);
             hintText.setText(name);
         }
         return START_STICKY;

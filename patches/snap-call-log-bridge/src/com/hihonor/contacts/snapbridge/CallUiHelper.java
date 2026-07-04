@@ -160,6 +160,55 @@ public final class CallUiHelper {
         return isSnap ? SNAP_ACCENT : PHONE_ACCENT;
     }
 
+    /** يعرض الرقم بصيغة سعودية واضحة بدون مسافات، مع عزل LTR في الواجهة العربية. */
+    public static String compactPhone(String raw) {
+        if (raw == null) return "";
+        String digits = raw.replaceAll("[^0-9+]", "");
+        if (digits.isEmpty()) return raw.trim();
+
+        if (digits.startsWith("+966")) {
+            String local = digits.substring(4);
+            if (local.length() == 9) return "0" + local;
+            return "+966" + local;
+        }
+        if (digits.startsWith("966") && digits.length() >= 12) {
+            String local = digits.substring(3);
+            if (local.length() == 9) return "0" + local;
+        }
+        if (digits.startsWith("00") && digits.length() > 4) {
+            return compactPhone("+" + digits.substring(2));
+        }
+        if (digits.startsWith("0") && digits.length() == 10) return digits;
+        if (digits.startsWith("5") && digits.length() == 9) return "0" + digits;
+        if (digits.startsWith("+")) return digits;
+        return digits;
+    }
+
+    public static boolean isMostlyPhone(String text) {
+        if (text == null || text.isEmpty()) return false;
+        String trimmed = text.trim();
+        if (trimmed.matches("^[+0-9*#\\-\\s()]+$")) return true;
+        int digits = 0;
+        for (int i = 0; i < trimmed.length(); i++) {
+            if (Character.isDigit(trimmed.charAt(i))) digits++;
+        }
+        return digits >= 7 && digits >= trimmed.length() / 2;
+    }
+
+    public static String displayCallerLabel(String label) {
+        if (label == null || label.isEmpty()) return "";
+        if (!isMostlyPhone(label)) return label.trim();
+        return "\u2066" + compactPhone(label) + "\u2069";
+    }
+
+    public static void bindCallerLabel(TextView tv, String label) {
+        if (tv == null) return;
+        if (isMostlyPhone(label)) {
+            tv.setTextDirection(View.TEXT_DIRECTION_LTR);
+        }
+        tv.setText(displayCallerLabel(label));
+    }
+
     public static void setRipple(View view) {
         view.setClickable(true);
         view.setFocusable(true);

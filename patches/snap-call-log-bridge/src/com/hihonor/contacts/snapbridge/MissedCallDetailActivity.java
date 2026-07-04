@@ -171,7 +171,7 @@ public class MissedCallDetailActivity extends Activity {
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView name = new TextView(this);
-        name.setText(group.displayName);
+        CallUiHelper.bindCallerLabel(name, group.displayName);
         name.setTextColor(CallUiHelper.TEXT_PRIMARY);
         name.setTextSize(20f);
         name.setTypeface(null, Typeface.BOLD);

@@ -162,7 +162,7 @@ public class MissedCallListActivity extends Activity {
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView nameView = new TextView(this);
-        nameView.setText(group.displayName);
+        CallUiHelper.bindCallerLabel(nameView, group.displayName);
         nameView.setTextColor(CallUiHelper.TEXT_PRIMARY);
         nameView.setTextSize(17f);
         nameView.setTypeface(null, Typeface.BOLD);
