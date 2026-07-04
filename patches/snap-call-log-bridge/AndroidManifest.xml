@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.hihonor.contacts.snapbridge"
-    android:versionCode="27"
-    android:versionName="2.16">
+    android:versionCode="29"
+    android:versionName="2.18">
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
 
@@ -123,6 +123,7 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.hihonor.contacts.snapbridge.ACTION_BUBBLE_SNOOZE_WAKE" />
+                <action android:name="com.hihonor.contacts.snapbridge.ACTION_BUBBLE_SNOOZE_REMINDER" />
             </intent-filter>
         </receiver>
     </application>

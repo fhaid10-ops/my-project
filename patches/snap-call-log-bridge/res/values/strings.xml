@@ -11,6 +11,13 @@
     <string name="btn_clean">إصلاح سجلات Snapchat</string>
     <string name="btn_backfill_missed">إضافة فائت قديم للفقاعة (اختياري)</string>
     <string name="btn_overlay">تفعيل الفقاعة العائمة فوق التطبيقات</string>
+    <string name="btn_snooze_notify_on">🔔 إشعار قبل عودة الفقاعة: مفعّل</string>
+    <string name="btn_snooze_notify_off">🔕 إشعار قبل عودة الفقاعة: موقوف (اضغط للتفعيل)</string>
+    <string name="snooze_notify_ok">✓ إشعار قبل عودة الفقاعة (5 دقائق) مفعّل</string>
+    <string name="snooze_notify_no">✗ إشعار قبل عودة الفقاعة موقوف (اختياري)</string>
+    <string name="btn_wake_bubble">إظهار الفقاعة الآن</string>
+    <string name="snooze_hidden">⏸ الفقاعة مخفية حتى %1$s</string>
+    <string name="snooze_visible">✓ الفقاعة ظاهرة</string>
     <string name="btn_call">اتصل</string>
     <string name="call_from_title">اتصل من سجل المكالمات مباشرة</string>
     <string name="call_from_steps">① فعّل الأزرار أدناه (مرة واحدة)\n② افتح سجل المكالمات → اضغط مكالمة\n③ يفتح Snapchat تلقائياً</string>
