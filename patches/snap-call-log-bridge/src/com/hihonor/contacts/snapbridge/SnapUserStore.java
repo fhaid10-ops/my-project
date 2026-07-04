@@ -64,14 +64,28 @@ public final class SnapUserStore {
         return "";
     }
 
+    public static String addressForIdentity(Context context, String displayName) {
+        String identity = normalizeIdentityKey(displayName);
+        if (identity.isEmpty()) return "";
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString("identity:" + shortHash(identity), "");
+    }
+
     public static void save(Context context, String address, String displayName, String snapUsername) {
         String dialId = dialIdForAddress(address);
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+        android.content.SharedPreferences.Editor editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString("display:" + address, displayName)
                 .putString("user:" + address, snapUsername != null ? snapUsername : "")
                 .putString("dial:" + dialId, address)
-                .putString("name:" + dialId, displayName)
-                .apply();
+                .putString("name:" + dialId, displayName);
+        String identity = normalizeIdentityKey(displayName);
+        if (!identity.isEmpty()) {
+            editor.putString("identity:" + shortHash(identity), address);
+        }
+        if (snapUsername != null && !snapUsername.isEmpty()) {
+            editor.putString("identity:" + shortHash(snapUsername.trim().toLowerCase(Locale.ROOT)), address);
+        }
+        editor.apply();
     }
 
     public static String getDisplayName(Context context, String addressOrDialId) {

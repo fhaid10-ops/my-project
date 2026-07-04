@@ -11,6 +11,7 @@ public final class SnapNameHelper {
     public static boolean isGenericAppName(String name) {
         if (TextUtils.isEmpty(name)) return true;
         if (isHiddenSensitivePlaceholder(name)) return true;
+        if (looksLikeDialId(name)) return true;
         String n = name.trim().toLowerCase(Locale.ROOT);
         if (n.equals("snapchat") || n.equals("snap") || n.equals("سناب") || n.equals("سناب شات")
                 || n.equals("سنابشات") || n.equals("سناب شات")) {
@@ -74,6 +75,13 @@ public final class SnapNameHelper {
         if (!isGenericAppName(last)) return clean(last);
 
         return isGenericAppName(fallback) ? "مكالمة Snapchat" : fallback;
+    }
+
+    public static boolean looksLikeDialId(String name) {
+        if (TextUtils.isEmpty(name)) return false;
+        String n = name.trim();
+        if (SnapUserStore.isSnapDialId(n)) return true;
+        return n.matches("888\\d{3,}");
     }
 
 }

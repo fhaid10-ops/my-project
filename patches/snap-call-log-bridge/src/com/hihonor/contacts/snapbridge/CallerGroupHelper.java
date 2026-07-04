@@ -1,6 +1,7 @@
 package com.hihonor.contacts.snapbridge;
 
 import android.content.Context;
+import android.provider.CallLog;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -57,17 +58,8 @@ public final class CallerGroupHelper {
     public static String callerKey(Context context, MissedCallQueueStore.Item item) {
         if (item == null) return "";
         if (item.isSnap) {
-            String addr = resolveSnapAddress(context, item);
-            if (addr != null && !addr.isEmpty()) {
-                return "snap:addr:" + addr.toLowerCase(Locale.ROOT);
-            }
-            if (item.number != null && SnapUserStore.isSnapDialId(item.number)) {
-                return "snap:dial:" + item.number;
-            }
-            String nameKey = normalizeNameKey(item.bestName());
-            if (nameKey != null) return "snap:" + nameKey;
-            String phone = normalizePhoneKey(item.number);
-            if (!phone.isEmpty()) return "snap:num:" + phone;
+            String snapKey = snapGroupKey(context, item);
+            if (!snapKey.isEmpty()) return "snap:" + snapKey;
             return "";
         }
         String phone = normalizePhoneKey(item.number);
@@ -77,12 +69,85 @@ public final class CallerGroupHelper {
         return "";
     }
 
+    /** مفتاح تجميع Snapchat: الاسم الحقيقي أولاً، ثم العنوان، ثم رقم الاتصال الداخلي. */
+    static String snapGroupKey(Context context, MissedCallQueueStore.Item item) {
+        if (item == null) return "";
+        String addr = resolveSnapAddress(context, item);
+        String formatted = context != null ? lookupFormattedNumber(context, item.id) : "";
+        String resolved = SnapNameHelper.resolve(context, item.number, addr, item.displayName, formatted);
+
+        String nameKey = normalizeNameKey(resolved);
+        if (nameKey != null && !isWeakSnapNameKey(nameKey)) {
+            return "name:" + nameKey;
+        }
+
+        String fmtKey = normalizeNameKey(SnapNameHelper.clean(formatted));
+        if (fmtKey != null && !isWeakSnapNameKey(fmtKey)) {
+            return "name:" + fmtKey;
+        }
+
+        if (context != null && !SnapNameHelper.isGenericAppName(resolved)) {
+            String byIdentity = SnapUserStore.addressForIdentity(context, resolved);
+            if (byIdentity != null && !byIdentity.isEmpty()) {
+                return "addr:" + byIdentity.toLowerCase(Locale.ROOT);
+            }
+        }
+
+        if (addr != null && !addr.isEmpty()) {
+            return "addr:" + addr.toLowerCase(Locale.ROOT);
+        }
+
+        if (item.number != null && SnapUserStore.isSnapDialId(item.number)) {
+            return "dial:" + item.number;
+        }
+
+        if (nameKey != null) return "name:" + nameKey;
+        if (fmtKey != null) return "name:" + fmtKey;
+        return "";
+    }
+
+    private static boolean isWeakSnapNameKey(String key) {
+        if (key == null || key.isEmpty()) return true;
+        if (key.equals("888")) return true;
+        if (key.matches("888\\d+")) return true;
+        return SnapNameHelper.isGenericAppName(key);
+    }
+
     private static String resolveSnapAddress(Context context, MissedCallQueueStore.Item item) {
         if (item.snapAddress != null && !item.snapAddress.isEmpty()) {
             return item.snapAddress;
         }
         if (context != null && item.number != null && SnapUserStore.isSnapDialId(item.number)) {
-            return SnapUserStore.addressFromDialId(context, item.number);
+            String mapped = SnapUserStore.addressFromDialId(context, item.number);
+            if (mapped != null && !mapped.isEmpty()) return mapped;
+        }
+        if (context != null && item.displayName != null && !item.displayName.isEmpty()) {
+            String byIdentity = SnapUserStore.addressForIdentity(context, item.displayName);
+            if (byIdentity != null && !byIdentity.isEmpty()) return byIdentity;
+        }
+        return "";
+    }
+
+    private static String lookupFormattedNumber(Context context, String id) {
+        if (context == null || id == null || id.isEmpty()) return "";
+        try {
+            android.database.Cursor cursor = context.getContentResolver().query(
+                    CallLog.Calls.CONTENT_URI,
+                    new String[] {CallLog.Calls.CACHED_FORMATTED_NUMBER},
+                    CallLog.Calls._ID + "=?",
+                    new String[] {id},
+                    null);
+            if (cursor != null) {
+                try {
+                    if (cursor.moveToFirst()) {
+                        String value = cursor.getString(0);
+                        return value != null ? value : "";
+                    }
+                } finally {
+                    cursor.close();
+                }
+            }
+        } catch (Exception ignored) {
         }
         return "";
     }
@@ -136,7 +201,7 @@ public final class CallerGroupHelper {
             }
             bucket.add(item);
         }
-        mergeSnapGroupsByName(map);
+        mergeSnapGroups(context, map);
 
         ArrayList<CallerGroup> groups = new ArrayList<>();
         for (Map.Entry<String, List<MissedCallQueueStore.Item>> entry : map.entrySet()) {
@@ -148,11 +213,14 @@ public final class CallerGroupHelper {
                 }
             });
             MissedCallQueueStore.Item latest = bucket.get(0);
+            String displayName = latest.isSnap
+                    ? pickBestSnapDisplayName(context, bucket)
+                    : latest.bestName();
             groups.add(new CallerGroup(
                     entry.getKey(),
-                    latest.bestName(),
+                    displayName,
                     latest.number,
-                    latest.snapAddress,
+                    resolveSnapAddress(context, latest),
                     latest.isSnap,
                     latest.bestSourceLabel(),
                     summarizeSimLabels(bucket),
@@ -168,19 +236,68 @@ public final class CallerGroupHelper {
         return groups;
     }
 
-    /** دمج بطاقات Snapchat المكررة لنفس الشخص (عناوين snap مختلفة أو إيموجي مختلف). */
-    private static void mergeSnapGroupsByName(Map<String, List<MissedCallQueueStore.Item>> map) {
-        Map<String, String> nameToKey = new LinkedHashMap<>();
+    private static String pickBestSnapDisplayName(Context context,
+                                                  List<MissedCallQueueStore.Item> bucket) {
+        for (MissedCallQueueStore.Item item : bucket) {
+            String formatted = lookupFormattedNumber(context, item.id);
+            String resolved = SnapNameHelper.resolve(context, item.number,
+                    resolveSnapAddress(context, item), item.displayName, formatted);
+            if (!SnapNameHelper.isGenericAppName(resolved) && !SnapNameHelper.looksLikeDialId(resolved)) {
+                return resolved;
+            }
+        }
+        for (MissedCallQueueStore.Item item : bucket) {
+            String name = item.bestName();
+            if (!SnapNameHelper.isGenericAppName(name) && !SnapNameHelper.looksLikeDialId(name)) {
+                return name;
+            }
+        }
+        return "مكالمة Snapchat";
+    }
+
+    /** دمج بطاقات Snapchat المكررة لنفس الشخص. */
+    private static void mergeSnapGroups(Context context,
+                                        Map<String, List<MissedCallQueueStore.Item>> map) {
+        Map<String, String> mergeToKey = new LinkedHashMap<>();
         ArrayList<String> keys = new ArrayList<>(map.keySet());
         for (String key : keys) {
             List<MissedCallQueueStore.Item> bucket = map.get(key);
             if (bucket == null || bucket.isEmpty() || !bucket.get(0).isSnap) continue;
-            String nameKey = normalizeNameKey(bucket.get(0).bestName());
-            if (nameKey == null) continue;
-            String mergeId = "snap:name:" + nameKey;
-            String canonical = nameToKey.get(mergeId);
+            String mergeId = snapGroupKey(context, bucket.get(0));
+            if (mergeId.isEmpty()) continue;
+            String canonical = mergeToKey.get(mergeId);
             if (canonical == null) {
-                nameToKey.put(mergeId, key);
+                mergeToKey.put(mergeId, key);
+                continue;
+            }
+            if (canonical.equals(key)) continue;
+            List<MissedCallQueueStore.Item> target = map.get(canonical);
+            if (target != null) {
+                target.addAll(bucket);
+            }
+            map.remove(key);
+        }
+
+        // دمج إضافي عندما يضيع الاسم ويبقى رقم 888 — نعتمد الاسم المنسّق في السجل
+        Map<String, String> fmtToKey = new LinkedHashMap<>();
+        keys = new ArrayList<>(map.keySet());
+        for (String key : keys) {
+            List<MissedCallQueueStore.Item> bucket = map.get(key);
+            if (bucket == null || bucket.isEmpty() || !bucket.get(0).isSnap) continue;
+            String fmtKey = null;
+            for (MissedCallQueueStore.Item item : bucket) {
+                String candidate = normalizeNameKey(
+                        SnapNameHelper.clean(lookupFormattedNumber(context, item.id)));
+                if (candidate != null && !isWeakSnapNameKey(candidate)) {
+                    fmtKey = candidate;
+                    break;
+                }
+            }
+            if (fmtKey == null) continue;
+            String mergeId = "fmt:" + fmtKey;
+            String canonical = fmtToKey.get(mergeId);
+            if (canonical == null) {
+                fmtToKey.put(mergeId, key);
                 continue;
             }
             if (canonical.equals(key)) continue;
