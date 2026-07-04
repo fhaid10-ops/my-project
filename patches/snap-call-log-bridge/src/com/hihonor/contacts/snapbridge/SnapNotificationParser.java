@@ -34,33 +34,27 @@ public final class SnapNotificationParser {
 
         String snapUser = extractSnapUsername(extras);
         if (Notification.CATEGORY_CALL.equals(n.category)) {
-            String name = resolveCallerName(extras);
-            if (!TextUtils.isEmpty(name)) {
-                return new ParsedCall(SnapNameHelper.clean(name), snapUser, resolveType(extras, n), "CATEGORY_CALL");
-            }
+            return buildParsed(extras, n, snapUser, resolveCallerName(extras), "CATEGORY_CALL");
         }
 
         if (Build.VERSION.SDK_INT >= 31) {
             String template = extras.getString("android.template");
             if (template != null && template.contains("CallStyle")) {
-                String name = resolveCallerName(extras);
-                if (!TextUtils.isEmpty(name)) {
-                    return new ParsedCall(SnapNameHelper.clean(name), snapUser, resolveType(extras, n), "CallStyle");
-                }
+                return buildParsed(extras, n, snapUser, resolveCallerName(extras), "CallStyle");
             }
         }
 
         if (n.actions != null && n.actions.length >= 2 && isLikelyCallActions(n)) {
-            String name = resolveCallerName(extras);
-            if (!TextUtils.isEmpty(name) && !SnapNameHelper.isGenericAppName(name)) {
-                int fromText = resolveTypeFromText(join(
-                        extras.getCharSequence(Notification.EXTRA_TITLE),
-                        extras.getCharSequence(Notification.EXTRA_TEXT),
-                        extras.getCharSequence(Notification.EXTRA_BIG_TEXT),
-                        extras.getCharSequence(Notification.EXTRA_SUB_TEXT)));
-                return new ParsedCall(SnapNameHelper.clean(name), snapUser,
-                        fromText, "actions");
-            }
+            return buildParsed(extras, n, snapUser, resolveCallerName(extras), "actions");
+        }
+
+        if (hasCallExtraKeys(extras)) {
+            return buildParsed(extras, n, snapUser, resolveCallerName(extras), "call_extra");
+        }
+
+        if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0
+                && (n.fullScreenIntent != null || Notification.CATEGORY_CALL.equals(n.category))) {
+            return buildParsed(extras, n, snapUser, resolveCallerName(extras), "ongoing");
         }
 
         CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE);
@@ -90,6 +84,80 @@ public final class SnapNotificationParser {
             name = "Snapchat";
         }
         return new ParsedCall(SnapNameHelper.clean(name), snapUser, resolveTypeFromText(lower), "text");
+    }
+
+    public static boolean isLikelyCallNotification(StatusBarNotification sbn) {
+        Notification n = sbn != null ? sbn.getNotification() : null;
+        if (n == null) return false;
+        Bundle extras = n.extras;
+        if (extras == null) return false;
+        if (Notification.CATEGORY_CALL.equals(n.category)) return true;
+        if (hasCallExtraKeys(extras)) return true;
+        if (Build.VERSION.SDK_INT >= 31) {
+            String template = extras.getString("android.template");
+            if (template != null && template.contains("CallStyle")) return true;
+        }
+        if (n.actions != null && n.actions.length >= 2 && isLikelyCallActions(n)) return true;
+        if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0 && n.fullScreenIntent != null) return true;
+        String combined = join(
+                extras.getCharSequence(Notification.EXTRA_TITLE),
+                extras.getCharSequence(Notification.EXTRA_TEXT),
+                extras.getCharSequence(Notification.EXTRA_BIG_TEXT),
+                extras.getCharSequence(Notification.EXTRA_SUB_TEXT),
+                extras.getCharSequence(Notification.EXTRA_INFO_TEXT));
+        return !TextUtils.isEmpty(combined) && isCallRelated(combined);
+    }
+
+    public static ParsedCall parseOrFallback(StatusBarNotification sbn) {
+        ParsedCall call = parse(sbn);
+        if (call != null) return call;
+        if (!isLikelyCallNotification(sbn)) return null;
+        Notification n = sbn.getNotification();
+        Bundle extras = n.extras;
+        String snapUser = extractSnapUsername(extras);
+        String combined = join(
+                extras.getCharSequence(Notification.EXTRA_TITLE),
+                extras.getCharSequence(Notification.EXTRA_TEXT),
+                extras.getCharSequence(Notification.EXTRA_BIG_TEXT),
+                extras.getCharSequence(Notification.EXTRA_SUB_TEXT),
+                extras.getCharSequence(Notification.EXTRA_INFO_TEXT));
+        return new ParsedCall(
+                fallbackCallName(extras, snapUser),
+                snapUser,
+                resolveTypeFromText(combined),
+                "fallback");
+    }
+
+    private static ParsedCall buildParsed(Bundle extras, Notification n, String snapUser,
+                                          String resolvedName, String reason) {
+        String name = resolvedName;
+        if (TextUtils.isEmpty(name) || SnapNameHelper.isGenericAppName(name)) {
+            name = fallbackCallName(extras, snapUser);
+        }
+        return new ParsedCall(
+                SnapNameHelper.clean(name),
+                snapUser,
+                resolveType(extras, n),
+                reason);
+    }
+
+    private static String fallbackCallName(Bundle extras, String snapUser) {
+        if (!TextUtils.isEmpty(snapUser)) return snapUser;
+        String fromPeople = extractFromPeopleList(extras);
+        if (!TextUtils.isEmpty(fromPeople)) return fromPeople;
+        CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE);
+        CharSequence text = extras.getCharSequence(Notification.EXTRA_TEXT);
+        CharSequence subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT);
+        String fromPatterns = extractNameFromCallingPatterns(title, text, subText, null, null);
+        if (!TextUtils.isEmpty(fromPatterns)) return fromPatterns;
+        String bullet = text != null ? extractNameBeforeBullet(text.toString()) : null;
+        if (!TextUtils.isEmpty(bullet)) return bullet;
+        if (text != null && !SnapNameHelper.isGenericAppName(text.toString())
+                && !isGenericCallWord(text.toString())) {
+            return text.toString().trim();
+        }
+        if (title != null && title.length() > 0) return title.toString().trim();
+        return "Snapchat";
     }
 
     private static String extractSnapUsername(Bundle extras) {
@@ -177,7 +245,8 @@ public final class SnapNotificationParser {
             if (action != null && action.title != null) {
                 String t = action.title.toString().toLowerCase();
                 if (t.contains("answer") || t.contains("رد") || t.contains("decline")
-                        || t.contains("رفض") || t.contains("hang")) {
+                        || t.contains("رفض") || t.contains("hang") || t.contains("إنهاء")
+                        || t.contains("end") || t.contains("accept")) {
                     return true;
                 }
             }
@@ -365,7 +434,8 @@ public final class SnapNotificationParser {
 
     private static boolean isCallRelated(String lower) {
         return lower.contains("call") || lower.contains("مكالم") || lower.contains("ringing")
-                || lower.contains("يرن") || lower.contains("video") || lower.contains("فيديو")
+                || lower.contains("يرن") || lower.contains("يتصل") || lower.contains("رنين")
+                || lower.contains("video") || lower.contains("فيديو")
                 || lower.contains("voice") || lower.contains("صوت") || lower.contains("snap");
     }
 

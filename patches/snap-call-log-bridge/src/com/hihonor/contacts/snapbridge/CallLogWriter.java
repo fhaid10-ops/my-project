@@ -76,6 +76,8 @@ public final class CallLogWriter {
                         when,
                         appLabel);
                 MissedCallOverlayController.enqueue(context, item);
+            } else if (type == CallLog.Calls.INCOMING_TYPE) {
+                SnapEventStore.append(context, "ℹ مكالمة واردة Snapchat (لن تظهر بالفقاعة إلا إن فاتت)");
             }
             return true;
         } catch (SecurityException se) {
