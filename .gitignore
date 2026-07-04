@@ -1,0 +1,3 @@
+patches/snap-call-log-bridge/build/
+patches/snap-call-log-bridge/debug.keystore
+patches/snap-call-log-bridge/*.idsig
