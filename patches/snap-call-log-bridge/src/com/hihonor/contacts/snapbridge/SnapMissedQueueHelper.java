@@ -34,9 +34,10 @@ public final class SnapMissedQueueHelper {
                     long id = cursor.getLong(0);
                     long date = cursor.getLong(1);
                     int type = cursor.getInt(2);
-                    int logType = type == CallLog.Calls.INCOMING_TYPE
-                            ? CallLog.Calls.MISSED_TYPE : type;
-                    if (logType != CallLog.Calls.MISSED_TYPE) continue;
+                    if (type != CallLog.Calls.INCOMING_TYPE
+                            && type != CallLog.Calls.MISSED_TYPE) {
+                        continue;
+                    }
                     String idStr = String.valueOf(id);
                     if (MissedCallDismissStore.isDismissed(context, idStr)) continue;
                     if (MissedCallQueueStore.byId(context, idStr) != null) return;
@@ -62,9 +63,8 @@ public final class SnapMissedQueueHelper {
         }
 
         if (!SnapNameHelper.isGenericAppName(displayName)) {
-            boolean ok = CallLogWriter.write(context, displayName, snapUsername,
-                    CallLog.Calls.MISSED_TYPE, System.currentTimeMillis(), "queue_fallback",
-                    "Snapchat", true);
+            boolean ok = CallLogWriter.writeMissedSnap(context, displayName, snapUsername,
+                    System.currentTimeMillis(), "queue_fallback");
             if (ok) {
                 SnapEventStore.append(context, "✓ أُضيف فائت Snapchat للفقاعة (احتياطي): " + displayName);
             }

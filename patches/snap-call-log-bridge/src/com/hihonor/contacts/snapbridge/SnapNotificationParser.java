@@ -167,7 +167,7 @@ public final class SnapNotificationParser {
 
     /** إشعارات ليست مكالمات: رسائل، طلبات صداقة، قصص، إلخ. */
     public static boolean isNonCallNotification(StatusBarNotification sbn) {
-        if (hasDefiniteCallSignals(sbn)) return false;
+        if (hasDefiniteCallSignals(sbn) || isOngoingSnapRing(sbn)) return false;
         Notification n = sbn != null ? sbn.getNotification() : null;
         if (n == null) return true;
         String cat = n.category;
@@ -200,7 +200,8 @@ public final class SnapNotificationParser {
         String lc = channel.toLowerCase(Locale.ROOT);
         if (isNonCallChannel(channel)) return false;
         return lc.contains("call") || lc.contains("ring") || lc.contains("voice")
-                || lc.contains("voip") || lc.contains("rtc");
+                || lc.contains("voip") || lc.contains("rtc") || lc.contains("incoming")
+                || lc.contains("videocall") || lc.contains("video_call") || lc.contains("audio");
     }
 
     private static boolean isNonCallChannel(String channel) {
@@ -262,7 +263,14 @@ public final class SnapNotificationParser {
             if (template != null && template.contains("CallStyle")) return true;
         }
         if (n.actions != null && n.actions.length >= 2 && isLikelyCallActions(n)) return true;
+        if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0 && isLikelyCallActions(n)) {
+            return true;
+        }
         if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0 && n.fullScreenIntent != null) {
+            return true;
+        }
+        if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0 && extras != null
+                && hasValidRingingTitle(extras)) {
             return true;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -281,12 +289,44 @@ public final class SnapNotificationParser {
         return false;
     }
 
-    public static ParsedCall parseOrFallback(StatusBarNotification sbn) {
+    /** إشعار Snapchat جارٍ (رنين) — عنوان المتصل أو أزرار المكالمة. */
+    public static boolean isOngoingSnapRing(StatusBarNotification sbn) {
+        Notification n = sbn != null ? sbn.getNotification() : null;
+        if (n == null) return false;
+        boolean ongoing = (n.flags & Notification.FLAG_ONGOING_EVENT) != 0;
+        if (!ongoing) return false;
+        Bundle extras = n.extras;
+        if (extras == null) return false;
+        String combined = join(
+                extras.getCharSequence(Notification.EXTRA_TITLE),
+                extras.getCharSequence(Notification.EXTRA_TEXT),
+                extras.getCharSequence(Notification.EXTRA_BIG_TEXT),
+                extras.getCharSequence(Notification.EXTRA_SUB_TEXT),
+                extras.getCharSequence(Notification.EXTRA_INFO_TEXT));
+        if (!TextUtils.isEmpty(combined) && isFriendMessageOrSocial(combined)) return false;
+        if (hasDefiniteCallSignals(sbn)) return true;
+        if (isLikelyCallActions(n)) return true;
+        if (n.actions != null && n.actions.length >= 1) return true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isCallChannel(n.getChannelId())) {
+            return true;
+        }
+        return hasValidRingingTitle(extras);
+    }
+
+    private static boolean hasValidRingingTitle(Bundle extras) {
+        CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE);
+        if (title == null || title.length() == 0) return false;
+        String t = title.toString().trim();
+        if (isValidCallerName(t)) return true;
+        return !SnapNameHelper.isGenericAppName(t) && !isGenericCallWord(t) && t.length() >= 2;
+    }
+
+    public static ParsedCall parseOrFallback(Context context, StatusBarNotification sbn) {
         if (isNonCallNotification(sbn)) return null;
         ParsedCall call = parse(sbn);
         if (call != null) return call;
-        if (hasDefiniteCallSignals(sbn)) {
-            return forcedCall(null, sbn);
+        if (hasDefiniteCallSignals(sbn) || isOngoingSnapRing(sbn)) {
+            return forcedCall(context, sbn);
         }
         if (!isLikelyCallNotification(sbn)) return null;
         Notification n = sbn.getNotification();
@@ -397,6 +437,10 @@ public final class SnapNotificationParser {
         Bundle e = n.extras;
         StringBuilder sb = new StringBuilder();
         sb.append("cat=").append(n.category).append(" | ");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            sb.append("ch=").append(n.getChannelId()).append(" | ");
+        }
+        sb.append("ongoing=").append((n.flags & Notification.FLAG_ONGOING_EVENT) != 0).append(" | ");
         if (e != null) {
             for (String key : e.keySet()) {
                 if (key.startsWith("android.") || key.contains("call") || key.contains("title") || key.contains("text")) {
@@ -423,7 +467,9 @@ public final class SnapNotificationParser {
                 String t = action.title.toString().toLowerCase();
                 if (t.contains("answer") || t.contains("رد") || t.contains("decline")
                         || t.contains("رفض") || t.contains("hang") || t.contains("إنهاء")
-                        || t.contains("end") || t.contains("accept")) {
+                        || t.contains("end") || t.contains("accept") || t.contains("قبول")
+                        || t.contains("ignore") || t.contains("تجاهل") || t.contains("mute")
+                        || t.contains("كتم") || t.contains("join") || t.contains("انضم")) {
                     return true;
                 }
             }

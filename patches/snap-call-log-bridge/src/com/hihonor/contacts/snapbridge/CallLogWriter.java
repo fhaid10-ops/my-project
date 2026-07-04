@@ -13,8 +13,34 @@ import android.util.Log;
 public final class CallLogWriter {
     private static final String TAG = "SnapCallLogBridge";
     private static final long DEDUP_WINDOW_MS = 90_000L;
+    private static final long UPGRADE_LOOKBACK_MS = 10 * 60 * 1000L;
 
     private CallLogWriter() {}
+
+    /** يكتب فائت أو يحوّل واردة حديثة إلى فائت ثم يضيفها للفقاعة. */
+    public static boolean writeMissedSnap(Context context, String displayName, String snapUsername,
+                                          long when, String reason) {
+        String address = SnapUserStore.addressFor(displayName, snapUsername);
+        String dialId = SnapUserStore.dialIdForAddress(address);
+        SnapUserStore.save(context, address, displayName, snapUsername);
+
+        long existingId = findRecentSnapRow(context, dialId, when,
+                CallLog.Calls.INCOMING_TYPE);
+        if (existingId > 0 && upgradeToMissed(context, existingId, displayName, when)) {
+            SnapEventStore.append(context, "✓ تحويل واردة إلى فائت: " + displayName + " (" + reason + ")");
+            enqueueMissed(context, existingId, displayName, dialId, address, when, reason);
+            return true;
+        }
+
+        long missedId = findRecentSnapRow(context, dialId, when, CallLog.Calls.MISSED_TYPE);
+        if (missedId > 0) {
+            enqueueMissed(context, missedId, displayName, dialId, address, when, reason);
+            return true;
+        }
+
+        return write(context, displayName, snapUsername, CallLog.Calls.MISSED_TYPE,
+                when, reason, "Snapchat", true);
+    }
 
     public static boolean write(Context context, String displayName, String snapUsername,
                                 int type, long when, String reason,
@@ -30,6 +56,16 @@ public final class CallLogWriter {
         }
         if (isDuplicate(context, label, dialId, type, when, enableSnapCallback)) {
             SnapEventStore.append(context, "تخطي مكرر: " + label);
+            if (type == CallLog.Calls.MISSED_TYPE && enableSnapCallback) {
+                long existing = findRecentSnapRow(context, dialId, when, CallLog.Calls.MISSED_TYPE);
+                if (existing <= 0) {
+                    existing = findRecentSnapRow(context, dialId, when, CallLog.Calls.INCOMING_TYPE);
+                }
+                if (existing > 0) {
+                    enqueueMissed(context, existing, displayName, dialId, address, when, reason);
+                    return true;
+                }
+            }
             return false;
         }
 
@@ -64,20 +100,11 @@ public final class CallLogWriter {
             if (enableSnapCallback) {
                 SnapContactSync.upsert(context, displayName, dialId);
             }
+            long rowId = ContentUris.parseId(uri);
             if (isMissed) {
-                long rowId = ContentUris.parseId(uri);
-                MissedCallQueueStore.Item item = MissedCallQueueStore.build(
-                        context,
-                        String.valueOf(rowId),
-                        displayName,
-                        dialId,
-                        address != null ? address : "",
-                        enableSnapCallback,
-                        when,
-                        appLabel);
-                MissedCallOverlayController.enqueue(context, item);
+                enqueueMissed(context, rowId, displayName, dialId, address, when, reason);
             } else if (type == CallLog.Calls.INCOMING_TYPE) {
-                SnapEventStore.append(context, "ℹ مكالمة واردة Snapchat (لن تظهر بالفقاعة إلا إن فاتت)");
+                SnapEventStore.append(context, "ℹ مكالمة واردة Snapchat (ستُضاف للفقاعة عند الانتهاء)");
             }
             return true;
         } catch (SecurityException se) {
@@ -87,6 +114,73 @@ public final class CallLogWriter {
         } catch (Exception e) {
             SnapEventStore.append(context, "خطأ: " + e.getMessage());
             Log.w(TAG, "write failed", e);
+            return false;
+        }
+    }
+
+    private static void enqueueMissed(Context context, long rowId, String displayName,
+                                      String dialId, String address, long when, String reason) {
+        String idStr = String.valueOf(rowId);
+        if (MissedCallDismissStore.isDismissed(context, idStr)) return;
+        if (MissedCallQueueStore.byId(context, idStr) != null) {
+            MissedCallOverlayController.refresh(context);
+            return;
+        }
+        MissedCallQueueStore.Item item = MissedCallQueueStore.build(
+                context,
+                idStr,
+                displayName,
+                dialId,
+                address != null ? address : "",
+                true,
+                when,
+                "Snapchat",
+                SnapPhoneAccount.ACCOUNT_ID);
+        if (MissedCallQueueStore.enqueue(context, item)) {
+            SnapEventStore.append(context, "✓ أُضيف للفقاعة: " + displayName + " (" + reason + ")");
+            MissedCallOverlayController.refresh(context);
+        }
+    }
+
+    private static long findRecentSnapRow(Context context, String dialId, long when, int type) {
+        if (dialId == null || dialId.isEmpty()) return -1;
+        Cursor cursor = null;
+        try {
+            cursor = context.getContentResolver().query(
+                    CallLog.Calls.CONTENT_URI,
+                    new String[] {CallLog.Calls._ID},
+                    CallLog.Calls.NUMBER + "=? AND " + CallLog.Calls.TYPE + "=? AND "
+                            + CallLog.Calls.PHONE_ACCOUNT_ID + "=? AND "
+                            + CallLog.Calls.DATE + ">=?",
+                    new String[] {
+                            dialId,
+                            String.valueOf(type),
+                            SnapPhoneAccount.ACCOUNT_ID,
+                            String.valueOf(when - UPGRADE_LOOKBACK_MS)
+                    },
+                    CallLog.Calls.DATE + " DESC LIMIT 1");
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursor.getLong(0);
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return -1;
+    }
+
+    private static boolean upgradeToMissed(Context context, long rowId, String displayName, long when) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(CallLog.Calls.TYPE, CallLog.Calls.MISSED_TYPE);
+            values.put(CallLog.Calls.NEW, 1);
+            values.put(CallLog.Calls.IS_READ, 0);
+            values.put(CallLog.Calls.DATE, when);
+            values.put(CallLog.Calls.CACHED_FORMATTED_NUMBER, displayName);
+            Uri uri = CallLog.Calls.CONTENT_URI.buildUpon()
+                    .appendPath(String.valueOf(rowId)).build();
+            return context.getContentResolver().update(uri, values, null, null) > 0;
+        } catch (Exception e) {
             return false;
         }
     }

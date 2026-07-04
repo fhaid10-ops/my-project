@@ -102,9 +102,9 @@ public class SnapCallLogSyncService extends NotificationListenerService {
     }
 
     private SnapNotificationParser.ParsedCall resolveCall(StatusBarNotification sbn) {
-        SnapNotificationParser.ParsedCall call = SnapNotificationParser.parseOrFallback(sbn);
+        SnapNotificationParser.ParsedCall call = SnapNotificationParser.parseOrFallback(this, sbn);
         if (call != null) return call;
-        if (SnapNotificationParser.hasDefiniteCallSignals(sbn)) {
+        if (SnapNotificationParser.isOngoingSnapRing(sbn)) {
             return SnapNotificationParser.forcedCall(this, sbn);
         }
         return null;
@@ -210,8 +210,8 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                 SnapMissedQueueHelper.ensureQueued(this, displayName, snapUser);
                 SnapEventStore.append(this, "تأكيد فائت Snapchat بالفقاعة: " + displayName);
             } else {
-                boolean ok = CallLogWriter.write(this, displayName, snapUser, type,
-                        System.currentTimeMillis(), "removed", "Snapchat", true);
+                boolean ok = CallLogWriter.writeMissedSnap(this, displayName, snapUser,
+                        System.currentTimeMillis(), "removed");
                 if (ok) {
                     SnapEventStore.append(this, "✓ فائت Snapchat عند إغلاق الإشعار: " + displayName);
                     SnapDiagStore.record(this, "", true, "فائت: " + displayName);
@@ -221,6 +221,7 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                     SnapEventStore.append(this, "تعذر تسجيل فائت Snapchat — أُضيف للفقاعة: " + displayName);
                 }
             }
+            SnapMissedQueueHelper.ensureQueued(this, displayName, snapUser);
         } else {
             SnapEventStore.append(this, "انتهت مكالمة Snapchat: " + displayName);
         }
@@ -230,8 +231,8 @@ public class SnapCallLogSyncService extends NotificationListenerService {
     private void writeMissedCall(SnapNotificationParser.ParsedCall call, int type, String reason) {
         String displayName = resolveDisplayName(call);
         String snapAddress = SnapUserStore.addressFor(displayName, call.snapUsername);
-        boolean ok = CallLogWriter.write(this, displayName, call.snapUsername, type,
-                System.currentTimeMillis(), reason, "Snapchat", true);
+        boolean ok = CallLogWriter.writeMissedSnap(this, displayName, call.snapUsername,
+                System.currentTimeMillis(), reason);
         if (ok) {
             SnapEventStore.append(this, "✓ فائت Snapchat: " + displayName);
             SnapDiagStore.record(this, "", true, "فائت: " + displayName);
