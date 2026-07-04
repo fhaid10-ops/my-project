@@ -71,12 +71,17 @@ public class SnapCallLogSyncService extends NotificationListenerService {
                 SnapEventStore.append(this, "لم يُعرَف كمكالمة من Snapchat");
                 return;
             }
-            markActive(sbn.getKey(), call.displayName);
-            boolean ok = CallLogWriter.write(this, call.displayName, call.snapUsername, call.callType,
+            String displayName = call.displayName;
+            if (SnapNameHelper.isGenericAppName(displayName)
+                    && call.snapUsername != null && !call.snapUsername.isEmpty()) {
+                displayName = call.snapUsername;
+            }
+            markActive(sbn.getKey(), displayName);
+            boolean ok = CallLogWriter.write(this, displayName, call.snapUsername, call.callType,
                     System.currentTimeMillis(), call.reason, "Snapchat", true);
             if (ok) {
-                LastSnapStore.save(this, call.displayName,
-                        SnapUserStore.addressFor(call.displayName, call.snapUsername));
+                LastSnapStore.save(this, displayName,
+                        SnapUserStore.addressFor(displayName, call.snapUsername));
             }
         } catch (Exception e) {
             SnapEventStore.append(this, "خطأ: " + e.getMessage());

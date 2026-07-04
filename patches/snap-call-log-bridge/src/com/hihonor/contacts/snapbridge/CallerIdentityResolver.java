@@ -26,8 +26,8 @@ public final class CallerIdentityResolver {
     public static Identity resolve(Context context, String number, String fallbackName,
                                    boolean isSnap, String sourceLabel) {
         if (isSnap) {
-            String name = clean(fallbackName);
-            if (name.isEmpty()) name = "مكالمة Snapchat";
+            String name = SnapNameHelper.resolve(context, number, "", fallbackName, "");
+            if (SnapNameHelper.isGenericAppName(name)) name = "مكالمة Snapchat";
             return new Identity(name, "Snapchat", "Snapchat", null);
         }
         Identity fromContacts = lookupContact(context, number);

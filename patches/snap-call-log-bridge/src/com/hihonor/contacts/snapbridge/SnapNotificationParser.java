@@ -7,6 +7,8 @@ import android.os.Bundle;
 import android.service.notification.StatusBarNotification;
 import android.text.TextUtils;
 
+import java.util.Locale;
+
 public final class SnapNotificationParser {
     public static final class ParsedCall {
         public final String displayName;
@@ -32,31 +34,31 @@ public final class SnapNotificationParser {
 
         String snapUser = extractSnapUsername(extras);
         if (Notification.CATEGORY_CALL.equals(n.category)) {
-            String name = firstNonEmpty(extractPersonName(extras), extras.getString(Notification.EXTRA_TITLE));
+            String name = resolveCallerName(extras);
             if (!TextUtils.isEmpty(name)) {
-                return new ParsedCall(cleanName(name), snapUser, resolveType(extras, n), "CATEGORY_CALL");
+                return new ParsedCall(SnapNameHelper.clean(name), snapUser, resolveType(extras, n), "CATEGORY_CALL");
             }
         }
 
         if (Build.VERSION.SDK_INT >= 31) {
             String template = extras.getString("android.template");
             if (template != null && template.contains("CallStyle")) {
-                String name = firstNonEmpty(extractPersonName(extras), extras.getString(Notification.EXTRA_TITLE));
+                String name = resolveCallerName(extras);
                 if (!TextUtils.isEmpty(name)) {
-                    return new ParsedCall(cleanName(name), snapUser, resolveType(extras, n), "CallStyle");
+                    return new ParsedCall(SnapNameHelper.clean(name), snapUser, resolveType(extras, n), "CallStyle");
                 }
             }
         }
 
         if (n.actions != null && n.actions.length >= 2 && isLikelyCallActions(n)) {
-            String name = firstNonEmpty(extractPersonName(extras), extras.getString(Notification.EXTRA_TITLE));
-            if (!TextUtils.isEmpty(name) && !isGenericCallWord(name)) {
+            String name = resolveCallerName(extras);
+            if (!TextUtils.isEmpty(name) && !SnapNameHelper.isGenericAppName(name)) {
                 int fromText = resolveTypeFromText(join(
                         extras.getCharSequence(Notification.EXTRA_TITLE),
                         extras.getCharSequence(Notification.EXTRA_TEXT),
                         extras.getCharSequence(Notification.EXTRA_BIG_TEXT),
                         extras.getCharSequence(Notification.EXTRA_SUB_TEXT)));
-                return new ParsedCall(cleanName(name), snapUser,
+                return new ParsedCall(SnapNameHelper.clean(name), snapUser,
                         fromText, "actions");
             }
         }
@@ -72,19 +74,22 @@ public final class SnapNotificationParser {
         String lower = combined.toLowerCase();
         if (!isCallRelated(lower) && !hasCallExtraKeys(extras)) return null;
 
-        String name = firstNonEmpty(
-                extractPersonName(extras),
-                extractFromPeopleList(extras),
-                extractNameFromText(title),
-                extractNameFromText(text),
-                extractNameFromPhrase(combined));
-        if (TextUtils.isEmpty(name) || isGenericCallWord(name)) {
+        String name = resolveCallerName(extras);
+        if (TextUtils.isEmpty(name) || SnapNameHelper.isGenericAppName(name)) {
+            name = firstNonEmpty(
+                    extractNameFromText(text),
+                    extractNameFromPhrase(combined));
+        }
+        if (TextUtils.isEmpty(name) || SnapNameHelper.isGenericAppName(name)) {
             name = firstMeaningfulExtraString(extras);
         }
-        if (TextUtils.isEmpty(name) || isGenericCallWord(name)) {
+        if (TextUtils.isEmpty(name) || SnapNameHelper.isGenericAppName(name)) {
+            name = extractNameFromCallingPatterns(title, text, bigText, subText, info, combined);
+        }
+        if (TextUtils.isEmpty(name) || SnapNameHelper.isGenericAppName(name)) {
             name = "Snapchat";
         }
-        return new ParsedCall(name, snapUser, resolveTypeFromText(lower), "text");
+        return new ParsedCall(SnapNameHelper.clean(name), snapUser, resolveTypeFromText(lower), "text");
     }
 
     private static String extractSnapUsername(Bundle extras) {
@@ -232,18 +237,127 @@ public final class SnapNotificationParser {
         return t;
     }
 
+    private static String resolveCallerName(Bundle extras) {
+        String person = extractPersonName(extras);
+        if (!TextUtils.isEmpty(person) && !SnapNameHelper.isGenericAppName(person)) {
+            return cleanName(person);
+        }
+        String fromPeople = extractFromPeopleList(extras);
+        if (!TextUtils.isEmpty(fromPeople)) return cleanName(fromPeople);
+
+        CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE);
+        CharSequence text = extras.getCharSequence(Notification.EXTRA_TEXT);
+        CharSequence bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT);
+        CharSequence subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT);
+        CharSequence info = extras.getCharSequence(Notification.EXTRA_INFO_TEXT);
+        String combined = join(title, text, bigText, subText, info);
+
+        String fromPatterns = extractNameFromCallingPatterns(title, text, bigText, subText, combined);
+        if (!TextUtils.isEmpty(fromPatterns)) return cleanName(fromPatterns);
+
+        if (title != null && !SnapNameHelper.isGenericAppName(title.toString())) {
+            return cleanName(title.toString());
+        }
+        if (text != null) {
+            String fromText = extractNameFromCallingPatterns(null, text, null, null, text.toString());
+            if (!TextUtils.isEmpty(fromText)) return cleanName(fromText);
+            String bullet = extractNameBeforeBullet(text.toString());
+            if (!TextUtils.isEmpty(bullet)) return cleanName(bullet);
+        }
+        if (subText != null && !SnapNameHelper.isGenericAppName(subText.toString())) {
+            return cleanName(subText.toString());
+        }
+        return null;
+    }
+
+    private static String extractNameFromCallingPatterns(CharSequence... parts) {
+        for (CharSequence part : parts) {
+            if (part == null || part.length() == 0) continue;
+            String t = part.toString().trim();
+            String fromBullet = extractNameBeforeBullet(t);
+            if (!TextUtils.isEmpty(fromBullet)) return fromBullet;
+
+            String lower = t.toLowerCase(Locale.ROOT);
+            String[] enPatterns = {
+                    " is calling you", " is calling", " calling you", " calling",
+                    " incoming call from ", " missed call from ", " call from ",
+                    " video call from ", " voice call from "
+            };
+            for (String pattern : enPatterns) {
+                int idx = lower.indexOf(pattern);
+                if (idx >= 0) {
+                    String candidate = idx == 0
+                            ? t.substring(pattern.length()).trim()
+                            : t.substring(0, idx).trim();
+                    candidate = stripCallSuffix(candidate);
+                    if (isValidCallerName(candidate)) return candidate;
+                }
+            }
+            String[] arPatterns = {
+                    " يتصل بك", " يتصل", "يتصل بك ", "يتصل ",
+                    "مكالمة فائتة من ", "مكالمة من ", "مكالمة واردة من ",
+                    "من ", "مع "
+            };
+            for (String pattern : arPatterns) {
+                int idx = t.indexOf(pattern);
+                if (idx >= 0) {
+                    String candidate = pattern.startsWith("من ") || pattern.startsWith("مع ")
+                            ? t.substring(idx + pattern.length()).trim()
+                            : (idx == 0 ? t.substring(pattern.length()).trim() : t.substring(0, idx).trim());
+                    candidate = stripCallSuffix(candidate);
+                    if (isValidCallerName(candidate)) return candidate;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String extractNameBeforeBullet(String text) {
+        if (text == null) return null;
+        int idx = text.indexOf('•');
+        if (idx <= 0) idx = text.indexOf('|');
+        if (idx <= 0) return null;
+        String candidate = text.substring(0, idx).trim();
+        return isValidCallerName(candidate) ? candidate : null;
+    }
+
+    private static String stripCallSuffix(String candidate) {
+        if (candidate == null) return null;
+        String c = candidate.trim();
+        String lower = c.toLowerCase(Locale.ROOT);
+        String[] suffixes = {
+                " incoming call", " missed call", " video call", " voice call",
+                " مكالمة فائتة", " مكالمة", " واردة", " فائتة"
+        };
+        for (String suffix : suffixes) {
+            if (lower.endsWith(suffix)) {
+                c = c.substring(0, c.length() - suffix.length()).trim();
+                lower = c.toLowerCase(Locale.ROOT);
+            }
+        }
+        return c;
+    }
+
+    private static boolean isValidCallerName(String candidate) {
+        if (TextUtils.isEmpty(candidate)) return false;
+        if (candidate.length() > 60) return false;
+        if (SnapNameHelper.isGenericAppName(candidate)) return false;
+        if (isGenericCallWord(candidate)) return false;
+        if (isCallRelated(candidate.toLowerCase(Locale.ROOT))) return false;
+        return true;
+    }
+
     private static String extractNameFromPhrase(String phrase) {
         String[] markers = {"from ", "with ", "to ", "من ", "مع ", "إلى ", "الي ", "عبر "};
-        String lower = phrase.toLowerCase();
+        String lower = phrase.toLowerCase(Locale.ROOT);
         for (String marker : markers) {
             int idx = lower.indexOf(marker);
             if (idx >= 0) {
                 String tail = phrase.substring(idx + marker.length()).trim();
                 int end = tail.indexOf('\n');
                 if (end > 0) tail = tail.substring(0, end).trim();
-                if (!TextUtils.isEmpty(tail) && tail.length() <= 80 && !isCallRelated(tail.toLowerCase())) {
-                    return tail;
-                }
+                tail = stripCallSuffix(tail);
+                if (isValidCallerName(tail)) return tail;
             }
         }
         return null;
@@ -256,9 +370,12 @@ public final class SnapNotificationParser {
     }
 
     private static boolean isGenericCallWord(String s) {
-        String l = s.toLowerCase();
-        return l.equals("snapchat") || l.contains("مكالمة") || l.contains("call")
-                || l.contains("incoming") || l.contains("واردة");
+        if (SnapNameHelper.isGenericAppName(s)) return true;
+        String l = s.toLowerCase(Locale.ROOT);
+        return l.contains("مكالمة") || l.contains("call")
+                || l.contains("incoming") || l.contains("واردة")
+                || l.contains("missed") || l.contains("فائت")
+                || l.contains("ringing") || l.contains("video") || l.contains("voice");
     }
 
     private static String cleanName(String name) {

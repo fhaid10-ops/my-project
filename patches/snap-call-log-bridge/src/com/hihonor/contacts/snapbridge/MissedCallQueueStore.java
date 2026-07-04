@@ -93,8 +93,18 @@ public final class MissedCallQueueStore {
 
     public static Item build(Context context, String id, String displayName, String number,
                              String snapAddress, boolean isSnap, long timestamp, String sourceLabel) {
-        CallerIdentityResolver.Identity identity = CallerIdentityResolver.resolve(
-                context, number, displayName, isSnap, sourceLabel);
+        String resolvedName = displayName;
+        String subtitle = "";
+        if (isSnap) {
+            resolvedName = SnapNameHelper.resolve(context, number, snapAddress, displayName, "");
+            subtitle = "Snapchat";
+        } else {
+            CallerIdentityResolver.Identity identity = CallerIdentityResolver.resolve(
+                    context, number, displayName, false, sourceLabel);
+            resolvedName = identity.displayName;
+            subtitle = identity.subtitle;
+            sourceLabel = identity.sourceLabel;
+        }
         return new Item(
                 id,
                 displayName,
@@ -102,9 +112,9 @@ public final class MissedCallQueueStore {
                 snapAddress,
                 isSnap,
                 timestamp,
-                identity.sourceLabel,
-                identity.displayName,
-                identity.subtitle);
+                sourceLabel != null ? sourceLabel : "",
+                resolvedName,
+                subtitle);
     }
 
     public static boolean enqueue(Context context, Item item) {
@@ -173,16 +183,46 @@ public final class MissedCallQueueStore {
     }
 
     private static Item enrichIfNeeded(Context context, Item item) {
-        if (item.resolvedName != null && !item.resolvedName.isEmpty()
-                && item.timestamp > 0L && item.subtitle != null && !item.subtitle.isEmpty()) {
-            return item;
-        }
         long timestamp = item.timestamp;
         if (timestamp <= 0L) {
             timestamp = lookupTimestamp(context, item.id);
         }
-        return build(context, item.id, item.displayName, item.number,
+        Item rebuilt = build(context, item.id, item.displayName, item.number,
                 item.snapAddress, item.isSnap, timestamp, item.sourceLabel);
+        if (item.isSnap && SnapNameHelper.isGenericAppName(rebuilt.resolvedName)) {
+            String formatted = lookupFormattedNumber(context, item.id);
+            String resolved = SnapNameHelper.resolve(context, item.number, item.snapAddress,
+                    item.displayName, formatted);
+            if (!SnapNameHelper.isGenericAppName(resolved)) {
+                return new Item(
+                        rebuilt.id, rebuilt.displayName, rebuilt.number, rebuilt.snapAddress,
+                        rebuilt.isSnap, rebuilt.timestamp, rebuilt.sourceLabel, resolved, rebuilt.subtitle);
+            }
+        }
+        return rebuilt;
+    }
+
+    private static String lookupFormattedNumber(Context context, String id) {
+        try {
+            android.database.Cursor cursor = context.getContentResolver().query(
+                    android.provider.CallLog.Calls.CONTENT_URI,
+                    new String[] {android.provider.CallLog.Calls.CACHED_FORMATTED_NUMBER},
+                    android.provider.CallLog.Calls._ID + "=?",
+                    new String[] {id},
+                    null);
+            if (cursor != null) {
+                try {
+                    if (cursor.moveToFirst()) {
+                        String value = cursor.getString(0);
+                        return value != null ? value : "";
+                    }
+                } finally {
+                    cursor.close();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
     }
 
     private static long lookupTimestamp(Context context, String id) {

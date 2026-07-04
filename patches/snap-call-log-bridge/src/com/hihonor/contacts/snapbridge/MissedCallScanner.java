@@ -32,7 +32,8 @@ public final class MissedCallScanner {
                             CallLog.Calls.PHONE_ACCOUNT_ID,
                             "phone_account_address",
                             CallLog.Calls.DATE,
-                            CallLog.Calls.GEOCODED_LOCATION
+                            CallLog.Calls.GEOCODED_LOCATION,
+                            CallLog.Calls.CACHED_FORMATTED_NUMBER
                     },
                     CallLog.Calls.TYPE + "=? AND " + CallLog.Calls.DATE + ">=?",
                     new String[] {
@@ -51,6 +52,7 @@ public final class MissedCallScanner {
                 String phoneAccountAddress = cursor.getString(6);
                 long callDate = cursor.getLong(7);
                 String geoLabel = cursor.getString(8);
+                String formattedNumber = cursor.getString(9);
 
                 boolean isSnap = isSnapEntry(phoneAccountId, cachedName);
                 if (!includeSnap && isSnap) continue;
@@ -68,7 +70,6 @@ public final class MissedCallScanner {
                     context.getContentResolver().update(row, values, null, null);
                 }
 
-                String displayName = resolveDisplayName(number, cachedName);
                 String snapAddress = "";
                 if (isSnap) {
                     if (phoneAccountAddress != null && !phoneAccountAddress.isEmpty()) {
@@ -77,6 +78,7 @@ public final class MissedCallScanner {
                         snapAddress = SnapUserStore.resolveAddress(context, number);
                     }
                 }
+                String displayName = resolveDisplayName(context, number, cachedName, formattedNumber, snapAddress, isSnap);
                 String sourceLabel = isSnap ? "Snapchat" : safeSource(geoLabel);
                 if (MissedCallQueueStore.enqueue(context, MissedCallQueueStore.build(
                         context,
@@ -116,13 +118,23 @@ public final class MissedCallScanner {
         return false;
     }
 
-    static String resolveDisplayName(String number, String cachedName) {
+    static String resolveDisplayName(Context context, String number, String cachedName,
+                                     String formattedNumber, String snapAddress, boolean isSnap) {
+        if (isSnap) {
+            return SnapNameHelper.resolve(context, number, snapAddress,
+                    stripSnapchat(cachedName), formattedNumber);
+        }
         if (cachedName != null && !cachedName.isEmpty()) {
             String name = cachedName.replace(" (Snapchat)", "").trim();
             if (!name.isEmpty() && !name.equalsIgnoreCase("unknown")) return name;
         }
         if (number != null && !number.isEmpty()) return number;
         return "مكالمة فائتة";
+    }
+
+    private static String stripSnapchat(String cachedName) {
+        if (cachedName == null) return "";
+        return cachedName.replace(" (Snapchat)", "").replace("(Snapchat)", "").trim();
     }
 
     private static String safeSource(String geoLabel) {
