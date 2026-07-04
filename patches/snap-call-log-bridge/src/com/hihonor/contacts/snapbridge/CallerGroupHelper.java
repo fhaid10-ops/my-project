@@ -2,6 +2,7 @@ package com.hihonor.contacts.snapbridge;
 
 import android.content.Context;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -50,20 +51,39 @@ public final class CallerGroupHelper {
     }
 
     public static String callerKey(MissedCallQueueStore.Item item) {
+        return callerKey(null, item);
+    }
+
+    public static String callerKey(Context context, MissedCallQueueStore.Item item) {
         if (item == null) return "";
-        String nameKey = normalizeNameKey(item.bestName());
         if (item.isSnap) {
-            if (nameKey != null) return "snap:" + nameKey;
-            if (item.snapAddress != null && !item.snapAddress.isEmpty()) {
-                return "snap:addr:" + item.snapAddress.toLowerCase(Locale.ROOT);
+            String addr = resolveSnapAddress(context, item);
+            if (addr != null && !addr.isEmpty()) {
+                return "snap:addr:" + addr.toLowerCase(Locale.ROOT);
             }
+            if (item.number != null && SnapUserStore.isSnapDialId(item.number)) {
+                return "snap:dial:" + item.number;
+            }
+            String nameKey = normalizeNameKey(item.bestName());
+            if (nameKey != null) return "snap:" + nameKey;
             String phone = normalizePhoneKey(item.number);
             if (!phone.isEmpty()) return "snap:num:" + phone;
             return "";
         }
         String phone = normalizePhoneKey(item.number);
         if (!phone.isEmpty()) return "phone:" + phone;
+        String nameKey = normalizeNameKey(item.bestName());
         if (nameKey != null) return "phone:name:" + nameKey;
+        return "";
+    }
+
+    private static String resolveSnapAddress(Context context, MissedCallQueueStore.Item item) {
+        if (item.snapAddress != null && !item.snapAddress.isEmpty()) {
+            return item.snapAddress;
+        }
+        if (context != null && item.number != null && SnapUserStore.isSnapDialId(item.number)) {
+            return SnapUserStore.addressFromDialId(context, item.number);
+        }
         return "";
     }
 
@@ -91,7 +111,11 @@ public final class CallerGroupHelper {
 
     static String normalizeNameKey(String name) {
         if (name == null) return null;
-        String n = name.replace(" (Snapchat)", "").trim().toLowerCase(Locale.ROOT);
+        String n = name.replace(" (Snapchat)", "").replace("(Snapchat)", "").trim();
+        if (n.isEmpty()) return null;
+        n = Normalizer.normalize(n, Normalizer.Form.NFKC);
+        n = n.replaceAll("[\\p{So}\\p{Sk}\\p{Emoji_Presentation}\\p{Extended_Pictographic}]", "");
+        n = n.replaceAll("\\s+", " ").trim().toLowerCase(Locale.ROOT);
         if (n.isEmpty()) return null;
         if (n.equals("مكالمة فائتة") || n.equals("unknown")) return null;
         if (n.matches("^[+0-9*#\\-\\s]+$")) return null;
@@ -103,7 +127,7 @@ public final class CallerGroupHelper {
         List<MissedCallQueueStore.Item> items = MissedCallQueueStore.all(context);
         Map<String, List<MissedCallQueueStore.Item>> map = new LinkedHashMap<>();
         for (MissedCallQueueStore.Item item : items) {
-            String key = callerKey(item);
+            String key = callerKey(context, item);
             if (key.isEmpty()) continue;
             List<MissedCallQueueStore.Item> bucket = map.get(key);
             if (bucket == null) {
@@ -112,6 +136,7 @@ public final class CallerGroupHelper {
             }
             bucket.add(item);
         }
+        mergeSnapGroupsByName(map);
 
         ArrayList<CallerGroup> groups = new ArrayList<>();
         for (Map.Entry<String, List<MissedCallQueueStore.Item>> entry : map.entrySet()) {
@@ -141,6 +166,30 @@ public final class CallerGroupHelper {
             }
         });
         return groups;
+    }
+
+    /** دمج بطاقات Snapchat المكررة لنفس الشخص (عناوين snap مختلفة أو إيموجي مختلف). */
+    private static void mergeSnapGroupsByName(Map<String, List<MissedCallQueueStore.Item>> map) {
+        Map<String, String> nameToKey = new LinkedHashMap<>();
+        ArrayList<String> keys = new ArrayList<>(map.keySet());
+        for (String key : keys) {
+            List<MissedCallQueueStore.Item> bucket = map.get(key);
+            if (bucket == null || bucket.isEmpty() || !bucket.get(0).isSnap) continue;
+            String nameKey = normalizeNameKey(bucket.get(0).bestName());
+            if (nameKey == null) continue;
+            String mergeId = "snap:name:" + nameKey;
+            String canonical = nameToKey.get(mergeId);
+            if (canonical == null) {
+                nameToKey.put(mergeId, key);
+                continue;
+            }
+            if (canonical.equals(key)) continue;
+            List<MissedCallQueueStore.Item> target = map.get(canonical);
+            if (target != null) {
+                target.addAll(bucket);
+            }
+            map.remove(key);
+        }
     }
 
     private static String summarizeSimLabels(List<MissedCallQueueStore.Item> items) {

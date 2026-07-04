@@ -5,6 +5,8 @@ import android.net.Uri;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.text.Normalizer;
+import java.util.Locale;
 
 public final class SnapUserStore {
     private static final String PREFS = "snap_users";
@@ -14,8 +16,21 @@ public final class SnapUserStore {
     private SnapUserStore() {}
 
     public static String addressFor(String displayName, String snapUsername) {
-        String key = snapUsername != null && !snapUsername.isEmpty() ? snapUsername : displayName;
+        String key;
+        if (snapUsername != null && !snapUsername.isEmpty()) {
+            key = snapUsername.trim().toLowerCase(Locale.ROOT);
+        } else {
+            key = normalizeIdentityKey(displayName);
+        }
+        if (key.isEmpty()) key = "unknown";
         return "snap:" + shortHash(key);
+    }
+
+    static String normalizeIdentityKey(String displayName) {
+        if (displayName == null) return "";
+        String n = Normalizer.normalize(displayName.trim(), Normalizer.Form.NFKC);
+        n = n.replaceAll("[\\p{So}\\p{Sk}\\p{Emoji_Presentation}\\p{Extended_Pictographic}]", "");
+        return n.replaceAll("\\s+", " ").trim().toLowerCase(Locale.ROOT);
     }
 
     public static String dialIdForAddress(String address) {
