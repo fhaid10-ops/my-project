@@ -20,6 +20,7 @@ import java.util.List;
 
 public class MissedCallOverlayService extends Service {
     public static final String ACTION_REFRESH = "com.hihonor.contacts.snapbridge.ACTION_REFRESH_OVERLAY";
+    private static final int LONG_PRESS_MS = 550;
 
     private WindowManager wm;
     private View bubbleView;
@@ -30,6 +31,7 @@ public class MissedCallOverlayService extends Service {
     private float touchDownY;
     private int startX;
     private int startY;
+    private long touchDownTime;
 
     @Override
     public void onCreate() {
@@ -40,6 +42,11 @@ public class MissedCallOverlayService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (!Settings.canDrawOverlays(this)) {
+            removeBubble();
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        if (BubbleSnoozeStore.isSnoozed(this)) {
             removeBubble();
             stopSelf();
             return START_NOT_STICKY;
@@ -154,11 +161,6 @@ public class MissedCallOverlayService extends Service {
         params.y = dp(180);
 
         root.setOnTouchListener(this::handleTouch);
-        root.setOnClickListener(v -> {
-            Intent i = new Intent(this, MissedCallListActivity.class);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(i);
-        });
 
         bubbleView = root;
         wm.addView(bubbleView, params);
@@ -176,11 +178,12 @@ public class MissedCallOverlayService extends Service {
         if (params == null) return false;
         switch (ev.getAction()) {
             case MotionEvent.ACTION_DOWN:
+                touchDownTime = System.currentTimeMillis();
                 touchDownX = ev.getRawX();
                 touchDownY = ev.getRawY();
                 startX = params.x;
                 startY = params.y;
-                return false;
+                return true;
             case MotionEvent.ACTION_MOVE:
                 int dx = (int) (ev.getRawX() - touchDownX);
                 int dy = (int) (ev.getRawY() - touchDownY);
@@ -189,6 +192,23 @@ public class MissedCallOverlayService extends Service {
                 try {
                     wm.updateViewLayout(bubbleView, params);
                 } catch (Exception ignored) {
+                }
+                return true;
+            case MotionEvent.ACTION_UP:
+                int tapDx = (int) (ev.getRawX() - touchDownX);
+                int tapDy = (int) (ev.getRawY() - touchDownY);
+                long elapsed = System.currentTimeMillis() - touchDownTime;
+                int slop = dp(14);
+                if (Math.abs(tapDx) < slop && Math.abs(tapDy) < slop) {
+                    if (elapsed >= LONG_PRESS_MS) {
+                        BubbleSnoozeStore.snoozeOneHour(this);
+                        removeBubble();
+                        stopSelf();
+                    } else if (elapsed < 350) {
+                        Intent i = new Intent(this, MissedCallListActivity.class);
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(i);
+                    }
                 }
                 return true;
             default:

@@ -11,6 +11,7 @@ public class BootReceiver extends BroadcastReceiver {
         if (intent != null && Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
             SnapPhoneAccount.register(context);
             MissedCallAutoWatcher.ensureStarted(context);
+            BubbleSnoozeStore.restoreOnBoot(context);
             MissedCallOverlayController.refresh(context);
             Log.i("SnapCallLogBridge", "Device booted");
         }

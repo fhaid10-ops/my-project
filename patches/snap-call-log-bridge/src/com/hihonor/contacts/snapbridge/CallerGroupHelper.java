@@ -153,6 +153,7 @@ public final class CallerGroupHelper {
         if (group == null) return 0;
         int removed = 0;
         for (MissedCallQueueStore.Item item : group.queuedItems) {
+            MissedCallDismissStore.dismiss(context, item.id);
             if (MissedCallQueueStore.remove(context, item.id)) removed++;
         }
         return removed;

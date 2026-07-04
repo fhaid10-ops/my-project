@@ -141,7 +141,9 @@ public final class MissedCallQueueStore {
                 changed = true;
             }
         }
-        if (changed) save(context, items);
+        if (changed) {
+            save(context, items, true);
+        }
         return changed;
     }
 
@@ -204,12 +206,22 @@ public final class MissedCallQueueStore {
     }
 
     private static void save(Context context, List<Item> items) {
+        save(context, items, false);
+    }
+
+    private static void save(Context context, List<Item> items, boolean sync) {
         JSONArray arr = new JSONArray();
         for (Item i : items) {
             arr.put(i.toJson());
         }
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                .putString(KEY_ITEMS, arr.toString())
-                .apply();
+        if (sync) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                    .putString(KEY_ITEMS, arr.toString())
+                    .commit();
+        } else {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                    .putString(KEY_ITEMS, arr.toString())
+                    .apply();
+        }
     }
 }

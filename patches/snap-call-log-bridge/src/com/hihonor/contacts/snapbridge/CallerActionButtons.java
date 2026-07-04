@@ -8,9 +8,10 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public final class CallerActionButtons {
-    public static final String APP_VERSION = "2.15";
+    public static final String APP_VERSION = "2.16";
 
     public interface Listener {
         void onCallback();
@@ -24,7 +25,6 @@ public final class CallerActionButtons {
 
     private CallerActionButtons() {}
 
-    /** شريط أزرار ثابت أسفل الشاشة — 4 خيارات واضحة */
     public static View buildBottomBar(Context context, Listener listener) {
         LinearLayout wrap = new LinearLayout(context);
         wrap.setOrientation(LinearLayout.VERTICAL);
@@ -69,36 +69,44 @@ public final class CallerActionButtons {
         return btn;
     }
 
-    public static void performCallback(Activity activity, CallerGroupHelper.CallerGroup group) {
+    public static void performCallback(Context context, CallerGroupHelper.CallerGroup group) {
         if (group == null) return;
         MissedCallQueueStore.Item item = group.representative();
-        if (item != null && MissedCallActionHandler.callback(activity, item)) {
-            CallerGroupHelper.removeByKey(activity, group.key);
-            MissedCallOverlayController.refresh(activity);
+        if (item != null && MissedCallActionHandler.callback(context, item)) {
+            removeGroup(context, group);
         }
     }
 
-    public static void performWhatsApp(Activity activity, CallerGroupHelper.CallerGroup group) {
+    public static void performWhatsApp(Context context, CallerGroupHelper.CallerGroup group) {
         if (group == null) return;
         MissedCallQueueStore.Item item = group.representative();
-        if (item != null && MissedCallActionHandler.openWhatsApp(activity, item)) {
-            CallerGroupHelper.removeByKey(activity, group.key);
-            MissedCallOverlayController.refresh(activity);
+        if (item != null && MissedCallActionHandler.openWhatsApp(context, item)) {
+            removeGroup(context, group);
         }
     }
 
-    public static void performWhatsAppBusiness(Activity activity, CallerGroupHelper.CallerGroup group) {
+    public static void performWhatsAppBusiness(Context context, CallerGroupHelper.CallerGroup group) {
         if (group == null) return;
         MissedCallQueueStore.Item item = group.representative();
-        if (item != null && MissedCallActionHandler.openWhatsAppBusiness(activity, item)) {
-            CallerGroupHelper.removeByKey(activity, group.key);
-            MissedCallOverlayController.refresh(activity);
+        if (item != null && MissedCallActionHandler.openWhatsAppBusiness(context, item)) {
+            removeGroup(context, group);
         }
     }
 
-    public static void performDelete(Activity activity, CallerGroupHelper.CallerGroup group) {
-        if (group == null) return;
-        CallerGroupHelper.removeByKey(activity, group.key);
-        MissedCallOverlayController.refresh(activity);
+    public static boolean performDelete(Context context, CallerGroupHelper.CallerGroup group) {
+        if (group == null) return false;
+        int removed = CallerGroupHelper.removeByKey(context, group.key);
+        MissedCallOverlayController.refresh(context);
+        if (removed > 0) {
+            Toast.makeText(context, "تم الحذف", Toast.LENGTH_SHORT).show();
+            return true;
+        }
+        Toast.makeText(context, "لم يُحذف — حاول مرة أخرى", Toast.LENGTH_SHORT).show();
+        return false;
+    }
+
+    private static void removeGroup(Context context, CallerGroupHelper.CallerGroup group) {
+        CallerGroupHelper.removeByKey(context, group.key);
+        MissedCallOverlayController.refresh(context);
     }
 }

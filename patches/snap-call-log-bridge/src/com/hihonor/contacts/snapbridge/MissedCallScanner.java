@@ -55,6 +55,8 @@ public final class MissedCallScanner {
                 boolean isSnap = isSnapEntry(phoneAccountId, cachedName);
                 if (!includeSnap && isSnap) continue;
                 if (!isTargetEntry(number, cachedName, phoneAccountId)) continue;
+                String idStr = String.valueOf(id);
+                if (MissedCallDismissStore.isDismissed(context, idStr)) continue;
 
                 if (markUnread && !(isNew == 1 && isRead == 0)) {
                     ContentValues values = new ContentValues();
@@ -78,7 +80,7 @@ public final class MissedCallScanner {
                 String sourceLabel = isSnap ? "Snapchat" : safeSource(geoLabel);
                 if (MissedCallQueueStore.enqueue(context, MissedCallQueueStore.build(
                         context,
-                        String.valueOf(id),
+                        idStr,
                         displayName,
                         number,
                         snapAddress,
