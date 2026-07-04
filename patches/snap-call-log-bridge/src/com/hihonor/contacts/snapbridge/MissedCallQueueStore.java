@@ -24,13 +24,20 @@ public final class MissedCallQueueStore {
         public final String sourceLabel;
         public final String resolvedName;
         public final String subtitle;
+        public final String simLabel;
 
         public Item(String id, String displayName, String number, String snapAddress, boolean isSnap) {
-            this(id, displayName, number, snapAddress, isSnap, 0L, "", "", "");
+            this(id, displayName, number, snapAddress, isSnap, 0L, "", "", "", "");
         }
 
         public Item(String id, String displayName, String number, String snapAddress, boolean isSnap,
                     long timestamp, String sourceLabel, String resolvedName, String subtitle) {
+            this(id, displayName, number, snapAddress, isSnap, timestamp, sourceLabel, resolvedName, subtitle, "");
+        }
+
+        public Item(String id, String displayName, String number, String snapAddress, boolean isSnap,
+                    long timestamp, String sourceLabel, String resolvedName, String subtitle,
+                    String simLabel) {
             this.id = id;
             this.displayName = displayName;
             this.number = number;
@@ -40,6 +47,7 @@ public final class MissedCallQueueStore {
             this.sourceLabel = sourceLabel != null ? sourceLabel : "";
             this.resolvedName = resolvedName != null ? resolvedName : "";
             this.subtitle = subtitle != null ? subtitle : "";
+            this.simLabel = simLabel != null ? simLabel : "";
         }
 
         public String bestName() {
@@ -59,6 +67,10 @@ public final class MissedCallQueueStore {
             return isSnap ? "Snapchat" : "هاتف";
         }
 
+        public String bestSimLabel() {
+            return simLabel != null ? simLabel : "";
+        }
+
         JSONObject toJson() {
             JSONObject o = new JSONObject();
             try {
@@ -71,6 +83,7 @@ public final class MissedCallQueueStore {
                 o.put("sourceLabel", sourceLabel);
                 o.put("resolvedName", resolvedName);
                 o.put("subtitle", subtitle);
+                o.put("simLabel", simLabel);
             } catch (Exception ignored) {
             }
             return o;
@@ -87,14 +100,22 @@ public final class MissedCallQueueStore {
                     o.optLong("timestamp", 0L),
                     o.optString("sourceLabel", ""),
                     o.optString("resolvedName", ""),
-                    o.optString("subtitle", ""));
+                    o.optString("subtitle", ""),
+                    o.optString("simLabel", ""));
         }
     }
 
     public static Item build(Context context, String id, String displayName, String number,
                              String snapAddress, boolean isSnap, long timestamp, String sourceLabel) {
+        return build(context, id, displayName, number, snapAddress, isSnap, timestamp, sourceLabel, "");
+    }
+
+    public static Item build(Context context, String id, String displayName, String number,
+                             String snapAddress, boolean isSnap, long timestamp, String sourceLabel,
+                             String phoneAccountId) {
         String resolvedName = displayName;
         String subtitle = "";
+        String simLabel = "";
         if (isSnap) {
             resolvedName = SnapNameHelper.resolve(context, number, snapAddress, displayName, "");
             subtitle = "Snapchat";
@@ -104,6 +125,7 @@ public final class MissedCallQueueStore {
             resolvedName = identity.displayName;
             subtitle = identity.subtitle;
             sourceLabel = identity.sourceLabel;
+            simLabel = SimSlotHelper.resolveLabel(context, phoneAccountId);
         }
         return new Item(
                 id,
@@ -114,7 +136,8 @@ public final class MissedCallQueueStore {
                 timestamp,
                 sourceLabel != null ? sourceLabel : "",
                 resolvedName,
-                subtitle);
+                subtitle,
+                simLabel);
     }
 
     public static boolean enqueue(Context context, Item item) {
@@ -188,7 +211,16 @@ public final class MissedCallQueueStore {
             timestamp = lookupTimestamp(context, item.id);
         }
         Item rebuilt = build(context, item.id, item.displayName, item.number,
-                item.snapAddress, item.isSnap, timestamp, item.sourceLabel);
+                item.snapAddress, item.isSnap, timestamp, item.sourceLabel,
+                lookupPhoneAccountId(context, item.id));
+        String simLabel = rebuilt.simLabel;
+        if (simLabel.isEmpty() && !item.simLabel.isEmpty()) simLabel = item.simLabel;
+        if (!simLabel.equals(rebuilt.simLabel)) {
+            rebuilt = new Item(
+                    rebuilt.id, rebuilt.displayName, rebuilt.number, rebuilt.snapAddress,
+                    rebuilt.isSnap, rebuilt.timestamp, rebuilt.sourceLabel, rebuilt.resolvedName,
+                    rebuilt.subtitle, simLabel);
+        }
         if (item.isSnap && SnapNameHelper.isGenericAppName(rebuilt.resolvedName)) {
             String formatted = lookupFormattedNumber(context, item.id);
             String resolved = SnapNameHelper.resolve(context, item.number, item.snapAddress,
@@ -196,10 +228,34 @@ public final class MissedCallQueueStore {
             if (!SnapNameHelper.isGenericAppName(resolved)) {
                 return new Item(
                         rebuilt.id, rebuilt.displayName, rebuilt.number, rebuilt.snapAddress,
-                        rebuilt.isSnap, rebuilt.timestamp, rebuilt.sourceLabel, resolved, rebuilt.subtitle);
+                        rebuilt.isSnap, rebuilt.timestamp, rebuilt.sourceLabel, resolved,
+                        rebuilt.subtitle, rebuilt.simLabel);
             }
         }
         return rebuilt;
+    }
+
+    private static String lookupPhoneAccountId(Context context, String id) {
+        try {
+            android.database.Cursor cursor = context.getContentResolver().query(
+                    android.provider.CallLog.Calls.CONTENT_URI,
+                    new String[] {android.provider.CallLog.Calls.PHONE_ACCOUNT_ID},
+                    android.provider.CallLog.Calls._ID + "=?",
+                    new String[] {id},
+                    null);
+            if (cursor != null) {
+                try {
+                    if (cursor.moveToFirst()) {
+                        String value = cursor.getString(0);
+                        return value != null ? value : "";
+                    }
+                } finally {
+                    cursor.close();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
     }
 
     private static String lookupFormattedNumber(Context context, String id) {

@@ -123,7 +123,8 @@ public class MissedCallDetailActivity extends Activity {
         List<CallerCallHistory.Record> records = CallerCallHistory.forGroup(this, group);
         if (records.isEmpty()) {
             for (MissedCallQueueStore.Item item : group.queuedItems) {
-                historyContainer.addView(buildHistoryRow(item.timestamp, CallLog.Calls.MISSED_TYPE, 0),
+                historyContainer.addView(buildHistoryRow(
+                                item.timestamp, CallLog.Calls.MISSED_TYPE, 0, item.bestSimLabel()),
                         rowLayout());
             }
             if (group.queuedItems.isEmpty()) {
@@ -136,7 +137,8 @@ public class MissedCallDetailActivity extends Activity {
         }
 
         for (CallerCallHistory.Record record : records) {
-            historyContainer.addView(buildHistoryRow(record.date, record.type, record.durationSec),
+            historyContainer.addView(buildHistoryRow(
+                            record.date, record.type, record.durationSec, record.simLabel),
                     rowLayout());
         }
     }
@@ -176,7 +178,11 @@ public class MissedCallDetailActivity extends Activity {
         info.addView(name);
 
         TextView sub = new TextView(this);
-        sub.setText(group.missedCount() + " فائتة · " + group.sourceLabel);
+        String subText = group.missedCount() + " فائتة · " + group.sourceLabel;
+        if (group.simLabel != null && !group.simLabel.isEmpty()) {
+            subText = subText + " · " + group.simLabel;
+        }
+        sub.setText(subText);
         sub.setTextColor(CallUiHelper.TEXT_SECONDARY);
         sub.setTextSize(13f);
         sub.setPadding(0, CallUiHelper.dp(this, 4), 0, 0);
@@ -193,7 +199,7 @@ public class MissedCallDetailActivity extends Activity {
         return lp;
     }
 
-    private View buildHistoryRow(long date, int type, int durationSec) {
+    private View buildHistoryRow(long date, int type, int durationSec, String simLabel) {
         int rowPad = CallUiHelper.dp(this, 12);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -240,6 +246,12 @@ public class MissedCallDetailActivity extends Activity {
             info.addView(dur);
         }
         row.addView(info);
+
+        if (simLabel != null && !simLabel.isEmpty()) {
+            TextView sim = CallUiHelper.makeBadge(
+                    this, simLabel, Color.parseColor("#1A3320"), Color.parseColor("#4ADE80"));
+            row.addView(sim);
+        }
         return row;
     }
 

@@ -22,11 +22,12 @@ public final class CallerGroupHelper {
         public final String snapAddress;
         public final boolean isSnap;
         public final String sourceLabel;
+        public final String simLabel;
         public final List<MissedCallQueueStore.Item> queuedItems;
         public final long latestTimestamp;
 
         CallerGroup(String key, String displayName, String number, String snapAddress,
-                    boolean isSnap, String sourceLabel,
+                    boolean isSnap, String sourceLabel, String simLabel,
                     List<MissedCallQueueStore.Item> queuedItems, long latestTimestamp) {
             this.key = key;
             this.displayName = displayName;
@@ -34,6 +35,7 @@ public final class CallerGroupHelper {
             this.snapAddress = snapAddress;
             this.isSnap = isSnap;
             this.sourceLabel = sourceLabel;
+            this.simLabel = simLabel;
             this.queuedItems = queuedItems;
             this.latestTimestamp = latestTimestamp;
         }
@@ -128,6 +130,7 @@ public final class CallerGroupHelper {
                     latest.snapAddress,
                     latest.isSnap,
                     latest.bestSourceLabel(),
+                    summarizeSimLabels(bucket),
                     bucket,
                     latest.timestamp));
         }
@@ -138,6 +141,22 @@ public final class CallerGroupHelper {
             }
         });
         return groups;
+    }
+
+    private static String summarizeSimLabels(List<MissedCallQueueStore.Item> items) {
+        java.util.LinkedHashSet<String> labels = new java.util.LinkedHashSet<>();
+        for (MissedCallQueueStore.Item item : items) {
+            String label = item.bestSimLabel();
+            if (label != null && !label.isEmpty()) labels.add(label);
+        }
+        if (labels.isEmpty()) return "";
+        if (labels.size() == 1) return labels.iterator().next();
+        StringBuilder sb = new StringBuilder();
+        for (String label : labels) {
+            if (sb.length() > 0) sb.append(" / ");
+            sb.append(label);
+        }
+        return sb.toString();
     }
 
     public static CallerGroup findByKey(Context context, String key) {

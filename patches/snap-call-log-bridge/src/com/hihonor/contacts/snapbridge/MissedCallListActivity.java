@@ -195,6 +195,17 @@ public class MissedCallListActivity extends Activity {
         sourceBadge.setLayoutParams(badgeLp);
         meta.addView(sourceBadge);
 
+        if (group.simLabel != null && !group.simLabel.isEmpty()) {
+            TextView simBadge = CallUiHelper.makeBadge(
+                    this, group.simLabel, Color.parseColor("#1A3320"), Color.parseColor("#4ADE80"));
+            LinearLayout.LayoutParams simLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            simLp.setMarginEnd(CallUiHelper.dp(this, 8));
+            simBadge.setLayoutParams(simLp);
+            meta.addView(simBadge);
+        }
+
         TextView timeView = new TextView(this);
         timeView.setText(CallUiHelper.formatTimeAgo(this, group.latestTimestamp));
         timeView.setTextColor(CallUiHelper.MISSED_ACCENT);

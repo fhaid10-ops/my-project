@@ -21,14 +21,17 @@ public final class CallerCallHistory {
         public final int durationSec;
         public final String number;
         public final String cachedName;
+        public final String simLabel;
 
-        public Record(long id, int type, long date, int durationSec, String number, String cachedName) {
+        public Record(long id, int type, long date, int durationSec, String number, String cachedName,
+                      String simLabel) {
             this.id = id;
             this.type = type;
             this.date = date;
             this.durationSec = durationSec;
             this.number = number;
             this.cachedName = cachedName;
+            this.simLabel = simLabel != null ? simLabel : "";
         }
 
         public boolean isMissed() {
@@ -67,7 +70,8 @@ public final class CallerCallHistory {
                         cursor.getLong(2),
                         cursor.getInt(3),
                         cursor.getString(4),
-                        cursor.getString(5)));
+                        cursor.getString(5),
+                        SimSlotHelper.resolveLabel(context, cursor.getString(6))));
             }
         } catch (Exception ignored) {
         } finally {
@@ -146,7 +150,8 @@ public final class CallerCallHistory {
                 CallLog.Calls.DATE,
                 CallLog.Calls.DURATION,
                 CallLog.Calls.NUMBER,
-                CallLog.Calls.CACHED_NAME
+                CallLog.Calls.CACHED_NAME,
+                CallLog.Calls.PHONE_ACCOUNT_ID
         };
     }
 
