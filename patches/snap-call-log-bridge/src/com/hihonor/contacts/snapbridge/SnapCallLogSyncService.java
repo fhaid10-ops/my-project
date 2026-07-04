@@ -96,11 +96,10 @@ public class SnapCallLogSyncService extends NotificationListenerService {
     }
 
     private SnapNotificationParser.ParsedCall resolveCall(StatusBarNotification sbn) {
-        SnapNotificationParser.ParsedCall call = SnapNotificationParser.parseOrFallback(sbn);
-        if (call == null && SnapNotificationParser.isSnapProbableCall(sbn)) {
-            call = SnapNotificationParser.forcedCall(this, sbn);
+        if (SnapNotificationParser.isNonCallNotification(sbn)) {
+            return null;
         }
-        return call;
+        return SnapNotificationParser.parseOrFallback(sbn);
     }
 
     private void handleSnapchat(StatusBarNotification sbn, boolean removed) {
@@ -116,7 +115,11 @@ public class SnapCallLogSyncService extends NotificationListenerService {
             if (call == null) {
                 SnapDiagStore.record(this, dump, false, removed ? "انتهى بدون تعرّف" : "لم يُعرَف كمكالمة");
                 if (!removed) {
-                    SnapEventStore.append(this, "لم يُعرَف كمكالمة من Snapchat");
+                    if (SnapNotificationParser.isNonCallNotification(sbn)) {
+                        SnapEventStore.append(this, "تخطي إشعار Snapchat (ليس مكالمة)");
+                    } else {
+                        SnapEventStore.append(this, "لم يُعرَف كمكالمة من Snapchat");
+                    }
                 } else {
                     finalizeRemovedCall(sbn, key, null);
                 }

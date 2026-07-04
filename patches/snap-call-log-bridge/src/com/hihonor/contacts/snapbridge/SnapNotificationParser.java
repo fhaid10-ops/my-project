@@ -52,6 +52,7 @@ public final class SnapNotificationParser {
     private SnapNotificationParser() {}
 
     public static ParsedCall parse(StatusBarNotification sbn) {
+        if (isNonCallNotification(sbn)) return null;
         Notification n = sbn.getNotification();
         if (n == null) return null;
         Bundle extras = n.extras;
@@ -77,11 +78,9 @@ public final class SnapNotificationParser {
             return buildParsed(extras, n, snapUser, resolveCallerName(extras), "call_extra");
         }
 
-        if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0) {
-            if (n.fullScreenIntent != null || hasCallExtraKeys(extras)
-                    || (n.actions != null && n.actions.length >= 2)) {
-                return buildParsed(extras, n, snapUser, resolveCallerName(extras), "ongoing");
-            }
+        if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0 && n.fullScreenIntent != null
+                && (hasCallExtraKeys(extras) || isLikelyCallActions(n))) {
+            return buildParsed(extras, n, snapUser, resolveCallerName(extras), "ongoing");
         }
 
         CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE);
@@ -92,8 +91,8 @@ public final class SnapNotificationParser {
         String combined = join(title, text, bigText, subText, info);
         if (TextUtils.isEmpty(combined)) return null;
 
-        String lower = combined.toLowerCase();
-        if (!isCallRelated(lower) && !hasCallExtraKeys(extras)) return null;
+        String lower = combined.toLowerCase(Locale.ROOT);
+        if (!hasExplicitCallPhrase(combined) && !hasCallExtraKeys(extras)) return null;
 
         String name = resolveCallerName(extras);
         if (TextUtils.isEmpty(name) || SnapNameHelper.isGenericAppName(name)) {
@@ -114,6 +113,7 @@ public final class SnapNotificationParser {
     }
 
     public static boolean isLikelyCallNotification(StatusBarNotification sbn) {
+        if (isNonCallNotification(sbn)) return false;
         Notification n = sbn != null ? sbn.getNotification() : null;
         if (n == null) return false;
         Bundle extras = n.extras;
@@ -125,40 +125,113 @@ public final class SnapNotificationParser {
             if (template != null && template.contains("CallStyle")) return true;
         }
         if (n.actions != null && n.actions.length >= 2 && isLikelyCallActions(n)) return true;
-        if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0 && n.fullScreenIntent != null) return true;
+        if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0 && n.fullScreenIntent != null
+                && (hasCallExtraKeys(extras) || isLikelyCallActions(n))) {
+            return true;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            String channel = n.getChannelId();
+            if (isCallChannel(channel)) return true;
+        }
         String combined = join(
                 extras.getCharSequence(Notification.EXTRA_TITLE),
                 extras.getCharSequence(Notification.EXTRA_TEXT),
                 extras.getCharSequence(Notification.EXTRA_BIG_TEXT),
                 extras.getCharSequence(Notification.EXTRA_SUB_TEXT),
                 extras.getCharSequence(Notification.EXTRA_INFO_TEXT));
-        return !TextUtils.isEmpty(combined) && isCallRelated(combined);
+        return !TextUtils.isEmpty(combined) && hasExplicitCallPhrase(combined);
     }
 
+    /** @deprecated استخدم isLikelyCallNotification — أوسع سابقاً ويسبب تسجيل رسائل/طلبات صداقة */
     public static boolean isSnapProbableCall(StatusBarNotification sbn) {
-        if (isLikelyCallNotification(sbn)) return true;
+        return isLikelyCallNotification(sbn);
+    }
+
+    /** إشعارات ليست مكالمات: رسائل، طلبات صداقة، قصص، إلخ. */
+    public static boolean isNonCallNotification(StatusBarNotification sbn) {
         Notification n = sbn != null ? sbn.getNotification() : null;
-        if (n == null) return false;
-        if (n.actions != null && n.actions.length >= 2) return true;
-        if ((n.flags & Notification.FLAG_ONGOING_EVENT) != 0) return true;
-        if (n.fullScreenIntent != null) return true;
+        if (n == null) return true;
+        String cat = n.category;
+        if (Notification.CATEGORY_MESSAGE.equals(cat)
+                || Notification.CATEGORY_SOCIAL.equals(cat)
+                || Notification.CATEGORY_EMAIL.equals(cat)
+                || Notification.CATEGORY_PROMO.equals(cat)
+                || Notification.CATEGORY_EVENT.equals(cat)
+                || Notification.CATEGORY_RECOMMENDATION.equals(cat)) {
+            return true;
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             String channel = n.getChannelId();
-            if (channel != null) {
-                String lc = channel.toLowerCase(Locale.ROOT);
-                if (lc.contains("call") || lc.contains("ring") || lc.contains("voice")
-                        || lc.contains("voip") || lc.contains("rtc")) {
-                    return true;
-                }
-            }
+            if (isNonCallChannel(channel)) return true;
+        }
+        Bundle extras = n.extras;
+        if (extras == null) return false;
+        String combined = join(
+                extras.getCharSequence(Notification.EXTRA_TITLE),
+                extras.getCharSequence(Notification.EXTRA_TEXT),
+                extras.getCharSequence(Notification.EXTRA_BIG_TEXT),
+                extras.getCharSequence(Notification.EXTRA_SUB_TEXT),
+                extras.getCharSequence(Notification.EXTRA_INFO_TEXT));
+        if (TextUtils.isEmpty(combined)) return false;
+        return isFriendMessageOrSocial(combined.toLowerCase(Locale.ROOT));
+    }
+
+    private static boolean isCallChannel(String channel) {
+        if (channel == null) return false;
+        String lc = channel.toLowerCase(Locale.ROOT);
+        if (isNonCallChannel(channel)) return false;
+        return lc.contains("call") || lc.contains("ring") || lc.contains("voice")
+                || lc.contains("voip") || lc.contains("rtc");
+    }
+
+    private static boolean isNonCallChannel(String channel) {
+        if (channel == null) return false;
+        String lc = channel.toLowerCase(Locale.ROOT);
+        return lc.contains("message") || lc.contains("chat") || lc.contains("friend")
+                || lc.contains("social") || lc.contains("story") || lc.contains("stories")
+                || lc.contains("memory") || lc.contains("memories") || lc.contains("discover")
+                || lc.contains("subscription") || lc.contains("marketing") || lc.contains("promo");
+    }
+
+    private static boolean isFriendMessageOrSocial(String lower) {
+        String[] block = {
+                "friend request", "طلب صداق", "طلب صداقه", "added you", "أضافك", "add friend",
+                "wants to be your friend", "accept friend", "قبول الطلب", "صداقة",
+                "sent you a", "sent you", "أرسل لك", "أرسلت", "رسالة", "رساله", "message",
+                "new chat", "new snap", "replied to", "رد على", "mentioned you", "ذكرك",
+                "story", "قصة", "stories", "memory", "ذكريات", "memories",
+                "streak", "spotlight", "discover", "subscription", "اشتراك",
+                "typing", "يكتب", "screenshot", "لقطة شاشة",
+                "bitmoji", "birthday", "عيد ميلاد", "team snapchat", "opened your",
+                "فتح", "snap from", "chat from", "محادثة"
+        };
+        for (String token : block) {
+            if (lower.contains(token)) return true;
         }
         return false;
     }
 
+    private static boolean hasExplicitCallPhrase(String text) {
+        if (TextUtils.isEmpty(text)) return false;
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (isFriendMessageOrSocial(lower)) return false;
+        String[] phrases = {
+                "is calling you", " is calling", "calling you", "incoming call",
+                "missed call", "video call", "voice call", "call from",
+                "يتصل بك", "يتصل", "مكالمة فائتة", "مكالمة واردة", "مكالمة من",
+                "يرن", "ringing", "رنين", "لم يتم الرد", "لم يرد"
+        };
+        for (String phrase : phrases) {
+            if (lower.contains(phrase)) return true;
+        }
+        return lower.contains("call") || lower.contains("مكالم");
+    }
+
     public static ParsedCall parseOrFallback(StatusBarNotification sbn) {
+        if (isNonCallNotification(sbn)) return null;
         ParsedCall call = parse(sbn);
         if (call != null) return call;
-        if (!isSnapProbableCall(sbn)) return null;
+        if (!isLikelyCallNotification(sbn)) return null;
         Notification n = sbn.getNotification();
         Bundle extras = n.extras;
         String snapUser = extractSnapUsername(extras);
@@ -480,10 +553,8 @@ public final class SnapNotificationParser {
     }
 
     private static boolean isCallRelated(String lower) {
-        return lower.contains("call") || lower.contains("مكالم") || lower.contains("ringing")
-                || lower.contains("يرن") || lower.contains("يتصل") || lower.contains("رنين")
-                || lower.contains("video") || lower.contains("فيديو")
-                || lower.contains("voice") || lower.contains("صوت") || lower.contains("snap");
+        if (isFriendMessageOrSocial(lower)) return false;
+        return hasExplicitCallPhrase(lower);
     }
 
     private static boolean isGenericCallWord(String s) {
