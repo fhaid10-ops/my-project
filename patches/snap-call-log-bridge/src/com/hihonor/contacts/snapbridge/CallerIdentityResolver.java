@@ -9,8 +9,10 @@ import android.provider.ContactsContract;
 public final class CallerIdentityResolver {
     private static final String PKG_NUMBERBOOK = "com.mobiles.numberbookdirectory";
     private static final String PKG_CALLAPP = "com.callapp.contacts";
+    private static final String PKG_TRUECALLER = "com.truecaller";
     /** أدلة معرف المتصل — تُبحث أولاً حسب تفضيل المستخدم. */
     private static final String[] PREFERRED_DIRECTORY_PACKAGES = {
+            PKG_TRUECALLER,
             PKG_CALLAPP,
             PKG_NUMBERBOOK,
     };
@@ -166,6 +168,7 @@ public final class CallerIdentityResolver {
     }
 
     private static String sourceLabelForDirectory(String packageName, String dirLabel) {
+        if (PKG_TRUECALLER.equals(packageName)) return "Truecaller";
         if (PKG_CALLAPP.equals(packageName)) return "CallApp";
         if (PKG_NUMBERBOOK.equals(packageName)) return "نمر بوك";
         if (packageName != null && packageName.contains("truecaller")) return "Truecaller";
