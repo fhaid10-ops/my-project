@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#00a884">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="DBR">
+  <title>حاسبة DBR — ساما / SFC</title>
+  <meta name="description" content="حاسبة نسبة عبء الدين (DBR) وفق سياسة SFC ومصفوفة ساما">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="../icon.svg">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:linear-gradient(160deg,#0b141a 0%,#1f2c34 50%,#111b21 100%);background-color:#0b141a;color:#e9edef;min-height:100vh;color-scheme:dark}
+    .page{max-width:980px;margin:0 auto;padding:1.25rem 1rem 3rem}
+    header{text-align:center;margin-bottom:1.5rem}
+    header h1{font-size:1.65rem;margin-bottom:.35rem}
+    .subtitle{color:#8696a0;font-size:.92rem;line-height:1.6}
+    .nav-links{display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem;margin-top:.85rem}
+    .nav-links a{color:#00a884;text-decoration:none;font-size:.88rem;padding:.35rem .8rem;border:1px solid #2a3942;border-radius:999px}
+    .section{background:#202c33;border-radius:16px;border:1px solid #2a3942;overflow:hidden;margin-bottom:1.25rem}
+    .section-header{padding:1rem 1.25rem;border-bottom:1px solid #2a3942}
+    .section-header h2{font-size:1.08rem;margin-bottom:.25rem}
+    .section-header p{color:#8696a0;font-size:.85rem;line-height:1.5}
+    .form{display:grid;gap:.85rem;padding:1rem 1.25rem 1.25rem}
+    label{display:flex;flex-direction:column;gap:.4rem;font-size:.88rem;color:#8696a0}
+    input,select{width:100%;background:#111b21;color:#e9edef;border:1px solid #2a3942;border-radius:8px;padding:.7rem .75rem;font-size:1rem;font-family:inherit}
+    .hint{font-size:.8rem;color:#8696a0;margin-top:.15rem}
+    .btn-primary{background:#00a884;color:#fff;border:none;border-radius:8px;padding:.75rem 1rem;font-size:1rem;font-weight:600;cursor:pointer;font-family:inherit}
+    .result-card{padding:1rem 1.25rem 1.25rem}
+    .result-card h3{font-size:1rem;margin-bottom:.85rem}
+    .result-card.error{border-top:3px solid #ea4335}
+    .result-card.success{border-top:3px solid #00a884}
+    .result-error{color:#ea4335;font-size:.95rem}
+    .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}
+    .result-item{background:#111b21;border:1px solid #2a3942;border-radius:10px;padding:.75rem}
+    .result-item.highlight{border-color:#00a884}
+    .result-label{display:block;font-size:.78rem;color:#8696a0;margin-bottom:.25rem}
+    .result-value{font-size:.95rem;font-weight:600}
+    .dbr-bars{display:grid;gap:.65rem;margin-bottom:1rem}
+    .dbr-bar-head{display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:.3rem}
+    .dbr-track{height:8px;background:#111b21;border-radius:999px;overflow:hidden}
+    .dbr-fill{height:100%;border-radius:999px}
+    .dbr-fill.other{background:#53bdeb}
+    .dbr-fill.sfc{background:#00a884}
+    .dbr-fill.global{background:#ffd279}
+    .result-highlight{display:flex;justify-content:space-between;align-items:center;gap:.75rem;background:linear-gradient(135deg,#005c4b,#008069);border-radius:12px;padding:1rem;margin-bottom:.75rem}
+    .result-highlight strong{font-size:1.25rem}
+    .result-note{font-size:.82rem;color:#8696a0;line-height:1.5}
+    .result-note.warn{color:#ffd279}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:.82rem}
+    th,td{padding:.75rem .65rem;border-bottom:1px solid #2a3942;text-align:right;white-space:nowrap}
+    th{color:#8696a0;font-weight:600;background:#1a242b}
+    .policy-note{padding:1rem 1.25rem;color:#8696a0;font-size:.82rem;line-height:1.6;border-top:1px solid #2a3942}
+    @media (min-width:600px){.form{grid-template-columns:1fr 1fr}.form .full{grid-column:1/-1}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>حاسبة DBR</h1>
+      <p class="subtitle">سياسة SFC Credit DBR ومصفوفة ساما لنسبة عبء الدين</p>
+      <div class="nav-links">
+        <a href="../">المبيعات ←</a>
+        <a href="../expenses/">المصاريف</a>
+      </div>
+    </header>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>استعلام SFC Credit DBR</h2>
+        <p>اختر قطاع العميل وملف SIMAH لمعرفة نسب DBR وأقصى التزام شهري</p>
+      </div>
+      <form class="form" onsubmit="return false">
+        <label class="full">
+          قطاع العميل
+          <select id="segment" required>
+            <option value="">اختر القطاع</option>
+          </select>
+          <span class="hint" id="segmentHint"></span>
+        </label>
+        <label>
+          الراتب الشهري (ريال)
+          <input type="number" id="salary" min="1" step="1" placeholder="مثال: 15000" inputmode="numeric" required>
+          <span class="hint" id="salaryHint">لربة المنزل: أدخل متوسط الدخل × 3</span>
+        </label>
+        <label>
+          ملف SIMAH
+          <select id="simah" required></select>
+        </label>
+        <button type="button" id="calcBtn" class="btn-primary full">احسب DBR</button>
+      </form>
+      <div id="result" class="result-card" hidden></div>
+      <p class="policy-note">Global DBR = مُقرضو آخرون + SFC DBR. الأرقام الزرقاء في السياسة هي مدخلات؛ Global DBR محسوب.</p>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>SAMA DBR Matrix — بدون رهن عقاري</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>نطاق الراتب (ريال)</th>
+              <th>تمويل استهلاكي</th>
+              <th>أقصى SFC DBR</th>
+              <th>Global DBR</th>
+              <th>القطاع</th>
+            </tr>
+          </thead>
+          <tbody id="samaWithoutBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>SAMA DBR Matrix — مع رهن عقاري</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>نطاق الراتب (ريال)</th>
+              <th>مع رهن</th>
+              <th>مع دعم</th>
+              <th>Global DBR</th>
+              <th>القطاع</th>
+            </tr>
+          </thead>
+          <tbody id="samaWithBody"></tbody>
+        </table>
+      </div>
+      <p class="policy-note">ملاحظة: Global DBR هو الحد الأقصى الإجمالي لنسبة عبء الدين المسموح بها من ساما. لرواتب ≥ 35,000 تُطبق السياسة بصرامة بدون استثناء دخل.</p>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
