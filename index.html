@@ -102,7 +102,10 @@
     .options-divider{height:1px;background:#2a3942;margin:.25rem 0}
     .options-action{width:100%;text-align:right;background:transparent;border:none;color:#e9edef;padding:.85rem 1rem;font-size:.92rem;cursor:pointer;font-family:inherit}
     .options-action:hover{background:#1a242b}
-    .btn-install-app{background:#2a3942;color:#e9edef;font-weight:600;padding:.6rem 1rem;border-radius:999px;font-size:.9rem;display:inline-flex;align-items:center;gap:.4rem}
+    .btn-install-app{background:#00a884;color:#fff;font-weight:600;padding:.6rem 1rem;border-radius:999px;font-size:.9rem;display:inline-flex;align-items:center;gap:.4rem}
+    .desktop-only{display:none}
+    html.is-desktop .desktop-only{display:block}
+    html.is-desktop .mobile-only{display:none}
     html.desktop-site body{min-width:1280px}
     html.desktop-site .page{max-width:1180px}
     @media (min-width:520px){.cards{grid-template-columns:repeat(3,1fr)}.target-banner{grid-template-columns:repeat(3,1fr)}}
@@ -114,11 +117,11 @@
       <div class="options-wrap">
         <button type="button" id="optionsBtn" class="btn-options" aria-label="خيارات" aria-expanded="false" aria-controls="optionsMenu">⚙</button>
         <div id="optionsMenu" class="options-menu" hidden>
-          <button type="button" class="options-action" id="installAppMenuBtn">📲 تثبيت على سطح المكتب</button>
-          <div class="options-divider"></div>
-          <a class="options-action" href="mabiat-desktop.url" download="مبيعات.url" style="text-decoration:none;display:block">🪟 اختصار ويندوز</a>
-          <a class="options-action" href="mabiat.desktop" download="مبيعات.desktop" style="text-decoration:none;display:block">🐧 اختصار لينكس</a>
-          <div class="options-divider"></div>
+          <button type="button" class="options-action mobile-only" id="installAppMenuBtn">📲 إضافة للشاشة الرئيسية</button>
+          <div class="options-divider mobile-only" id="installMenuDivider"></div>
+          <a class="options-action desktop-only" href="mabiat-desktop.url" download="مبيعات.url" style="text-decoration:none;display:block">🪟 اختصار ويندوز</a>
+          <a class="options-action desktop-only" href="mabiat.desktop" download="مبيعات.desktop" style="text-decoration:none;display:block">🐧 اختصار لينكس</a>
+          <div class="options-divider desktop-only"></div>
           <label class="options-item" for="desktopSiteToggle">
             <span class="options-item-text"><span aria-hidden="true">🖥</span><span>موقع مصمّم للكمبيوتر</span></span>
             <input type="checkbox" id="desktopSiteToggle">
@@ -131,15 +134,15 @@
       <p class="subtitle">متابعة تنفيذات ماجد وعبدالرحمن وفايز</p>
       <span class="offline-badge">يعمل بدون إنترنت</span>
       <div class="header-actions">
-        <button type="button" id="installHeaderBtn" class="btn-install-app">📲 تثبيت التطبيق</button>
+        <button type="button" id="installHeaderBtn" class="btn-install-app mobile-only">📲 إضافة للشاشة الرئيسية</button>
         <button type="button" id="shareImageBtn" class="btn-share-image">📷 حفظ صورة التقرير</button>
         <a href="expenses/" style="color:#00a884;text-decoration:none;font-size:.9rem;padding:.55rem .9rem;border:1px solid #2a3942;border-radius:999px;display:inline-flex;align-items:center">المصاريف ←</a>
       </div>
     </header>
 
     <div id="installBar" class="install-bar" role="region" aria-label="تثبيت التطبيق">
-      <p id="installBarText">يمكنك تثبيت التطبيق كأيقونة على سطح المكتب أو الشاشة الرئيسية.</p>
-      <button type="button" id="installBtn">تثبيت</button>
+      <p id="installBarText">ثبّت التطبيق كأيقونة على شاشة جوالك للوصول السريع.</p>
+      <button type="button" id="installBtn">إضافة للشاشة الرئيسية</button>
       <button type="button" class="dismiss" id="installDismiss" aria-label="إخفاء">×</button>
     </div>
 
@@ -400,24 +403,51 @@ function isAppInstalled(){
 function isDesktopBrowser(){
   return window.matchMedia&&window.matchMedia('(pointer:fine)').matches&&!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
+function isMobileBrowser(){
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(window.matchMedia&&window.matchMedia('(max-width: 768px)').matches);
+}
+function isIOS(){
+  return /iPad|iPhone|iPod/i.test(navigator.userAgent)&&!window.MSStream;
+}
+function isAndroid(){
+  return /Android/i.test(navigator.userAgent);
+}
+function applyDeviceUi(){
+  if(isDesktopBrowser())document.documentElement.classList.add('is-desktop');
+}
 function updateInstallUi(){
   const headerBtn=document.getElementById('installHeaderBtn');
   const menuBtn=document.getElementById('installAppMenuBtn');
+  const menuDivider=document.getElementById('installMenuDivider');
   const bar=document.getElementById('installBar');
   if(isAppInstalled()){
     if(headerBtn)headerBtn.style.display='none';
     if(menuBtn)menuBtn.style.display='none';
+    if(menuDivider)menuDivider.style.display='none';
     if(bar)bar.classList.remove('show');
     return;
   }
-  if(headerBtn)headerBtn.style.display='inline-flex';
-  if(menuBtn)menuBtn.style.display='block';
+  if(isMobileBrowser()){
+    if(headerBtn)headerBtn.style.display='inline-flex';
+    if(menuBtn)menuBtn.style.display='block';
+    if(menuDivider)menuDivider.style.display='block';
+  }else{
+    if(headerBtn)headerBtn.style.display='none';
+    if(menuBtn)menuBtn.style.display='none';
+    if(menuDivider)menuDivider.style.display='none';
+  }
 }
 function getInstallHelpText(){
-  if(isDesktopBrowser()){
-    return 'لتثبيت التطبيق على سطح المكتب: من Chrome أو Edge اضغط ⋮ ثم "تثبيت مبيعات" أو "Install app".';
+  if(isIOS()){
+    return 'من سفاري: اضغط زر المشاركة ⬆︎ ثم "إضافة إلى الشاشة الرئيسية".';
   }
-  return 'لتثبيت التطبيق: افتحه في Chrome ثم "إضافة إلى الشاشة الرئيسية".';
+  if(isAndroid()){
+    return 'من Chrome: اضغط ⋮ ثم "إضافة إلى الشاشة الرئيسية" أو "تثبيت التطبيق".';
+  }
+  if(isDesktopBrowser()){
+    return 'من Chrome أو Edge: اضغط ⋮ ثم "تثبيت مبيعات".';
+  }
+  return 'افتح التطبيق في Chrome ثم أضفه إلى الشاشة الرئيسية.';
 }
 async function promptInstallApp(){
   if(isAppInstalled()){
@@ -444,7 +474,7 @@ async function promptInstallApp(){
   }
   showToast(getInstallHelpText(),'success');
 }
-function initApp(){const today=localDateKey();const month=localMonthKey();document.getElementById('monthInput').value=month;document.getElementById('dateInput').value=today;document.getElementById('executionDate').value=today;document.getElementById('refreshBtn').addEventListener('click',renderStats);document.getElementById('monthInput').addEventListener('change',renderStats);document.getElementById('dateInput').addEventListener('change',renderStats);document.getElementById('saveBtn').addEventListener('click',handleSave);document.getElementById('addForm').addEventListener('submit',function(e){e.preventDefault();handleSave();});document.getElementById('exportBtn').addEventListener('click',exportData);document.getElementById('shareImageBtn').addEventListener('click',shareReportImage);setupOptionsMenu();const installHeaderBtn=document.getElementById('installHeaderBtn');if(installHeaderBtn){installHeaderBtn.addEventListener('click',promptInstallApp);}updateInstallUi();document.getElementById('importFile').addEventListener('change',function(ev){const file=ev.target.files[0];if(!file)return;const hint=document.getElementById('importHint');importData(file).then(function(){hint.textContent='تم استيراد البيانات بنجاح';hint.className='form-hint success';showToast('تم استيراد البيانات','success');renderStats();}).catch(function(){hint.textContent='ملف غير صالح';hint.className='form-hint error';showToast('ملف غير صالح','error');});ev.target.value='';});try{localStorage.setItem('__test__','1');localStorage.removeItem('__test__');}catch(e){showToast('افتح الملف في Chrome للحفظ','error');}renderStats();}
+function initApp(){applyDeviceUi();const today=localDateKey();const month=localMonthKey();document.getElementById('monthInput').value=month;document.getElementById('dateInput').value=today;document.getElementById('executionDate').value=today;document.getElementById('refreshBtn').addEventListener('click',renderStats);document.getElementById('monthInput').addEventListener('change',renderStats);document.getElementById('dateInput').addEventListener('change',renderStats);document.getElementById('saveBtn').addEventListener('click',handleSave);document.getElementById('addForm').addEventListener('submit',function(e){e.preventDefault();handleSave();});document.getElementById('exportBtn').addEventListener('click',exportData);document.getElementById('shareImageBtn').addEventListener('click',shareReportImage);setupOptionsMenu();const installHeaderBtn=document.getElementById('installHeaderBtn');if(installHeaderBtn){installHeaderBtn.addEventListener('click',promptInstallApp);}updateInstallUi();document.getElementById('importFile').addEventListener('change',function(ev){const file=ev.target.files[0];if(!file)return;const hint=document.getElementById('importHint');importData(file).then(function(){hint.textContent='تم استيراد البيانات بنجاح';hint.className='form-hint success';showToast('تم استيراد البيانات','success');renderStats();}).catch(function(){hint.textContent='ملف غير صالح';hint.className='form-hint error';showToast('ملف غير صالح','error');});ev.target.value='';});try{localStorage.setItem('__test__','1');localStorage.removeItem('__test__');}catch(e){showToast('افتح الملف في Chrome للحفظ','error');}renderStats();}
 function setupInstallPrompt(){
   const bar=document.getElementById('installBar');
   const btn=document.getElementById('installBtn');
@@ -469,14 +499,13 @@ function setupInstallPrompt(){
     updateInstallUi();
     showToast('تم تثبيت التطبيق ✓','success');
   });
-  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
-  if(isIOS && localStorage.getItem(dismissKey)!=='1'){
-    document.getElementById('installBarText').textContent='لتثبيت التطبيق: اضغطي زر المشاركة ⬆︎ في سفاري ثم "إضافة إلى الشاشة الرئيسية".';
-    btn.style.display='none';
+  const isIOSDevice=isIOS();
+  if(isMobileBrowser()&&localStorage.getItem(dismissKey)!=='1'){
+    document.getElementById('installBarText').textContent=getInstallHelpText();
+    if(isIOSDevice)btn.style.display='none';
     bar.classList.add('show');
-  }
-  if(isDesktopBrowser()&&localStorage.getItem(dismissKey)!=='1'&&!bar.classList.contains('show')){
-    document.getElementById('installBarText').textContent='ثبّت التطبيق كأيقونة على سطح المكتب من زر "تثبيت التطبيق" أو من قائمة المتصفح ⋮';
+  }else if(isDesktopBrowser()&&localStorage.getItem(dismissKey)!=='1'&&!bar.classList.contains('show')){
+    document.getElementById('installBarText').textContent=getInstallHelpText();
     bar.classList.add('show');
   }
   updateInstallUi();
