@@ -70,6 +70,15 @@
     .install-bar p{flex:1;font-size:.9rem;color:#e9edef;margin:0}
     .install-bar button{background:#00a884;color:#fff;font-weight:600;padding:.55rem .95rem;white-space:nowrap}
     .install-bar .dismiss{background:transparent;color:#8696a0;padding:.35rem .5rem;font-size:1.1rem}
+    .header-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;margin-top:.85rem}
+    .btn-share-image{background:#00a884;color:#fff;font-weight:600;padding:.6rem 1rem;border-radius:999px;font-size:.9rem;display:inline-flex;align-items:center;gap:.4rem}
+    .btn-share-image:disabled{opacity:.65;cursor:wait}
+    .report-capture{background:linear-gradient(160deg,#0b141a 0%,#1f2c34 50%,#111b21 100%);border-radius:16px;padding:1rem;margin-bottom:1.25rem}
+    .report-capture-header{text-align:center;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid #2a3942}
+    .report-capture-header h2{font-size:1.15rem;margin-bottom:.25rem}
+    .report-capture-header p{color:#8696a0;font-size:.85rem}
+    .report-capture .cards,.report-capture .target-banner{margin-bottom:1rem}
+    .report-capture .list-section{margin-bottom:0}
     @media (min-width:520px){.cards{grid-template-columns:repeat(3,1fr)}.target-banner{grid-template-columns:repeat(3,1fr)}}
   </style>
 </head>
@@ -79,7 +88,10 @@
       <h1>مبيعات</h1>
       <p class="subtitle">متابعة تنفيذات ماجد وعبدالرحمن وفايز</p>
       <span class="offline-badge">يعمل بدون إنترنت</span>
-      <div style="margin-top:.75rem"><a href="expenses/" style="color:#00a884;text-decoration:none;font-size:.9rem;padding:.35rem .8rem;border:1px solid #2a3942;border-radius:999px">المصاريف ←</a></div>
+      <div class="header-actions">
+        <button type="button" id="shareImageBtn" class="btn-share-image">📷 حفظ صورة التقرير</button>
+        <a href="expenses/" style="color:#00a884;text-decoration:none;font-size:.9rem;padding:.55rem .9rem;border:1px solid #2a3942;border-radius:999px;display:inline-flex;align-items:center">المصاريف ←</a>
+      </div>
     </header>
 
     <div id="installBar" class="install-bar" role="region" aria-label="تثبيت التطبيق">
@@ -122,54 +134,61 @@
       <p class="form-hint" id="importHint"></p>
     </section>
 
-    <section class="cards" id="statsSection">
-      <div class="card main">
-        <span class="label">تنفيذ اليوم (الكل)</span>
-        <span class="value" id="totalDailyAmount">—</span>
+    <div id="reportCapture" class="report-capture">
+      <div class="report-capture-header">
+        <h2>مبيعات — تقرير الأداء</h2>
+        <p id="reportDateLabel">—</p>
       </div>
-      <div class="card">
-        <span class="label">عقود اليوم</span>
-        <span class="value" id="totalDailyContracts">—</span>
-      </div>
-      <div class="card">
-        <span class="label">تنفيذ الشهر (الكل)</span>
-        <span class="value" id="totalMonthlyAmount">—</span>
-      </div>
-    </section>
 
-    <section class="target-banner">
-      <div>
-        <span class="label">تارقت الفرع</span>
-        <strong id="branchTarget">—</strong>
-      </div>
-      <div>
-        <span class="label">تارقت كل موظف</span>
-        <strong id="employeeTarget">—</strong>
-      </div>
-      <div>
-        <span class="label">المحقق من الفرع</span>
-        <strong id="branchProgress">—</strong>
-      </div>
-    </section>
+      <section class="cards" id="statsSection">
+        <div class="card main">
+          <span class="label">تنفيذ اليوم (الكل)</span>
+          <span class="value" id="totalDailyAmount">—</span>
+        </div>
+        <div class="card">
+          <span class="label">عقود اليوم</span>
+          <span class="value" id="totalDailyContracts">—</span>
+        </div>
+        <div class="card">
+          <span class="label">تنفيذ الشهر (الكل)</span>
+          <span class="value" id="totalMonthlyAmount">—</span>
+        </div>
+      </section>
 
-    <section class="list-section">
-      <div class="list-header"><h2>جدول الموظفين</h2></div>
-      <div class="table-wrap">
-        <table class="stats-table" id="employeeTable">
-          <thead>
-            <tr>
-              <th>الموظف</th>
-              <th>عقود اليوم</th>
-              <th>تنفيذ اليوم</th>
-              <th>عقود الشهر</th>
-              <th>تنفيذ الشهر</th>
-              <th>الإنجاز %</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+      <section class="target-banner">
+        <div>
+          <span class="label">تارقت الفرع</span>
+          <strong id="branchTarget">—</strong>
+        </div>
+        <div>
+          <span class="label">تارقت كل موظف</span>
+          <strong id="employeeTarget">—</strong>
+        </div>
+        <div>
+          <span class="label">المحقق من الفرع</span>
+          <strong id="branchProgress">—</strong>
+        </div>
+      </section>
+
+      <section class="list-section">
+        <div class="list-header"><h2>جدول الموظفين</h2></div>
+        <div class="table-wrap">
+          <table class="stats-table" id="employeeTable">
+            <thead>
+              <tr>
+                <th>الموظف</th>
+                <th>عقود اليوم</th>
+                <th>تنفيذ اليوم</th>
+                <th>عقود الشهر</th>
+                <th>تنفيذ الشهر</th>
+                <th>الإنجاز %</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
 
     <section class="list-section">
       <div class="list-header"><h2>ملخص يومي للشهر</h2></div>
@@ -223,9 +242,68 @@ function escapeHtml(t){const d=document.createElement('div');d.textContent=t;ret
 function exportData(){const data=loadData();const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='mabiat-backup-'+localDateKey()+'.json';a.click();URL.revokeObjectURL(url);}
 function importData(file){return new Promise(function(resolve,reject){const r=new FileReader();r.onload=function(){try{const p=JSON.parse(r.result);if(!p.executions)throw 0;if(!saveData({config:Object.assign({},DEFAULT_CONFIG,p.config),executions:p.executions}))throw 0;resolve();}catch(e){reject(e);}};r.onerror=function(){reject(new Error('read'));};r.readAsText(file);});}
 function syncFiltersToDate(dk){document.getElementById('monthInput').value=dk.slice(0,7);document.getElementById('dateInput').value=dk;}
-function renderStats(){const month=document.getElementById('monthInput').value;const date=document.getElementById('dateInput').value;const stats=buildStats(loadData(),month,date);document.getElementById('totalDailyAmount').textContent=formatMoney(stats.totals.dailyAmount);document.getElementById('totalDailyContracts').textContent=stats.totals.dailyContracts;document.getElementById('totalMonthlyAmount').textContent=formatMoney(stats.totals.monthlyAmount);document.getElementById('branchTarget').textContent=formatMoney(stats.branchTarget);document.getElementById('employeeTarget').textContent=formatMoney(stats.employeeTarget);const bp=stats.branchTarget?Math.round(stats.totals.monthlyAmount/stats.branchTarget*1000)/10:0;document.getElementById('branchProgress').textContent=formatMoney(stats.totals.monthlyAmount)+' ('+bp+'%)';document.querySelector('#employeeTable tbody').innerHTML=stats.employees.map(function(e){return'<tr><td><strong>'+escapeHtml(e.name)+'</strong></td><td>'+e.dailyContracts+'</td><td>'+formatMoney(e.dailyAmount)+'</td><td>'+e.monthlyContracts+'</td><td>'+formatMoney(e.monthlyAmount)+'</td><td><span class="progress-pill">'+e.progressPercent+'%</span></td></tr>';}).join('')||'<tr><td colspan="6" class="empty-cell">لا توجد بيانات</td></tr>';document.querySelector('#dailyTable tbody').innerHTML=stats.dailyBreakdown.map(function(day){const cells=['majed','abdulrahman','faiz'].map(function(id){const info=day.byEmployee[id];return info?'<td>'+info.contracts+' / '+formatMoney(info.amount)+'</td>':'<td>—</td>';}).join('');return'<tr><td>'+formatDateKey(day.date)+'</td>'+cells+'<td>'+day.contracts+'</td><td>'+formatMoney(day.amount)+'</td></tr>';}).join('')||'<tr><td colspan="6" class="empty-cell">لا توجد تنفيذات</td></tr>';const recent=document.getElementById('recentList');if(!stats.recent.length){recent.innerHTML='<p class="empty">لا توجد تنفيذات بعد</p>';return;}recent.innerHTML=stats.recent.map(function(i){return'<article class="contact"><div class="contact-top"><strong>'+escapeHtml(i.employeeName)+'</strong><span class="badge">'+formatMoney(i.amount)+'</span></div><div class="phone">طلب: '+escapeHtml(i.orderNumber)+'</div><div class="date">تاريخ التنفيذ: '+formatDateKey(i.executionDate)+'</div></article>';}).join('');}
-function handleSave(ev){if(ev)ev.preventDefault();const msg=document.getElementById('formMessage');msg.textContent='';msg.className='form-hint';const empId=document.getElementById('employeeSelect').value;if(!empId){msg.textContent=ERROR_MESSAGES.employee_not_found;msg.className='form-hint error';showToast(ERROR_MESSAGES.employee_not_found,'error');return;}const result=addExecution(loadData(),{employeeId:empId,orderNumber:document.getElementById('orderNumber').value.trim(),amount:document.getElementById('amount').value,executionDate:document.getElementById('executionDate').value});if(result.error){msg.textContent=ERROR_MESSAGES[result.error]||result.error;msg.className='form-hint error';showToast(msg.textContent,'error');return;}const s=result.execution;syncFiltersToDate(s.executionDate);msg.textContent='تم الحفظ — '+s.employeeName+' — طلب '+s.orderNumber+' — '+formatMoney(s.amount);msg.className='form-hint success';showToast('تم إضافة العقد بنجاح ✓  '+formatMoney(s.amount),'success');document.getElementById('orderNumber').value='';document.getElementById('amount').value='';renderStats();document.getElementById('statsSection').scrollIntoView({behavior:'smooth',block:'start'});}
-function initApp(){const today=localDateKey();const month=localMonthKey();document.getElementById('monthInput').value=month;document.getElementById('dateInput').value=today;document.getElementById('executionDate').value=today;document.getElementById('refreshBtn').addEventListener('click',renderStats);document.getElementById('monthInput').addEventListener('change',renderStats);document.getElementById('dateInput').addEventListener('change',renderStats);document.getElementById('saveBtn').addEventListener('click',handleSave);document.getElementById('addForm').addEventListener('submit',function(e){e.preventDefault();handleSave();});document.getElementById('exportBtn').addEventListener('click',exportData);document.getElementById('importFile').addEventListener('change',function(ev){const file=ev.target.files[0];if(!file)return;const hint=document.getElementById('importHint');importData(file).then(function(){hint.textContent='تم استيراد البيانات بنجاح';hint.className='form-hint success';showToast('تم استيراد البيانات','success');renderStats();}).catch(function(){hint.textContent='ملف غير صالح';hint.className='form-hint error';showToast('ملف غير صالح','error');});ev.target.value='';});try{localStorage.setItem('__test__','1');localStorage.removeItem('__test__');}catch(e){showToast('افتح الملف في Chrome للحفظ','error');}renderStats();}
+function updateReportDateLabel(){
+  const month=document.getElementById('monthInput').value;
+  const date=document.getElementById('dateInput').value;
+  const parts=[];
+  if(month){
+    const mp=month.split('-');
+    parts.push('شهر '+mp[1]+'/'+mp[0]);
+  }
+  if(date){
+    const dp=date.split('-');
+    parts.push('يوم '+dp[2]+'/'+dp[1]+'/'+dp[0]);
+  }
+  document.getElementById('reportDateLabel').textContent=parts.length?parts.join(' — '):'—';
+}
+function downloadBlob(blob,filename){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+async function shareReportImage(){
+  const btn=document.getElementById('shareImageBtn');
+  const target=document.getElementById('reportCapture');
+  if(!target||typeof html2canvas!=='function'){
+    showToast('تعذر إنشاء الصورة — حدّث الصفحة','error');
+    return;
+  }
+  btn.disabled=true;
+  showToast('جاري إنشاء الصورة...');
+  try{
+    updateReportDateLabel();
+    const canvas=await html2canvas(target,{
+      backgroundColor:'#0b141a',
+      scale:Math.min(2,window.devicePixelRatio||1.5),
+      useCORS:true,
+      logging:false
+    });
+    const blob=await new Promise(function(resolve,reject){
+      canvas.toBlob(function(b){b?resolve(b):reject(new Error('blob'));},'image/png',0.95);
+    });
+    const filename='mabiat-report-'+localDateKey()+'.png';
+    const file=new File([blob],filename,{type:'image/png'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file],title:'تقرير مبيعات',text:'تقرير أداء المبيعات'});
+        showToast('تمت مشاركة الصورة ✓','success');
+        return;
+      }catch(err){
+        if(err&&err.name==='AbortError')return;
+      }
+    }
+    downloadBlob(blob,filename);
+    showToast('تم حفظ الصورة — أرسلها من المعرض أو الملفات','success');
+  }catch(e){
+    showToast('تعذر إنشاء الصورة','error');
+  }finally{
+    btn.disabled=false;
+  }
+}
+function renderStats(){const month=document.getElementById('monthInput').value;const date=document.getElementById('dateInput').value;const stats=buildStats(loadData(),month,date);updateReportDateLabel();document.getElementById('totalDailyAmount').textContent=formatMoney(stats.totals.dailyAmount);document.getElementById('totalDailyContracts').textContent=stats.totals.dailyContracts;document.getElementById('totalMonthlyAmount').textContent=formatMoney(stats.totals.monthlyAmount);document.getElementById('branchTarget').textContent=formatMoney(stats.branchTarget);document.getElementById('employeeTarget').textContent=formatMoney(stats.employeeTarget);const bp=stats.branchTarget?Math.round(stats.totals.monthlyAmount/stats.branchTarget*1000)/10:0;document.getElementById('branchProgress').textContent=formatMoney(stats.totals.monthlyAmount)+' ('+bp+'%)';document.querySelector('#employeeTable tbody').innerHTML=stats.employees.map(function(e){return'<tr><td><strong>'+escapeHtml(e.name)+'</strong></td><td>'+e.dailyContracts+'</td><td>'+formatMoney(e.dailyAmount)+'</td><td>'+e.monthlyContracts+'</td><td>'+formatMoney(e.monthlyAmount)+'</td><td><span class="progress-pill">'+e.progressPercent+'%</span></td></tr>';}).join('')||'<tr><td colspan="6" class="empty-cell">لا توجد بيانات</td></tr>';document.querySelector('#dailyTable tbody').innerHTML=stats.dailyBreakdown.map(function(day){const cells=['majed','abdulrahman','faiz'].map(function(id){const info=day.byEmployee[id];return info?'<td>'+info.contracts+' / '+formatMoney(info.amount)+'</td>':'<td>—</td>';}).join('');return'<tr><td>'+formatDateKey(day.date)+'</td>'+cells+'<td>'+day.contracts+'</td><td>'+formatMoney(day.amount)+'</td></tr>';}).join('')||'<tr><td colspan="6" class="empty-cell">لا توجد تنفيذات</td></tr>';const recent=document.getElementById('recentList');if(!stats.recent.length){recent.innerHTML='<p class="empty">لا توجد تنفيذات بعد</p>';return;}recent.innerHTML=stats.recent.map(function(i){return'<article class="contact"><div class="contact-top"><strong>'+escapeHtml(i.employeeName)+'</strong><span class="badge">'+formatMoney(i.amount)+'</span></div><div class="phone">طلب: '+escapeHtml(i.orderNumber)+'</div><div class="date">تاريخ التنفيذ: '+formatDateKey(i.executionDate)+'</div></article>';}).join('');}
+function handleSave(ev){if(ev)ev.preventDefault();const msg=document.getElementById('formMessage');msg.textContent='';msg.className='form-hint';const empId=document.getElementById('employeeSelect').value;if(!empId){msg.textContent=ERROR_MESSAGES.employee_not_found;msg.className='form-hint error';showToast(ERROR_MESSAGES.employee_not_found,'error');return;}const result=addExecution(loadData(),{employeeId:empId,orderNumber:document.getElementById('orderNumber').value.trim(),amount:document.getElementById('amount').value,executionDate:document.getElementById('executionDate').value});if(result.error){msg.textContent=ERROR_MESSAGES[result.error]||result.error;msg.className='form-hint error';showToast(msg.textContent,'error');return;}const s=result.execution;syncFiltersToDate(s.executionDate);msg.textContent='تم الحفظ — '+s.employeeName+' — طلب '+s.orderNumber+' — '+formatMoney(s.amount);msg.className='form-hint success';showToast('تم إضافة العقد بنجاح ✓  '+formatMoney(s.amount)+' — يمكنك حفظ صورة التقرير من الزر أعلى الصفحة','success');document.getElementById('orderNumber').value='';document.getElementById('amount').value='';renderStats();document.getElementById('statsSection').scrollIntoView({behavior:'smooth',block:'start'});}
+function initApp(){const today=localDateKey();const month=localMonthKey();document.getElementById('monthInput').value=month;document.getElementById('dateInput').value=today;document.getElementById('executionDate').value=today;document.getElementById('refreshBtn').addEventListener('click',renderStats);document.getElementById('monthInput').addEventListener('change',renderStats);document.getElementById('dateInput').addEventListener('change',renderStats);document.getElementById('saveBtn').addEventListener('click',handleSave);document.getElementById('addForm').addEventListener('submit',function(e){e.preventDefault();handleSave();});document.getElementById('exportBtn').addEventListener('click',exportData);document.getElementById('shareImageBtn').addEventListener('click',shareReportImage);document.getElementById('importFile').addEventListener('change',function(ev){const file=ev.target.files[0];if(!file)return;const hint=document.getElementById('importHint');importData(file).then(function(){hint.textContent='تم استيراد البيانات بنجاح';hint.className='form-hint success';showToast('تم استيراد البيانات','success');renderStats();}).catch(function(){hint.textContent='ملف غير صالح';hint.className='form-hint error';showToast('ملف غير صالح','error');});ev.target.value='';});try{localStorage.setItem('__test__','1');localStorage.removeItem('__test__');}catch(e){showToast('افتح الملف في Chrome للحفظ','error');}renderStats();}
 function setupInstallPrompt(){
   const bar=document.getElementById('installBar');
   const btn=document.getElementById('installBtn');
@@ -272,5 +350,6 @@ function registerServiceWorker(){
 }
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){initApp();setupInstallPrompt();registerServiceWorker();});}else{initApp();setupInstallPrompt();registerServiceWorker();}
   </script>
+  <script src="html2canvas.min.js"></script>
 </body>
 </html>

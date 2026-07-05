@@ -1,6 +1,6 @@
 /* Service Worker — يخزّن ملفات التطبيق للعمل بدون إنترنت.
    لا يمسّ أبدًا بيانات localStorage (البيانات المحفوظة للمبيعات آمنة تمامًا). */
-const CACHE_NAME = 'mabiat-shell-v1';
+const CACHE_NAME = 'mabiat-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -8,7 +8,8 @@ const APP_SHELL = [
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
-  './apple-touch-icon.png'
+  './apple-touch-icon.png',
+  './html2canvas.min.js'
 ];
 
 self.addEventListener('install', (event) => {
