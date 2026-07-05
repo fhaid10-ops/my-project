@@ -20,7 +20,12 @@ public final class CallLogWriter {
     /** يكتب فائت أو يحوّل واردة حديثة إلى فائت ثم يضيفها للفقاعة. */
     public static boolean writeMissedSnap(Context context, String displayName, String snapUsername,
                                           long when, String reason) {
-        String address = SnapUserStore.addressFor(displayName, snapUsername);
+        return writeMissedSnap(context, null, displayName, snapUsername, when, reason);
+    }
+
+    public static boolean writeMissedSnap(Context context, String sessionKey, String displayName,
+                                          String snapUsername, long when, String reason) {
+        String address = SnapUserStore.addressForSession(context, sessionKey, displayName, snapUsername);
         String dialId = SnapUserStore.dialIdForAddress(address);
         SnapUserStore.save(context, address, displayName, snapUsername);
 

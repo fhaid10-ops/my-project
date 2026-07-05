@@ -8,24 +8,24 @@ import java.util.List;
 /** ذاكرة مؤقتة لنتيجة التجميع — تُبطَل عند تغيير قائمة الفقاعة. */
 public final class CallerGroupCache {
     private static List<CallerGroupHelper.CallerGroup> cachedGroups;
-    private static int cachedQueueSize = -1;
+    private static String cachedFingerprint = "";
     private static CallerGroupHelper.CallerGroup pendingDetailGroup;
 
     private CallerGroupCache() {}
 
     public static void invalidate() {
         cachedGroups = null;
-        cachedQueueSize = -1;
+        cachedFingerprint = "";
     }
 
     public static List<CallerGroupHelper.CallerGroup> groupAll(Context context) {
-        int size = MissedCallQueueStore.size(context);
-        if (cachedGroups != null && cachedQueueSize == size) {
+        String fingerprint = MissedCallQueueStore.fingerprint(context);
+        if (cachedGroups != null && fingerprint.equals(cachedFingerprint)) {
             return new ArrayList<>(cachedGroups);
         }
         List<CallerGroupHelper.CallerGroup> built = CallerGroupHelper.buildGroups(context);
         cachedGroups = built;
-        cachedQueueSize = size;
+        cachedFingerprint = fingerprint;
         return new ArrayList<>(built);
     }
 

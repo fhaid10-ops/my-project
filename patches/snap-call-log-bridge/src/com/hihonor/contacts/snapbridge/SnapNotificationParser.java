@@ -29,22 +29,15 @@ public final class SnapNotificationParser {
         Notification n = sbn.getNotification();
         Bundle extras = n != null ? n.extras : null;
         String snapUser = extras != null ? extractSnapUsername(extras) : "";
-        String name = context != null ? LastSnapStore.getName(context) : "";
+        String name = extractBestCallerName(extras);
         if (SnapNameHelper.isGenericAppName(name) && extras != null) {
             CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE);
-            if (title != null && !SnapNameHelper.isGenericAppName(title.toString())) {
-                name = title.toString().trim();
-            }
-            if (SnapNameHelper.isGenericAppName(name)) {
-                String fromPeople = extractFromPeopleList(extras);
-                if (!TextUtils.isEmpty(fromPeople)) name = fromPeople;
-            }
-            if (SnapNameHelper.isGenericAppName(name)) {
-                String resolved = resolveCallerName(extras);
-                if (!TextUtils.isEmpty(resolved)) name = resolved;
+            if (title != null && title.length() > 0) {
+                String t = title.toString().trim();
+                if (!isGenericCallWord(t)) name = t;
             }
         }
-        if (SnapNameHelper.isGenericAppName(name)) name = "Snapchat";
+        if (SnapNameHelper.isGenericAppName(name)) name = "مكالمة Snapchat";
         String combined = "";
         if (extras != null) {
             combined = join(
@@ -106,8 +99,13 @@ public final class SnapNotificationParser {
         String lower = combined.toLowerCase(Locale.ROOT);
         if (!hasExplicitCallPhrase(combined) && !hasCallExtraKeys(extras)) {
             if (!hasDefiniteCallSignals(sbn)) return null;
-            String caller = resolveCallerName(extras);
-            if (TextUtils.isEmpty(caller) || SnapNameHelper.isGenericAppName(caller)) return null;
+            String caller = extractBestCallerName(extras);
+            if (TextUtils.isEmpty(caller)) {
+                caller = fallbackCallName(extras, snapUser);
+            }
+            if (TextUtils.isEmpty(caller)) return null;
+            return new ParsedCall(SnapNameHelper.clean(caller), snapUser,
+                    resolveTypeFromText(lower), "signal_name");
         }
 
         String name = resolveCallerName(extras);
@@ -356,6 +354,20 @@ public final class SnapNotificationParser {
                 snapUser,
                 resolveType(extras, n),
                 reason);
+    }
+
+    private static String extractBestCallerName(Bundle extras) {
+        if (extras == null) return null;
+        String resolved = resolveCallerName(extras);
+        if (!TextUtils.isEmpty(resolved)) return resolved;
+        String fromPeople = extractFromPeopleList(extras);
+        if (!TextUtils.isEmpty(fromPeople)) return fromPeople;
+        CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE);
+        if (title != null && title.length() > 0) {
+            String t = title.toString().trim();
+            if (!isGenericCallWord(t)) return t;
+        }
+        return null;
     }
 
     private static String fallbackCallName(Bundle extras, String snapUser) {

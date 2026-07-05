@@ -16,6 +16,7 @@ import java.util.List;
 public class MissedCallListActivity extends Activity {
     private LinearLayout listContainer;
     private TextView countBadge;
+    private volatile boolean rendering;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,9 +94,21 @@ public class MissedCallListActivity extends Activity {
     }
 
     private void render() {
+        if (rendering) return;
+        rendering = true;
+        new Thread(() -> {
+            List<CallerGroupHelper.CallerGroup> groups = CallerGroupCache.groupAll(
+                    MissedCallListActivity.this);
+            int totalMissed = MissedCallQueueStore.size(MissedCallListActivity.this);
+            runOnUiThread(() -> {
+                rendering = false;
+                renderUi(groups, totalMissed);
+            });
+        }).start();
+    }
+
+    private void renderUi(List<CallerGroupHelper.CallerGroup> groups, int totalMissed) {
         listContainer.removeAllViews();
-        List<CallerGroupHelper.CallerGroup> groups = CallerGroupCache.groupAll(this);
-        int totalMissed = MissedCallQueueStore.size(this);
         updateCountBadge(groups.isEmpty() ? 0 : groups.size(), totalMissed);
 
         if (groups.isEmpty()) {

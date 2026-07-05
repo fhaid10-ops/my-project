@@ -191,6 +191,15 @@ public final class MissedCallQueueStore {
         return load(context).size();
     }
 
+    public static String fingerprint(Context context) {
+        StringBuilder sb = new StringBuilder();
+        for (Item item : load(context)) {
+            sb.append(item.id).append(':').append(item.timestamp).append(':')
+                    .append(item.displayName).append('|');
+        }
+        return sb.toString();
+    }
+
     public static List<Item> all(Context context) {
         return new ArrayList<>(load(context));
     }
@@ -227,6 +236,15 @@ public final class MissedCallQueueStore {
     }
 
     private static Item rebuildOne(Context context, Item item) {
+        if (item.id != null && item.id.startsWith("snapq:")) {
+            String restored = SnapCallLogNameGuard.resolveRealName(
+                    context, item.number, item.snapAddress, "", item.displayName);
+            if (!SnapNameHelper.isGenericAppName(restored)) {
+                return new Item(item.id, restored, item.number, item.snapAddress, true,
+                        item.timestamp, item.sourceLabel, restored, item.subtitle, item.simLabel);
+            }
+            return item;
+        }
         long timestamp = item.timestamp > 0L ? item.timestamp : lookupTimestamp(context, item.id);
         String cached = lookupCachedName(context, item.id);
         String display = pickDisplayName(item.displayName, cached);

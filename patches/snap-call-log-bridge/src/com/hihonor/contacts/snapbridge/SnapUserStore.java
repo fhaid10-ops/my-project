@@ -16,14 +16,49 @@ public final class SnapUserStore {
     private SnapUserStore() {}
 
     public static String addressFor(String displayName, String snapUsername) {
+        return computeAddress(null, displayName, snapUsername);
+    }
+
+    public static String addressForSession(Context context, String sessionKey,
+                                         String displayName, String snapUsername) {
+        if (context != null && sessionKey != null && !sessionKey.isEmpty()) {
+            String bound = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .getString("session:" + shortHash(sessionKey), null);
+            if (bound != null && !bound.isEmpty()) return bound;
+        }
+        String address = computeAddress(sessionKey, displayName, snapUsername);
+        if (context != null && sessionKey != null && !sessionKey.isEmpty()) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                    .putString("session:" + shortHash(sessionKey), address)
+                    .apply();
+        }
+        return address;
+    }
+
+    private static String computeAddress(String sessionKey, String displayName, String snapUsername) {
         String key;
         if (snapUsername != null && !snapUsername.isEmpty()) {
             key = snapUsername.trim().toLowerCase(Locale.ROOT);
         } else {
-            key = normalizeIdentityKey(displayName);
+            String identity = normalizeIdentityKey(displayName);
+            if (!identity.isEmpty() && !isGenericIdentityKey(identity)) {
+                key = identity;
+            } else if (sessionKey != null && !sessionKey.isEmpty()) {
+                key = "session:" + sessionKey;
+            } else {
+                key = identity;
+            }
         }
         if (key.isEmpty()) key = "unknown";
         return "snap:" + shortHash(key);
+    }
+
+    private static boolean isGenericIdentityKey(String key) {
+        if (key == null || key.isEmpty()) return true;
+        return key.equals("snapchat") || key.equals("snap") || key.equals("سناب")
+                || key.equals("سناب شات") || key.equals("سنابشات")
+                || key.equals("unknown") || key.equals("voip")
+                || key.contains("مكالمة");
     }
 
     static String normalizeIdentityKey(String displayName) {

@@ -72,10 +72,12 @@ public final class SnapNameHelper {
         String fallback = clean(fallbackName);
         if (!isGenericAppName(fallback)) return fallback;
 
-        String last = LastSnapStore.getName(context);
-        if (!isGenericAppName(last)) return clean(last);
+        if (number == null || number.isEmpty()) {
+            String last = LastSnapStore.getName(context);
+            if (!isGenericAppName(last)) return clean(last);
+        }
 
-        return isGenericAppName(fallback) ? "مكالمة Snapchat" : fallback;
+        return "مكالمة Snapchat";
     }
 
     public static boolean looksLikeDialId(String name) {
