@@ -135,7 +135,7 @@
       <span class="offline-badge">يعمل بدون إنترنت</span>
       <div class="header-actions">
         <button type="button" id="installHeaderBtn" class="btn-install-app mobile-only">📲 إضافة للشاشة الرئيسية</button>
-        <button type="button" id="shareImageBtn" class="btn-share-image">📷 حفظ صورة التقرير</button>
+        <button type="button" id="shareImageBtn" class="btn-share-image">↗ مشاركة التقرير</button>
         <a href="expenses/" style="color:#00a884;text-decoration:none;font-size:.9rem;padding:.55rem .9rem;border:1px solid #2a3942;border-radius:999px;display:inline-flex;align-items:center">المصاريف ←</a>
       </div>
     </header>
@@ -317,7 +317,7 @@ async function shareReportImage(){
     return;
   }
   btn.disabled=true;
-  showToast('جاري إنشاء الصورة...');
+  showToast('جاري تجهيز المشاركة...');
   try{
     updateReportDateLabel();
     const canvas=await html2canvas(target,{
@@ -331,17 +331,20 @@ async function shareReportImage(){
     });
     const filename='mabiat-report-'+localDateKey()+'.png';
     const file=new File([blob],filename,{type:'image/png'});
-    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+    if(navigator.share){
       try{
-        await navigator.share({files:[file],title:'تقرير مبيعات',text:'تقرير أداء المبيعات'});
-        showToast('تمت مشاركة الصورة ✓','success');
-        return;
+        const payload={files:[file],title:'تقرير مبيعات',text:'تقرير أداء المبيعات'};
+        if(!navigator.canShare||navigator.canShare(payload)){
+          await navigator.share(payload);
+          showToast('تمت مشاركة التقرير ✓','success');
+          return;
+        }
       }catch(err){
         if(err&&err.name==='AbortError')return;
       }
     }
     downloadBlob(blob,filename);
-    showToast('تم حفظ الصورة — أرسلها من المعرض أو الملفات','success');
+    showToast('المتصفح لا يدعم المشاركة — تم حفظ الصورة محلياً','success');
   }catch(e){
     showToast('تعذر إنشاء الصورة','error');
   }finally{
@@ -349,7 +352,7 @@ async function shareReportImage(){
   }
 }
 function renderStats(){const month=document.getElementById('monthInput').value;const date=document.getElementById('dateInput').value;const stats=buildStats(loadData(),month,date);updateReportDateLabel();document.getElementById('totalDailyAmount').textContent=formatMoney(stats.totals.dailyAmount);document.getElementById('totalDailyContracts').textContent=stats.totals.dailyContracts;document.getElementById('totalMonthlyAmount').textContent=formatMoney(stats.totals.monthlyAmount);document.getElementById('branchTarget').textContent=formatMoney(stats.branchTarget);document.getElementById('employeeTarget').textContent=formatMoney(stats.employeeTarget);const bp=stats.branchTarget?Math.round(stats.totals.monthlyAmount/stats.branchTarget*1000)/10:0;document.getElementById('branchProgress').textContent=formatMoney(stats.totals.monthlyAmount)+' ('+bp+'%)';document.querySelector('#employeeTable tbody').innerHTML=stats.employees.map(function(e){return'<tr><td><strong>'+escapeHtml(e.name)+'</strong></td><td>'+e.dailyContracts+'</td><td>'+formatMoney(e.dailyAmount)+'</td><td>'+e.monthlyContracts+'</td><td>'+formatMoney(e.monthlyAmount)+'</td><td><span class="progress-pill">'+e.progressPercent+'%</span></td></tr>';}).join('')||'<tr><td colspan="6" class="empty-cell">لا توجد بيانات</td></tr>';document.querySelector('#dailyTable tbody').innerHTML=stats.dailyBreakdown.map(function(day){const cells=['majed','abdulrahman','faiz'].map(function(id){const info=day.byEmployee[id];return info?'<td>'+info.contracts+' / '+formatMoney(info.amount)+'</td>':'<td>—</td>';}).join('');return'<tr><td>'+formatDateKey(day.date)+'</td>'+cells+'<td>'+day.contracts+'</td><td>'+formatMoney(day.amount)+'</td></tr>';}).join('')||'<tr><td colspan="6" class="empty-cell">لا توجد تنفيذات</td></tr>';const recent=document.getElementById('recentList');if(!stats.recent.length){recent.innerHTML='<p class="empty">لا توجد تنفيذات بعد</p>';return;}recent.innerHTML=stats.recent.map(function(i){return'<article class="contact"><div class="contact-top"><strong>'+escapeHtml(i.employeeName)+'</strong><span class="badge">'+formatMoney(i.amount)+'</span></div><div class="phone">طلب: '+escapeHtml(i.orderNumber)+'</div><div class="date">تاريخ التنفيذ: '+formatDateKey(i.executionDate)+'</div></article>';}).join('');}
-function handleSave(ev){if(ev)ev.preventDefault();const msg=document.getElementById('formMessage');msg.textContent='';msg.className='form-hint';const empId=document.getElementById('employeeSelect').value;if(!empId){msg.textContent=ERROR_MESSAGES.employee_not_found;msg.className='form-hint error';showToast(ERROR_MESSAGES.employee_not_found,'error');return;}const result=addExecution(loadData(),{employeeId:empId,orderNumber:document.getElementById('orderNumber').value.trim(),amount:document.getElementById('amount').value,executionDate:document.getElementById('executionDate').value});if(result.error){msg.textContent=ERROR_MESSAGES[result.error]||result.error;msg.className='form-hint error';showToast(msg.textContent,'error');return;}const s=result.execution;syncFiltersToDate(s.executionDate);msg.textContent='تم الحفظ — '+s.employeeName+' — طلب '+s.orderNumber+' — '+formatMoney(s.amount);msg.className='form-hint success';showToast('تم إضافة العقد بنجاح ✓  '+formatMoney(s.amount)+' — يمكنك حفظ صورة التقرير من الزر أعلى الصفحة','success');document.getElementById('orderNumber').value='';document.getElementById('amount').value='';renderStats();document.getElementById('statsSection').scrollIntoView({behavior:'smooth',block:'start'});}
+function handleSave(ev){if(ev)ev.preventDefault();const msg=document.getElementById('formMessage');msg.textContent='';msg.className='form-hint';const empId=document.getElementById('employeeSelect').value;if(!empId){msg.textContent=ERROR_MESSAGES.employee_not_found;msg.className='form-hint error';showToast(ERROR_MESSAGES.employee_not_found,'error');return;}const result=addExecution(loadData(),{employeeId:empId,orderNumber:document.getElementById('orderNumber').value.trim(),amount:document.getElementById('amount').value,executionDate:document.getElementById('executionDate').value});if(result.error){msg.textContent=ERROR_MESSAGES[result.error]||result.error;msg.className='form-hint error';showToast(msg.textContent,'error');return;}const s=result.execution;syncFiltersToDate(s.executionDate);msg.textContent='تم الحفظ — '+s.employeeName+' — طلب '+s.orderNumber+' — '+formatMoney(s.amount);msg.className='form-hint success';showToast('تم إضافة العقد بنجاح ✓  '+formatMoney(s.amount)+' — يمكنك مشاركة التقرير من الزر أعلى الصفحة','success');document.getElementById('orderNumber').value='';document.getElementById('amount').value='';renderStats();document.getElementById('statsSection').scrollIntoView({behavior:'smooth',block:'start'});}
 function setDesktopSite(enabled){
   const meta=document.getElementById('viewportMeta');
   const toggle=document.getElementById('desktopSiteToggle');
