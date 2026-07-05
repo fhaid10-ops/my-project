@@ -3,6 +3,7 @@ package com.hihonor.contacts.snapbridge;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.provider.ContactsContract;
 import android.widget.Toast;
 
 public final class MissedCallActionHandler {
@@ -36,6 +37,62 @@ public final class MissedCallActionHandler {
 
     public static boolean openWhatsAppBusiness(Context context, MissedCallQueueStore.Item item) {
         return openWhatsAppPackage(context, item, PKG_WHATSAPP_BUSINESS, "واتساب بزنس", false);
+    }
+
+    public static boolean openContacts(Context context, MissedCallQueueStore.Item item) {
+        if (item == null) return false;
+        String number = sanitizeForDial(item.number);
+        if (!number.isEmpty() && !number.startsWith("888")) {
+            Uri lookupUri = Uri.withAppendedPath(
+                    ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+                    Uri.encode(number));
+            try {
+                Intent lookup = new Intent(Intent.ACTION_VIEW, lookupUri);
+                lookup.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(lookup);
+                return true;
+            } catch (Exception ignored) {
+            }
+        }
+
+        String query = item.bestName();
+        if (query == null || query.isEmpty() || CallUiHelper.isMostlyPhone(query)) {
+            query = number;
+        }
+        String[] contactPackages = {
+                "com.hihonor.contacts",
+                "com.huawei.contacts",
+                "com.android.contacts",
+        };
+        for (String pkg : contactPackages) {
+            if (tryOpenContactsPackage(context, pkg, query)) return true;
+        }
+
+        try {
+            Intent generic = new Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI);
+            generic.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(generic);
+            return true;
+        } catch (Exception ignored) {
+            Toast.makeText(context, "تعذر فتح جهات الاتصال", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+    }
+
+    private static boolean tryOpenContactsPackage(Context context, String packageName, String query) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI);
+            intent.setPackage(packageName);
+            if (query != null && !query.isEmpty()) {
+                intent.putExtra("query", query);
+                intent.putExtra(Intent.EXTRA_TITLE, query);
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private static boolean openWhatsAppPackage(Context context, MissedCallQueueStore.Item item,

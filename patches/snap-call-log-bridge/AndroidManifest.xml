@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.hihonor.contacts.snapbridge"
-    android:versionCode="50"
-    android:versionName="2.41">
+    android:versionCode="51"
+    android:versionName="2.42">
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
 
@@ -20,6 +20,9 @@
     <queries>
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
+        <package android:name="com.hihonor.contacts" />
+        <package android:name="com.huawei.contacts" />
+        <package android:name="com.android.contacts" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" android:host="wa.me" />
@@ -27,6 +30,10 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="whatsapp" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" android:host="com.android.contacts" />
         </intent>
     </queries>
 

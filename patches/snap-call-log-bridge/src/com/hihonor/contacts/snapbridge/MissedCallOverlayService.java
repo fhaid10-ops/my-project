@@ -24,6 +24,8 @@ public class MissedCallOverlayService extends Service {
     private View bubbleView;
     private TextView countText;
     private TextView hintText;
+    private LinearLayout actionsRow;
+    private MissedCallQueueStore.Item currentItem;
     private WindowManager.LayoutParams params;
     private float touchDownX;
     private float touchDownY;
@@ -57,13 +59,14 @@ public class MissedCallOverlayService extends Service {
         }
         ensureBubble();
         countText.setText(String.valueOf(count));
-        MissedCallQueueStore.Item latest = MissedCallQueueStore.first(this);
-        if (latest != null && hintText != null) {
-            String name = CallUiHelper.displayCallerLabel(latest.bestName());
+        currentItem = MissedCallQueueStore.first(this);
+        if (currentItem != null && hintText != null) {
+            String name = CallUiHelper.displayCallerLabel(currentItem.bestName());
             if (name.length() > 12) name = name.substring(0, 11) + "…";
             hintText.setTextDirection(View.TEXT_DIRECTION_LTR);
             hintText.setText(name);
         }
+        bindActions(currentItem);
         return START_STICKY;
     }
 
@@ -116,6 +119,7 @@ public class MissedCallOverlayService extends Service {
         layered.setLayerInset(1, 0, 0, 0, 0);
         container.setBackground(layered);
         container.setPadding(dp(4), dp(6), dp(4), dp(4));
+        container.setOnTouchListener(this::handleBubbleTouch);
 
         hintText = new TextView(this);
         hintText.setTextColor(Color.WHITE);
@@ -131,12 +135,23 @@ public class MissedCallOverlayService extends Service {
         hintLp.topMargin = dp(4);
         hintLp.gravity = Gravity.CENTER_HORIZONTAL;
         hintText.setLayoutParams(hintLp);
+        hintText.setOnClickListener(v -> openMissedList());
+
+        actionsRow = new LinearLayout(this);
+        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
+        actionsRow.setGravity(Gravity.CENTER_HORIZONTAL);
+        LinearLayout.LayoutParams actionsLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        actionsLp.topMargin = dp(6);
+        actionsRow.setLayoutParams(actionsLp);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.addView(container, new LinearLayout.LayoutParams(size, size));
         root.addView(hintText);
+        root.addView(actionsRow);
 
         params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -149,10 +164,40 @@ public class MissedCallOverlayService extends Service {
         params.x = dp(18);
         params.y = dp(180);
 
-        root.setOnTouchListener(this::handleTouch);
-
         bubbleView = root;
         wm.addView(bubbleView, params);
+    }
+
+    private void bindActions(MissedCallQueueStore.Item item) {
+        if (actionsRow == null) return;
+        actionsRow.removeAllViews();
+        if (item == null) {
+            actionsRow.setVisibility(View.GONE);
+            return;
+        }
+        actionsRow.setVisibility(View.VISIBLE);
+        CallerActionButtons.BubbleListener listener = new CallerActionButtons.BubbleListener() {
+            @Override
+            public void onContacts() {
+                CallerActionButtons.performContacts(MissedCallOverlayService.this, item);
+            }
+
+            @Override
+            public void onCallback() {
+                CallerActionButtons.performCallbackItem(MissedCallOverlayService.this, item);
+            }
+
+            @Override
+            public void onWhatsApp() {
+                CallerActionButtons.performWhatsAppItem(MissedCallOverlayService.this, item);
+            }
+
+            @Override
+            public void onWhatsAppBusiness() {
+                CallerActionButtons.performWhatsAppBusinessItem(MissedCallOverlayService.this, item);
+            }
+        };
+        actionsRow.addView(CallerActionButtons.buildBubbleIconRow(this, listener));
     }
 
     private GradientDrawable createHintBackground() {
@@ -163,7 +208,11 @@ public class MissedCallOverlayService extends Service {
         return d;
     }
 
-    private boolean handleTouch(View v, MotionEvent ev) {
+    private boolean handleBubbleTouch(View v, MotionEvent ev) {
+        return handleTouch(ev);
+    }
+
+    private boolean handleTouch(MotionEvent ev) {
         if (params == null) return false;
         switch (ev.getAction()) {
             case MotionEvent.ACTION_DOWN:
@@ -194,15 +243,19 @@ public class MissedCallOverlayService extends Service {
                         removeBubble();
                         stopSelf();
                     } else if (elapsed < 350) {
-                        Intent i = new Intent(this, MissedCallListActivity.class);
-                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        startActivity(i);
+                        openMissedList();
                     }
                 }
                 return true;
             default:
                 return false;
         }
+    }
+
+    private void openMissedList() {
+        Intent i = new Intent(this, MissedCallListActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(i);
     }
 
     private void removeBubble() {
@@ -215,6 +268,8 @@ public class MissedCallOverlayService extends Service {
         bubbleView = null;
         countText = null;
         hintText = null;
+        actionsRow = null;
+        currentItem = null;
     }
 
     private int dp(int v) {

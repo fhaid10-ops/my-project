@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -11,7 +12,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public final class CallerActionButtons {
-    public static final String APP_VERSION = "2.41";
+    public static final String APP_VERSION = "2.42";
 
     public interface Listener {
         void onCallback();
@@ -23,7 +24,72 @@ public final class CallerActionButtons {
         void onDelete();
     }
 
+    public interface BubbleListener {
+        void onContacts();
+
+        void onCallback();
+
+        void onWhatsApp();
+
+        void onWhatsAppBusiness();
+    }
+
     private CallerActionButtons() {}
+
+    public static View buildBubbleIconRow(Context context, BubbleListener listener) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER);
+        int pad = CallUiHelper.dp(context, 4);
+        row.setPadding(pad, pad, pad, pad);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(CallUiHelper.dp(context, 18));
+        bg.setColor(CallUiHelper.CARD_BG);
+        bg.setStroke(CallUiHelper.dp(context, 1), CallUiHelper.BORDER_MEDIUM);
+        row.setBackground(bg);
+
+        row.addView(bubbleIcon(context, "👤", listener::onContacts));
+        row.addView(bubbleIcon(context, "📞", listener::onCallback));
+        row.addView(bubbleIcon(context, "💬", listener::onWhatsApp));
+        row.addView(bubbleIcon(context, "💼", listener::onWhatsAppBusiness));
+        return row;
+    }
+
+    private static TextView bubbleIcon(Context context, String icon, Runnable action) {
+        TextView btn = CallUiHelper.makeBubbleIconButton(context, icon, CallUiHelper.ACTION_CONTACTS);
+        btn.setLayoutParams(CallUiHelper.bubbleIconParams(context));
+        btn.setOnClickListener(v -> action.run());
+        return btn;
+    }
+
+    public static void performContacts(Context context, MissedCallQueueStore.Item item) {
+        if (item == null) return;
+        MissedCallActionHandler.openContacts(context, item);
+    }
+
+    public static void performCallbackItem(Context context, MissedCallQueueStore.Item item) {
+        if (item == null) return;
+        if (MissedCallActionHandler.callback(context, item)) {
+            MissedCallQueueStore.remove(context, item.id);
+            MissedCallOverlayController.refresh(context);
+        }
+    }
+
+    public static void performWhatsAppItem(Context context, MissedCallQueueStore.Item item) {
+        if (item == null) return;
+        if (MissedCallActionHandler.openWhatsApp(context, item)) {
+            MissedCallQueueStore.remove(context, item.id);
+            MissedCallOverlayController.refresh(context);
+        }
+    }
+
+    public static void performWhatsAppBusinessItem(Context context, MissedCallQueueStore.Item item) {
+        if (item == null) return;
+        if (MissedCallActionHandler.openWhatsAppBusiness(context, item)) {
+            MissedCallQueueStore.remove(context, item.id);
+            MissedCallOverlayController.refresh(context);
+        }
+    }
 
     public static View buildBottomBar(Context context, Listener listener) {
         LinearLayout wrap = new LinearLayout(context);

@@ -29,6 +29,7 @@ public final class CallUiHelper {
     public static final int CHIP_SIM_BG = Color.parseColor("#EEEEEE");
     public static final int CHIP_SIM_FG = Color.parseColor("#424242");
     public static final int CLOSE_BTN_BG = Color.parseColor("#FFFFFF");
+    public static final int ACTION_CONTACTS = Color.parseColor("#37474F");
     public static final int ACTION_CALL = Color.parseColor("#212121");
     public static final int ACTION_WA = Color.parseColor("#424242");
     public static final int ACTION_WA_BUSINESS = Color.parseColor("#616161");
@@ -133,6 +134,33 @@ public final class CallUiHelper {
         btn.setPadding(dp(context, 16), vPad, dp(context, 16), vPad);
         btn.setBackground(roundedCard(CLOSE_BTN_BG, BORDER_MEDIUM, context, 1));
         return btn;
+    }
+
+    public static TextView makeBubbleIconButton(Context context, String icon, int color) {
+        TextView btn = new TextView(context);
+        btn.setText(icon);
+        btn.setTextSize(15f);
+        btn.setGravity(Gravity.CENTER);
+        int size = dp(context, 34);
+        btn.setMinWidth(size);
+        btn.setMinHeight(size);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.OVAL);
+        bg.setColor(CARD_BG);
+        bg.setStroke(dp(context, 1), BORDER_MEDIUM);
+        btn.setBackground(bg);
+        btn.setClickable(true);
+        btn.setFocusable(true);
+        return btn;
+    }
+
+    public static LinearLayout.LayoutParams bubbleIconParams(Context context) {
+        int size = dp(context, 34);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+        int gap = dp(context, 4);
+        lp.setMarginStart(gap);
+        lp.setMarginEnd(gap);
+        return lp;
     }
 
     public static TextView makeActionButton(Context context, String label, int color) {
