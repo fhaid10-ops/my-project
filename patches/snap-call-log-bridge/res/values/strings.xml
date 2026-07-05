@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">سناب → سجل المكالمات</string>
+    <string name="title">فقاعة المكالمات الفائتة — هوية المتصل وسجل ملوّن</string>
+    <string name="desc">فقاعة عائمة ملوّنة تعرض عدد الفائت واسم آخر متصل. اضغطها لفتح سجل جميل: معاودة / واتساب / واتساب بزنس / حذف.</string>
+    <string name="btn_enable">تفعيل الوصول للإشعارات</string>
+    <string name="btn_perms">منح صلاحية سجل المكالمات</string>
+    <string name="btn_contacts">منح صلاحية جهات الاتصال</string>
+    <string name="btn_redirect">فعّل الاتصال من السجل (مرة واحدة)</string>
+    <string name="btn_refresh">تحديث السجل</string>
+    <string name="btn_clean">إصلاح سجلات Snapchat</string>
+    <string name="btn_backfill_missed">إضافة فائت قديم للفقاعة (اختياري)</string>
+    <string name="btn_overlay">تفعيل الفقاعة العائمة فوق التطبيقات</string>
+    <string name="btn_snooze_notify_on">🔔 إشعار قبل عودة الفقاعة: مفعّل</string>
+    <string name="btn_snooze_notify_off">🔕 إشعار قبل عودة الفقاعة: موقوف (اضغط للتفعيل)</string>
+    <string name="snooze_notify_ok">✓ إشعار قبل عودة الفقاعة (5 دقائق) مفعّل</string>
+    <string name="snooze_notify_no">✗ إشعار قبل عودة الفقاعة موقوف (اختياري)</string>
+    <string name="btn_wake_bubble">إظهار الفقاعة الآن</string>
+    <string name="snooze_hidden">⏸ الفقاعة مخفية حتى %1$s</string>
+    <string name="snooze_visible">✓ الفقاعة ظاهرة</string>
+    <string name="btn_call">اتصل</string>
+    <string name="call_from_title">اتصل من سجل المكالمات مباشرة</string>
+    <string name="call_from_steps">① فعّل الأزرار أدناه (مرة واحدة)\n② افتح سجل المكالمات → اضغط مكالمة\n③ يفتح Snapchat تلقائياً</string>
+    <string name="redirect_ok">✓ الاتصال من السجل مفعّل</string>
+    <string name="redirect_no">✗ اضغط «فعّل الاتصال من السجل»</string>
+    <string name="overlay_ok">✓ الفقاعة العائمة مفعلة</string>
+    <string name="overlay_no">✗ فعّل «الظهور فوق التطبيقات» للفقاعة</string>
+    <string name="contacts_ok">✓ صلاحية جهات الاتصال ممنوحة</string>
+    <string name="contacts_no">✗ اضغط «منح صلاحية جهات الاتصال»</string>
+    <string name="setup_title">الإعداد (مرة واحدة):</string>
+    <string name="log_title">سجل الأحداث:</string>
+    <string name="status_ok">✓ الوصول للإشعارات مفعّل</string>
+    <string name="status_no">✗ فعّل الوصول للإشعارات</string>
+    <string name="perms_ok">✓ صلاحية سجل المكالمات ممنوحة</string>
+    <string name="perms_no">✗ اضغط «منح صلاحية سجل المكالمات»</string>
+</resources>

@@ -1,3 +1,4 @@
-patches/snap-call-log-bridge/build/
-patches/snap-call-log-bridge/debug.keystore
-patches/snap-call-log-bridge/*.idsig
+apk-work/
+patches/*/build/
+patches/*/debug.keystore
+patches/*/*.idsig
