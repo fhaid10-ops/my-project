@@ -1,4 +1,5 @@
 {
+  "id": "/my-project/",
   "name": "مبيعات",
   "short_name": "مبيعات",
   "description": "متابعة تنفيذات المبيعات لماجد وعبدالرحمن وفايز",
@@ -7,7 +8,7 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#0b141a",
   "theme_color": "#00a884",
   "icons": [
