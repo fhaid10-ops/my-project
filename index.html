@@ -92,23 +92,24 @@
     .report-capture .list-section{margin-bottom:0}
     .report-capture.share-shot{
       position:fixed;left:-10000px;top:0;z-index:-1;
-      width:1080px;max-width:1080px;padding:2rem 1.75rem;margin:0;border-radius:24px
+      width:1400px;max-width:1400px;padding:2rem 2rem 1.75rem;margin:0;border-radius:24px
     }
-    .report-capture.share-shot .report-capture-header h2{font-size:2.6rem;margin-bottom:.5rem}
-    .report-capture.share-shot .report-capture-header p{font-size:1.45rem;color:#c5cdd3}
-    .report-capture.share-shot .cards{grid-template-columns:1fr!important;gap:1.25rem}
-    .report-capture.share-shot .card{padding:1.75rem 1.5rem;border-radius:20px}
-    .report-capture.share-shot .label{font-size:1.45rem;margin-bottom:.75rem;color:#c5cdd3}
+    .report-capture.share-shot .report-capture-header h2{font-size:2.2rem;margin-bottom:.45rem}
+    .report-capture.share-shot .report-capture-header p{font-size:1.25rem;color:#c5cdd3}
+    .report-capture.share-shot .cards{grid-template-columns:repeat(3,1fr)!important;gap:1.25rem}
+    .report-capture.share-shot .card{padding:1.5rem 1.25rem;border-radius:18px}
+    .report-capture.share-shot .label{font-size:1.2rem;margin-bottom:.65rem;color:#c5cdd3}
     .report-capture.share-shot .card.main .label{color:rgba(255,255,255,.95)}
-    .report-capture.share-shot .value{font-size:3.4rem}
-    .report-capture.share-shot .target-banner{grid-template-columns:1fr!important;gap:1.1rem;padding:1.5rem;border-radius:20px}
-    .report-capture.share-shot .target-banner strong{font-size:2rem}
-    .report-capture.share-shot .list-header{padding:1.25rem 1.5rem}
-    .report-capture.share-shot .list-header h2{font-size:1.9rem}
-    .report-capture.share-shot .stats-table{font-size:1.4rem}
-    .report-capture.share-shot .stats-table th,.report-capture.share-shot .stats-table td{padding:1.15rem 1rem}
-    .report-capture.share-shot .stats-table th{font-size:1.25rem}
-    .report-capture.share-shot .progress-pill{font-size:1.2rem;padding:.35rem .85rem}
+    .report-capture.share-shot .value{font-size:2.8rem}
+    .report-capture.share-shot .target-banner{grid-template-columns:repeat(3,1fr)!important;gap:1rem;padding:1.35rem 1.5rem;border-radius:18px}
+    .report-capture.share-shot .target-banner strong{font-size:1.75rem}
+    .report-capture.share-shot .list-header{padding:1.15rem 1.5rem}
+    .report-capture.share-shot .list-header h2{font-size:1.65rem}
+    .report-capture.share-shot .stats-table{font-size:1.35rem}
+    .report-capture.share-shot .stats-table th,.report-capture.share-shot .stats-table td{padding:1rem .85rem}
+    .report-capture.share-shot .stats-table th{font-size:1.15rem}
+    .report-capture.share-shot .stats-table td strong{font-size:1.45rem}
+    .report-capture.share-shot .progress-pill{font-size:1.1rem;padding:.3rem .8rem}
     .top-bar{display:flex;justify-content:flex-start;margin-bottom:.35rem}
     .options-wrap{position:relative}
     .btn-options{background:#202c33;color:#e9edef;border:1px solid #2a3942;width:42px;height:42px;border-radius:12px;font-size:1.2rem;line-height:1;display:inline-flex;align-items:center;justify-content:center}
@@ -345,8 +346,8 @@ async function shareReportImage(){
     const canvas=await html2canvas(target,{
       backgroundColor:'#0b141a',
       scale:2,
-      width:1080,
-      windowWidth:1080,
+      width:1400,
+      windowWidth:1400,
       useCORS:true,
       logging:false
     });
