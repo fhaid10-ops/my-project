@@ -1,6 +1,6 @@
 /* Service Worker — يخزّن ملفات التطبيق للعمل بدون إنترنت.
    لا يمسّ أبدًا بيانات localStorage (البيانات المحفوظة للمبيعات آمنة تمامًا). */
-const CACHE_NAME = 'mabiat-shell-v6';
+const CACHE_NAME = 'mabiat-shell-v7';
 const APP_SHELL = [
   './',
   './index.html',
