@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = 'daily_expenses_v1';
   const BACKUP_APP_ID = 'daily_expenses_v1';
-  const INSTALL_DISMISS_KEY = 'expenses_install_dismissed';
+  const INSTALL_DISMISS_KEY = 'expenses_install_dismissed_v2';
 
   const form = document.getElementById('expenseForm');
   const amountEl = document.getElementById('amount');
@@ -114,29 +114,35 @@
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
 
+  function isMobileBrowser() {
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  }
+
   function getInstallSteps() {
     const ua = navigator.userAgent || '';
-    if (/iPhone|iPad|iPod/i.test(ua)) {
-      return [
-        'افتح الموقع في متصفح Safari (ليس Chrome).',
-        'اضغط زر المشاركة ⬆️ أسفل الشاشة.',
-        'اختر «إضافة إلى الشاشة الرئيسية».',
-        'اضغط «إضافة».',
-      ];
-    }
-    if (/Android/i.test(ua)) {
-      return [
-        'اضغط النقاط الثلاث ⋮ أعلى يسار الشاشة (قائمة Chrome).',
-        'اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».',
-        'اضغط «تثبيت» في النافذة التي تظهر.',
-        'ستجد أيقونة «المصاريف» على شاشتك الرئيسية.',
-      ];
-    }
-    return [
-      'من Chrome أو Edge اضغط ⋮ في شريط العنوان.',
-      'اختر «تثبيت المصاريف» أو Install app.',
-      'اضغط تثبيت في النافذة المنبثقة.',
+    const steps = [
+      'احذف أي أيقونة قديمة للمصاريف أو المبيعات من الشاشة الرئيسية.',
     ];
+    if (/iPhone|iPad|iPod/i.test(ua)) {
+      steps.push(
+        'افتح هذا الرابط في Safari: fhaid10-ops.github.io/my-project/expenses/',
+        'اضغط زر المشاركة ⬆️ أسفل الشاشة.',
+        'اختر «إضافة إلى الشاشة الرئيسية» ثم «إضافة».',
+      );
+    } else if (/Android/i.test(ua)) {
+      steps.push(
+        'تأكد أنك في Chrome (مو تطبيق آخر).',
+        'اضغط ⋮ أعلى يسار الشاشة.',
+        'اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».',
+        'اضغط «تثبيت» — ستظهر أيقونة «المصاريف».',
+      );
+    } else {
+      steps.push(
+        'من Chrome اضغط ⋮ في شريط العنوان.',
+        'اختر «تثبيت المصاريف» أو Install app.',
+      );
+    }
+    return steps;
   }
 
   function showInstallModal() {
@@ -163,7 +169,8 @@
 
     if (installHeaderBtn) installHeaderBtn.hidden = standalone;
     if (installBar) {
-      installBar.hidden = !show;
+      if (show) installBar.classList.add('show');
+      else installBar.classList.remove('show');
       if (installBarText) {
         installBarText.textContent = canPrompt
           ? 'يمكنك تثبيت تطبيق المصاريف كأيقونة على شاشتك.'
@@ -186,16 +193,39 @@
     showInstallModal();
   }
 
+  async function cleanupLegacyServiceWorkers() {
+    if (!('serviceWorker' in navigator)) return;
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const reg of regs) {
+      if (reg.scope.includes('/sales/')) continue;
+      if (!reg.scope.includes('/expenses/')) {
+        await reg.unregister();
+      }
+    }
+  }
+
+  async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+    await cleanupLegacyServiceWorkers();
+    try {
+      await navigator.serviceWorker.register('./sw.js');
+    } catch (_) {}
+  }
+
   function setupInstallPrompt() {
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       installPromptEvent = e;
       updateInstallUi();
+      if (localStorage.getItem(INSTALL_DISMISS_KEY) !== '1' && installBar) {
+        installBar.classList.add('show');
+      }
     });
 
     window.addEventListener('appinstalled', () => {
       installPromptEvent = null;
-      if (installBar) installBar.hidden = true;
+      if (installBar) installBar.classList.remove('show');
       showToast('تم تثبيت التطبيق', 'success');
     });
 
@@ -204,7 +234,7 @@
     if (installDismiss) {
       installDismiss.addEventListener('click', () => {
         localStorage.setItem(INSTALL_DISMISS_KEY, '1');
-        if (installBar) installBar.hidden = true;
+        if (installBar) installBar.classList.remove('show');
       });
     }
     if (installModalClose) installModalClose.addEventListener('click', hideInstallModal);
@@ -212,6 +242,10 @@
       installModal.addEventListener('click', (e) => {
         if (e.target === installModal) hideInstallModal();
       });
+    }
+
+    if (isMobileBrowser() && !isStandaloneApp() && localStorage.getItem(INSTALL_DISMISS_KEY) !== '1' && installBar) {
+      installBar.classList.add('show');
     }
 
     updateInstallUi();
@@ -574,10 +608,5 @@
   updateTypeFieldsVisibility();
   setupInstallPrompt();
   render();
-
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    });
-  }
+  window.addEventListener('load', () => { registerServiceWorker(); });
 })();

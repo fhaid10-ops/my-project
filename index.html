@@ -5,7 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="refresh" content="0;url=expenses/">
   <title>المصاريف والمبيعات</title>
-  <script>location.replace('expenses/');</script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(reg) {
+          if (!reg.scope.includes('/expenses/') && !reg.scope.includes('/sales/')) {
+            reg.unregister();
+          }
+        });
+      });
+    }
+    location.replace('expenses/');
+  </script>
 </head>
 <body>
   <p style="font-family:system-ui;text-align:center;margin-top:3rem;line-height:2">

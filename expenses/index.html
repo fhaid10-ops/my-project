@@ -18,11 +18,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(function () {});
-    }
-  </script>
 </head>
 <body>
   <div class="app">
@@ -46,7 +41,7 @@
       </div>
     </header>
 
-    <div id="installBar" class="install-bar" hidden>
+    <div id="installBar" class="install-bar">
       <p id="installBarText">ثبّت تطبيق المصاريف كأيقونة على شاشتك للوصول السريع.</p>
       <button type="button" id="installBtn" class="btn btn-primary">تثبيت التطبيق</button>
       <button type="button" class="install-dismiss" id="installDismiss" aria-label="إخفاء">×</button>
