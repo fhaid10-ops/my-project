@@ -85,16 +85,10 @@
             <label for="type">نوع الشراء</label>
             <select id="type" name="type" required>
               <option value="">اختر النوع</option>
-              <option value="طعام وشراب">طعام وشراب</option>
+              <option value="دخان">دخان</option>
               <option value="بنزين">بنزين</option>
-              <option value="مواصلات">مواصلات</option>
-              <option value="بقالة">بقالة</option>
-              <option value="فواتير">فواتير</option>
-              <option value="صيانة سيارة">صيانة سيارة</option>
-              <option value="ملابس">ملابس</option>
-              <option value="ترفيه">ترفيه</option>
-              <option value="صحة">صحة</option>
-              <option value="أخرى">أخرى</option>
+              <option value="قسط البيت">قسط البيت</option>
+              <option value="زيت السيارة">زيت السيارة</option>
             </select>
           </div>
 
@@ -108,16 +102,13 @@
             <input type="time" id="time" name="time" required />
           </div>
 
-          <div class="field field-full toggle-field">
-            <div class="toggle-row">
-              <div>
-                <label for="oilToggle" class="toggle-label">هل هذه العملية تبديل زيت؟</label>
-                <p class="toggle-hint">فعّل الخيار لإدخال بيانات السيارة وعدّاد الكيلومترات</p>
+          <div id="gasFields" class="oil-fields" hidden>
+            <div class="field">
+              <label for="gasOdometer">قراءة العداد (كم)</label>
+              <div class="input-with-suffix">
+                <input type="number" id="gasOdometer" name="gasOdometer" min="0" step="1" placeholder="0" />
+                <span class="suffix">كم</span>
               </div>
-              <label class="switch">
-                <input type="checkbox" id="oilToggle" />
-                <span class="slider"></span>
-              </label>
             </div>
           </div>
 
@@ -171,7 +162,7 @@
                 <th>الساعة</th>
                 <th>النوع</th>
                 <th>المبلغ</th>
-                <th>تفاصيل الزيت</th>
+                <th>تفاصيل إضافية</th>
                 <th></th>
               </tr>
             </thead>
