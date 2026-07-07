@@ -2,6 +2,8 @@
   'use strict';
 
   const STORAGE_KEY = 'daily_expenses_v1';
+  const BACKUP_APP_ID = 'daily_expenses_v1';
+  const INSTALL_DISMISS_KEY = 'expenses_install_dismissed';
 
   const form = document.getElementById('expenseForm');
   const amountEl = document.getElementById('amount');
@@ -26,11 +28,152 @@
   const statCount = document.getElementById('statCount');
 
   const exportBtn = document.getElementById('exportBtn');
+  const backupBtn = document.getElementById('backupBtn');
+  const importBackupBtn = document.getElementById('importBackupBtn');
+  const importBackupInput = document.getElementById('importBackupInput');
+  const installHeaderBtn = document.getElementById('installHeaderBtn');
+  const installBar = document.getElementById('installBar');
+  const installBtn = document.getElementById('installBtn');
+  const installDismiss = document.getElementById('installDismiss');
+  const installBarText = document.getElementById('installBarText');
   const clearBtn = document.getElementById('clearBtn');
   const resetBtn = document.getElementById('resetBtn');
   const toast = document.getElementById('toast');
 
   let expenses = load();
+  let installPromptEvent = null;
+
+  function isSalesBackup(payload) {
+    return payload && (Array.isArray(payload.executions) || payload.config && payload.config.employees);
+  }
+
+  function isExpenseRecord(item) {
+    return item && typeof item === 'object' && 'amount' in item && 'type' in item && 'date' in item;
+  }
+
+  function normalizeImportedExpenses(payload) {
+    if (!payload || typeof payload !== 'object') return null;
+    if (isSalesBackup(payload)) return null;
+    if (payload.app && payload.app !== BACKUP_APP_ID) return null;
+    if (Array.isArray(payload.expenses)) return payload.expenses.filter(isExpenseRecord);
+    if (Array.isArray(payload) && payload.every(isExpenseRecord)) return payload;
+    return null;
+  }
+
+  function exportJsonBackup() {
+    const payload = {
+      app: BACKUP_APP_ID,
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      expenses,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expenses-backup-${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('تم حفظ النسخة الاحتياطية', 'success');
+  }
+
+  function importJsonBackup(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const payload = JSON.parse(reader.result);
+          if (isSalesBackup(payload)) {
+            reject(new Error('sales_backup'));
+            return;
+          }
+          const imported = normalizeImportedExpenses(payload);
+          if (!imported) {
+            reject(new Error('invalid_backup'));
+            return;
+          }
+          expenses = imported;
+          save();
+          render();
+          resolve(imported.length);
+        } catch (e) {
+          reject(e);
+        }
+      };
+      reader.onerror = () => reject(new Error('read_failed'));
+      reader.readAsText(file);
+    });
+  }
+
+  function isStandaloneApp() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  function getInstallHelpText() {
+    const ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(ua)) {
+      return 'من Safari: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».';
+    }
+    if (/Android/i.test(ua)) {
+      return 'من Chrome: اضغط ⋮ ثم «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».';
+    }
+    return 'من Chrome أو Edge: اضغط ⋮ ثم «تثبيت المصاريف».';
+  }
+
+  function updateInstallUi() {
+    const standalone = isStandaloneApp();
+    const dismissed = localStorage.getItem(INSTALL_DISMISS_KEY) === '1';
+    const canPrompt = !!installPromptEvent;
+    const show = !standalone && (canPrompt || !dismissed);
+
+    if (installHeaderBtn) installHeaderBtn.hidden = standalone;
+    if (installBar) {
+      installBar.hidden = !show;
+      if (installBarText && !canPrompt) installBarText.textContent = getInstallHelpText();
+    }
+  }
+
+  async function promptInstallApp() {
+    if (installPromptEvent) {
+      installPromptEvent.prompt();
+      try {
+        const choice = await installPromptEvent.userChoice;
+        if (choice.outcome === 'accepted') showToast('تم تثبيت التطبيق', 'success');
+      } catch (_) {}
+      installPromptEvent = null;
+      updateInstallUi();
+      return;
+    }
+    if (installBarText) installBarText.textContent = getInstallHelpText();
+    if (installBar) installBar.hidden = false;
+  }
+
+  function setupInstallPrompt() {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      installPromptEvent = e;
+      updateInstallUi();
+    });
+
+    window.addEventListener('appinstalled', () => {
+      installPromptEvent = null;
+      if (installBar) installBar.hidden = true;
+      showToast('تم تثبيت التطبيق', 'success');
+    });
+
+    if (installHeaderBtn) installHeaderBtn.addEventListener('click', promptInstallApp);
+    if (installBtn) installBtn.addEventListener('click', promptInstallApp);
+    if (installDismiss) {
+      installDismiss.addEventListener('click', () => {
+        localStorage.setItem(INSTALL_DISMISS_KEY, '1');
+        if (installBar) installBar.hidden = true;
+      });
+    }
+
+    updateInstallUi();
+  }
 
   function load() {
     try {
@@ -330,6 +473,32 @@
     showToast('تم مسح جميع المصاريف');
   });
 
+  backupBtn.addEventListener('click', () => {
+    if (expenses.length === 0) {
+      showToast('لا توجد بيانات للنسخ الاحتياطي');
+      return;
+    }
+    exportJsonBackup();
+  });
+
+  importBackupBtn.addEventListener('click', () => importBackupInput.click());
+
+  importBackupInput.addEventListener('change', async () => {
+    const file = importBackupInput.files && importBackupInput.files[0];
+    importBackupInput.value = '';
+    if (!file) return;
+    try {
+      const count = await importJsonBackup(file);
+      showToast(`تم استيراد ${count.toLocaleString('ar-EG')} مصروف`, 'success');
+    } catch (err) {
+      if (err && err.message === 'sales_backup') {
+        showToast('هذه نسخة مبيعات وليست مصاريف — استوردها من تطبيق المبيعات فقط', 'error');
+      } else {
+        showToast('ملف النسخة الاحتياطية غير صالح للمصاريف', 'error');
+      }
+    }
+  });
+
   exportBtn.addEventListener('click', () => {
     if (expenses.length === 0) {
       showToast('لا توجد بيانات للتصدير');
@@ -361,6 +530,7 @@
 
   setDefaults();
   updateTypeFieldsVisibility();
+  setupInstallPrompt();
   render();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

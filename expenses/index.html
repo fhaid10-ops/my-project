@@ -30,17 +30,22 @@
         </div>
       </div>
       <div class="header-actions">
-        <a href="../" class="btn btn-ghost" title="الانتقال للمبيعات">
-          <span>المبيعات ←</span>
-        </a>
-        <button id="exportBtn" class="btn btn-ghost" title="تصدير البيانات">
-          <span>تصدير</span>
-        </button>
+        <button type="button" id="installHeaderBtn" class="btn btn-primary install-btn mobile-only" hidden>📲 تثبيت التطبيق</button>
+        <button type="button" id="importBackupBtn" class="btn btn-ghost" title="استيراد نسخة احتياطية للمصاريف">استيراد</button>
+        <input type="file" id="importBackupInput" accept=".json,application/json" hidden />
+        <button type="button" id="backupBtn" class="btn btn-ghost" title="حفظ نسخة احتياطية للمصاريف">نسخة احتياطية</button>
+        <button id="exportBtn" class="btn btn-ghost" title="تصدير CSV">تصدير CSV</button>
         <button id="clearBtn" class="btn btn-danger-ghost" title="مسح كل المصاريف">
           <span>مسح الكل</span>
         </button>
       </div>
     </header>
+
+    <div id="installBar" class="install-bar" hidden>
+      <p id="installBarText">ثبّت تطبيق المصاريف كأيقونة على شاشتك للوصول السريع.</p>
+      <button type="button" id="installBtn" class="btn btn-primary">تثبيت التطبيق</button>
+      <button type="button" class="install-dismiss" id="installDismiss" aria-label="إخفاء">×</button>
+    </div>
 
     <section class="stats">
       <div class="stat-card">
