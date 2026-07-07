@@ -1,19 +1,28 @@
 {
+  "name": "المصاريف اليومية",
+  "short_name": "المصاريف",
+  "description": "تطبيق لتتبع المصاريف اليومية وتذكير تبديل زيت السيارة",
   "id": "/my-project/",
-  "name": "مبيعات",
-  "short_name": "مبيعات",
-  "description": "متابعة تنفيذات المبيعات لماجد وعبدالرحمن وفايز",
-  "lang": "ar",
-  "dir": "rtl",
-  "start_url": "./index.html",
+  "start_url": "./expenses/",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0b141a",
-  "theme_color": "#00a884",
+  "background_color": "#eef2ff",
+  "theme_color": "#4f46e5",
+  "lang": "ar",
+  "dir": "rtl",
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "expenses/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "expenses/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }
