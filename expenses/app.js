@@ -8,7 +8,8 @@
   const typeEl = document.getElementById('type');
   const dateEl = document.getElementById('date');
   const timeEl = document.getElementById('time');
-  const oilToggle = document.getElementById('oilToggle');
+  const gasFields = document.getElementById('gasFields');
+  const gasOdometerEl = document.getElementById('gasOdometer');
   const oilFields = document.getElementById('oilFields');
   const carTypeEl = document.getElementById('carType');
   const odometerEl = document.getElementById('odometer');
@@ -106,10 +107,12 @@
     if (!timeEl.value) timeEl.value = nowTime();
   }
 
-  function updateOilVisibility() {
-    const on = oilToggle.checked;
-    oilFields.hidden = !on;
-    if (on) {
+  function updateTypeFieldsVisibility() {
+    const isGas = typeEl.value === 'بنزين';
+    const isOil = typeEl.value === 'زيت السيارة';
+    gasFields.hidden = !isGas;
+    oilFields.hidden = !isOil;
+    if (isOil) {
       const last = lastOilChange();
       if (last) {
         lastOilInfo.textContent = `آخر تبديل زيت: ${formatDate(last.date)} - العداد: ${Number(last.odometer).toLocaleString('ar-EG')} كم`;
@@ -121,8 +124,12 @@
     }
   }
 
+  function isOilExpense(e) {
+    return e.isOilChange || e.type === 'زيت السيارة';
+  }
+
   function lastOilChange() {
-    const oils = expenses.filter(e => e.isOilChange && e.odometer);
+    const oils = expenses.filter(e => isOilExpense(e) && e.odometer);
     if (oils.length === 0) return null;
     return oils.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time))[0];
   }
@@ -178,7 +185,7 @@
     const filtered = sorted.filter(e => {
       if (ft && e.type !== ft) return false;
       if (!q) return true;
-      const hay = [e.type, e.carType, e.notes, e.amount, e.date, e.odometer]
+      const hay = [e.type, e.carType, e.notes, e.amount, e.date, e.odometer, e.gasOdometer]
         .filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
@@ -191,19 +198,22 @@
     emptyState.hidden = true;
 
     tbody.innerHTML = filtered.map(e => {
-      const oilBadge = e.isOilChange
+      const oilBadge = isOilExpense(e)
         ? `<span class="badge oil">تبديل زيت</span>`
         : '';
-      const oilCell = e.isOilChange
-        ? `${escapeHtml(e.carType || '—')}<br><small>${e.odometer ? Number(e.odometer).toLocaleString('ar-EG') + ' كم' : '—'}</small>`
-        : '<span style="color:var(--muted)">—</span>';
+      let detailsCell = '<span style="color:var(--muted)">—</span>';
+      if (isOilExpense(e)) {
+        detailsCell = `${escapeHtml(e.carType || '—')}<br><small>${e.odometer ? Number(e.odometer).toLocaleString('ar-EG') + ' كم' : '—'}</small>`;
+      } else if (e.type === 'بنزين' && e.gasOdometer != null) {
+        detailsCell = `<small>${Number(e.gasOdometer).toLocaleString('ar-EG')} كم</small>`;
+      }
       return `
         <tr>
           <td>${formatDate(e.date)}</td>
           <td>${formatTime(e.time)}</td>
           <td><span class="badge">${escapeHtml(e.type || '—')}</span> ${oilBadge}</td>
           <td class="amount-cell">${formatMoney(e.amount)} <small style="color:var(--muted);font-weight:600">ريال</small></td>
-          <td class="oil-cell">${oilCell}</td>
+          <td class="oil-cell">${detailsCell}</td>
           <td>
             <div class="row-actions">
               <button class="icon-btn" data-action="delete" data-id="${escapeAttr(e.id)}" title="حذف">حذف</button>
@@ -238,7 +248,8 @@
       return;
     }
 
-    const isOil = oilToggle.checked;
+    const isOil = typeEl.value === 'زيت السيارة';
+    const isGas = typeEl.value === 'بنزين';
     if (isOil) {
       if (!carTypeEl.value.trim()) {
         showToast('أدخل نوع السيارة', 'error');
@@ -251,6 +262,11 @@
         return;
       }
     }
+    if (isGas && gasOdometerEl.value !== '' && !(parseFloat(gasOdometerEl.value) >= 0)) {
+      showToast('أدخل قراءة العداد بشكل صحيح', 'error');
+      gasOdometerEl.focus();
+      return;
+    }
 
     const record = {
       id: uid(),
@@ -261,6 +277,7 @@
       isOilChange: isOil,
       carType: isOil ? carTypeEl.value.trim() : '',
       odometer: isOil ? Number(odometerEl.value) : null,
+      gasOdometer: isGas && gasOdometerEl.value !== '' ? Number(gasOdometerEl.value) : null,
       createdAt: new Date().toISOString(),
     };
 
@@ -270,21 +287,19 @@
     showToast('تم حفظ المصروف بنجاح', 'success');
 
     form.reset();
-    oilToggle.checked = false;
-    updateOilVisibility();
+    updateTypeFieldsVisibility();
     setDefaults();
     amountEl.focus();
   });
 
   resetBtn.addEventListener('click', () => {
     setTimeout(() => {
-      oilToggle.checked = false;
-      updateOilVisibility();
+      updateTypeFieldsVisibility();
       setDefaults();
     }, 0);
   });
 
-  oilToggle.addEventListener('change', updateOilVisibility);
+  typeEl.addEventListener('change', updateTypeFieldsVisibility);
 
   tbody.addEventListener('click', (ev) => {
     const btn = ev.target.closest('button[data-action="delete"]');
@@ -320,11 +335,11 @@
       showToast('لا توجد بيانات للتصدير');
       return;
     }
-    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)'];
+    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)', 'قراءة العداد بنزين (كم)'];
     const rows = expenses.map(e => [
       e.date, e.time, e.type, e.amount,
-      e.isOilChange ? 'نعم' : 'لا',
-      e.carType || '', e.odometer ?? ''
+      isOilExpense(e) ? 'نعم' : 'لا',
+      e.carType || '', e.odometer ?? '', e.gasOdometer ?? ''
     ]);
     const csv = [headers, ...rows]
       .map(r => r.map(v => {
@@ -345,7 +360,7 @@
   });
 
   setDefaults();
-  updateOilVisibility();
+  updateTypeFieldsVisibility();
   render();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
