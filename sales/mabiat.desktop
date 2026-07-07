@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=مبيعات
+Comment=متابعة تنفيذات المبيعات
+Exec=xdg-open https://fhaid10-ops.github.io/my-project/sales/
+Icon=https://fhaid10-ops.github.io/my-project/sales/icon-192.png
+Terminal=false
+Categories=Office;Finance;
+StartupNotify=true
