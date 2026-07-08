@@ -2,16 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta id="viewportMeta" name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <script>
     (function () {
-      try {
-        if (localStorage.getItem('expenses_desktop_site') === '1' || /(?:\?|&)view=desktop(?:&|$)/.test(location.search)) {
-          var m = document.getElementById('viewportMeta') || document.querySelector('meta[name=viewport]');
-          if (m) m.setAttribute('content', 'width=1280');
-          document.documentElement.classList.add('desktop-site');
-        }
-      } catch (e) {}
+      try { localStorage.removeItem('expenses_desktop_site'); } catch (e) {}
     })();
   </script>
   <title>المصاريف اليومية</title>
@@ -39,7 +33,7 @@
           <div>
             <h1>المصاريف اليومية</h1>
             <p class="subtitle">تتبّع مصاريفك وتذكير تبديل الزيت لسيارتك</p>
-            <p class="browser-hint" id="browserHint" hidden></p>
+            <p class="browser-hint" id="browserHint">يعمل على Chrome و Opera وجميع المتصفحات</p>
           </div>
         </div>
         <div class="options-wrap mobile-only">
@@ -53,24 +47,17 @@
         </div>
       </div>
 
-      <div class="header-toolbar">
-        <div class="view-switch chrome-feature" id="viewSwitch" role="group" aria-label="وضع العرض على Chrome">
-          <span class="view-switch-label">Chrome</span>
-          <button type="button" id="mobileViewBtn" class="btn btn-view" title="عرض الجوال على Chrome">📱 جوال</button>
-          <button type="button" id="desktopViewBtn" class="btn btn-view" title="عرض الكمبيوتر على Chrome">🖥 كمبيوتر</button>
-        </div>
-        <div class="header-actions desktop-actions">
-          <a class="btn btn-ghost desktop-only" href="expenses-desktop.url" download="المصاريف.url" title="اختصار ويندوز">🪟 ويندوز</a>
-          <a class="btn btn-ghost desktop-only" href="expenses.desktop" download="المصاريف.desktop" title="اختصار لينكس">🐧 لينكس</a>
-          <button type="button" id="installHeaderBtn" class="btn btn-primary install-btn mobile-only" hidden>📲 تثبيت التطبيق</button>
-          <button type="button" id="importBackupBtn" class="btn btn-ghost" title="استيراد نسخة احتياطية للمصاريف">استيراد</button>
-          <input type="file" id="importBackupInput" accept=".json,application/json" hidden />
-          <button type="button" id="backupBtn" class="btn btn-ghost" title="حفظ نسخة احتياطية للمصاريف">نسخة احتياطية</button>
-          <button id="exportBtn" class="btn btn-ghost" title="تصدير CSV">تصدير CSV</button>
-          <button id="clearBtn" class="btn btn-danger-ghost" title="مسح كل المصاريف">
-            <span>مسح الكل</span>
-          </button>
-        </div>
+      <div class="header-actions desktop-actions">
+        <a class="btn btn-ghost desktop-only" href="expenses-desktop.url" download="المصاريف.url" title="اختصار ويندوز">🪟 ويندوز</a>
+        <a class="btn btn-ghost desktop-only" href="expenses.desktop" download="المصاريف.desktop" title="اختصار لينكس">🐧 لينكس</a>
+        <button type="button" id="installHeaderBtn" class="btn btn-primary install-btn mobile-only" hidden>📲 تثبيت التطبيق</button>
+        <button type="button" id="importBackupBtn" class="btn btn-ghost" title="استيراد نسخة احتياطية للمصاريف">استيراد</button>
+        <input type="file" id="importBackupInput" accept=".json,application/json" hidden />
+        <button type="button" id="backupBtn" class="btn btn-ghost" title="حفظ نسخة احتياطية للمصاريف">نسخة احتياطية</button>
+        <button id="exportBtn" class="btn btn-ghost" title="تصدير CSV">تصدير CSV</button>
+        <button id="clearBtn" class="btn btn-danger-ghost" title="مسح كل المصاريف">
+          <span>مسح الكل</span>
+        </button>
       </div>
     </header>
 
@@ -215,7 +202,7 @@
     </section>
 
     <footer class="app-footer">
-      <p>يتم حفظ بياناتك محلياً في متصفحك فقط. الأفضل على <strong>Chrome</strong> — ويعمل على باقي المتصفحات.</p>
+      <p>يتم حفظ بياناتك محلياً في متصفحك فقط.</p>
     </footer>
   </div>
 

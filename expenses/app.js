@@ -4,7 +4,6 @@
   const STORAGE_KEY = 'daily_expenses_v1';
   const BACKUP_APP_ID = 'daily_expenses_v1';
   const INSTALL_DISMISS_KEY = 'expenses_install_dismissed_v2';
-  const DESKTOP_SITE_KEY = 'expenses_desktop_site';
   const APP_URL = 'https://fhaid10-ops.github.io/my-project/expenses/';
 
   const form = document.getElementById('expenseForm');
@@ -41,11 +40,6 @@
   const installModal = document.getElementById('installModal');
   const installSteps = document.getElementById('installSteps');
   const installModalClose = document.getElementById('installModalClose');
-  const mobileViewBtn = document.getElementById('mobileViewBtn');
-  const desktopViewBtn = document.getElementById('desktopViewBtn');
-  const viewportMeta = document.getElementById('viewportMeta');
-  const browserHint = document.getElementById('browserHint');
-  const viewSwitch = document.getElementById('viewSwitch');
   const optionsBtn = document.getElementById('optionsBtn');
   const optionsMenu = document.getElementById('optionsMenu');
   const importBackupMenuBtn = document.getElementById('importBackupMenuBtn');
@@ -132,6 +126,10 @@
     return (/Chrome|CriOS/i.test(ua)) && !/Edg|OPR|SamsungBrowser|Firefox|FxiOS/i.test(ua);
   }
 
+  function isOpera() {
+    return /OPR|Opera/i.test(navigator.userAgent || '');
+  }
+
   function isDesktopBrowser() {
     return window.matchMedia && window.matchMedia('(pointer:fine)').matches
       && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
@@ -141,46 +139,10 @@
     return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
   }
 
-  function setDesktopView(enabled, options) {
-    const opts = options || {};
-    if (enabled) {
-      if (viewportMeta) viewportMeta.setAttribute('content', 'width=1280');
-      document.documentElement.classList.add('desktop-site');
-    } else {
-      if (viewportMeta) viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
-      document.documentElement.classList.remove('desktop-site');
-    }
-    if (mobileViewBtn) mobileViewBtn.classList.toggle('is-active', !enabled);
-    if (desktopViewBtn) desktopViewBtn.classList.toggle('is-active', enabled);
-    try { localStorage.setItem(DESKTOP_SITE_KEY, enabled ? '1' : '0'); } catch (_) {}
-    if (!opts.silent) {
-      const msg = enabled
-        ? 'عرض الكمبيوتر — مناسب لشاشة Chrome الواسعة'
-        : 'عرض الجوال — مناسب لاستخدام Chrome على الجوال';
-      showToast(msg, 'success');
-    }
-  }
-
-  function openDesktopInBrowser() {
-    if (!isChrome()) return;
-    const url = APP_URL + '?view=desktop';
-    window.open(url, '_blank', 'noopener');
-  }
-
   function setupBrowserUi() {
     if (isMobileBrowser()) document.documentElement.classList.add('is-mobile');
-    if (isChrome()) {
-      document.documentElement.classList.add('is-chrome');
-      if (browserHint) browserHint.textContent = 'مُحسَّن لمتصفح Chrome';
-      if (browserHint) browserHint.hidden = false;
-      return;
-    }
-    if (browserHint) {
-      browserHint.textContent = 'يعمل على جميع المتصفحات';
-      browserHint.hidden = false;
-    }
-    document.documentElement.classList.remove('desktop-site');
-    if (viewportMeta) viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+    if (isDesktopBrowser()) document.documentElement.classList.add('is-desktop');
+    try { localStorage.removeItem('expenses_desktop_site'); } catch (_) {}
   }
 
   function closeOptionsMenu() {
@@ -208,32 +170,6 @@
     if (clearMenuBtn) clearMenuBtn.addEventListener('click', () => { closeOptionsMenu(); clearBtn.click(); });
   }
 
-  function setupViewSwitch() {
-    if (!isChrome()) return;
-
-    let desktop = false;
-    try {
-      const params = new URLSearchParams(location.search);
-      if (params.get('view') === 'desktop') desktop = true;
-      else desktop = localStorage.getItem(DESKTOP_SITE_KEY) === '1';
-    } catch (_) {}
-    setDesktopView(desktop, { silent: true });
-
-    if (mobileViewBtn) {
-      mobileViewBtn.addEventListener('click', () => setDesktopView(false));
-    }
-    if (desktopViewBtn) {
-      desktopViewBtn.addEventListener('click', () => {
-        setDesktopView(true);
-        if (isStandaloneApp()) openDesktopInBrowser();
-      });
-    }
-  }
-
-  function applyDeviceUi() {
-    if (isDesktopBrowser()) document.documentElement.classList.add('is-desktop');
-  }
-
   function getInstallSteps() {
     const ua = navigator.userAgent || '';
     const steps = [
@@ -247,14 +183,13 @@
       );
     } else if (/Android/i.test(ua)) {
       steps.push(
-        'تأكد أنك في Chrome (مو تطبيق آخر).',
-        'اضغط ⋮ أعلى يسار الشاشة.',
+        'من Chrome أو Opera: اضغط ⋮ في القائمة.',
         'اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».',
         'اضغط «تثبيت» — ستظهر أيقونة «المصاريف».',
       );
     } else {
       steps.push(
-        'من Chrome اضغط ⋮ في شريط العنوان.',
+        'من Chrome أو Opera اضغط ⋮ في شريط العنوان.',
         'اختر «تثبيت المصاريف» أو Install app.',
       );
     }
@@ -274,10 +209,10 @@
   }
 
   function getInstallHelpText() {
-    if (isChrome()) {
-      return 'من Chrome: اضغط «تثبيت التطبيق» أو ⋮ ثم تثبيت التطبيق';
+    if (isChrome() || isOpera()) {
+      return 'اضغط ⋮ ثم «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»';
     }
-    return 'يعمل على جميع المتصفحات — للتثبيت الأفضل استخدم Chrome';
+    return 'يعمل على جميع المتصفحات — Chrome و Opera وغيرها';
   }
 
   function updateInstallUi() {
@@ -725,10 +660,8 @@
 
   setDefaults();
   updateTypeFieldsVisibility();
-  applyDeviceUi();
   setupBrowserUi();
   setupOptionsMenu();
-  setupViewSwitch();
   setupInstallPrompt();
   render();
   window.addEventListener('load', () => { registerServiceWorker(); });
