@@ -1,4 +1,4 @@
-const CACHE = 'expenses-v4';
+const CACHE = 'expenses-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -7,6 +7,8 @@ const ASSETS = [
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
+  './expenses-desktop.url',
+  './expenses.desktop',
 ];
 
 self.addEventListener('install', (e) => {

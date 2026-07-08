@@ -95,6 +95,55 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.view-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.btn-view {
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.btn-view.is-active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.desktop-only { display: none; }
+
+html.is-desktop .desktop-only { display: inline-flex; }
+
+html.desktop-site body {
+  min-width: 1280px;
+}
+
+html.desktop-site .app {
+  max-width: 1180px;
+}
+
+html.desktop-site .stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+html.desktop-site .grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
 }
 
 .install-btn {

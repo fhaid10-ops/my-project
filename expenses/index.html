@@ -2,7 +2,18 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta id="viewportMeta" name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('expenses_desktop_site') === '1' || /(?:\?|&)view=desktop(?:&|$)/.test(location.search)) {
+          var m = document.getElementById('viewportMeta') || document.querySelector('meta[name=viewport]');
+          if (m) m.setAttribute('content', 'width=1280');
+          document.documentElement.classList.add('desktop-site');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <title>المصاريف اليومية</title>
   <meta name="description" content="تطبيق لتتبع المصاريف اليومية وتذكير تبديل زيت السيارة" />
   <meta name="theme-color" content="#4f46e5" />
@@ -30,6 +41,12 @@
         </div>
       </div>
       <div class="header-actions">
+        <div class="view-switch" role="group" aria-label="وضع العرض">
+          <button type="button" id="mobileViewBtn" class="btn btn-view" title="عرض متصفح الجوال">📱 جوال</button>
+          <button type="button" id="desktopViewBtn" class="btn btn-view" title="عرض متصفح الكمبيوتر">🖥 كمبيوتر</button>
+        </div>
+        <a class="btn btn-ghost desktop-only" href="expenses-desktop.url" download="المصاريف.url" title="اختصار ويندوز">🪟 ويندوز</a>
+        <a class="btn btn-ghost desktop-only" href="expenses.desktop" download="المصاريف.desktop" title="اختصار لينكس">🐧 لينكس</a>
         <button type="button" id="installHeaderBtn" class="btn btn-primary install-btn mobile-only" hidden>📲 تثبيت التطبيق</button>
         <button type="button" id="importBackupBtn" class="btn btn-ghost" title="استيراد نسخة احتياطية للمصاريف">استيراد</button>
         <input type="file" id="importBackupInput" accept=".json,application/json" hidden />

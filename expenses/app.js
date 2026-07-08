@@ -4,6 +4,8 @@
   const STORAGE_KEY = 'daily_expenses_v1';
   const BACKUP_APP_ID = 'daily_expenses_v1';
   const INSTALL_DISMISS_KEY = 'expenses_install_dismissed_v2';
+  const DESKTOP_SITE_KEY = 'expenses_desktop_site';
+  const APP_URL = 'https://fhaid10-ops.github.io/my-project/expenses/';
 
   const form = document.getElementById('expenseForm');
   const amountEl = document.getElementById('amount');
@@ -39,6 +41,9 @@
   const installModal = document.getElementById('installModal');
   const installSteps = document.getElementById('installSteps');
   const installModalClose = document.getElementById('installModalClose');
+  const mobileViewBtn = document.getElementById('mobileViewBtn');
+  const desktopViewBtn = document.getElementById('desktopViewBtn');
+  const viewportMeta = document.getElementById('viewportMeta');
   const clearBtn = document.getElementById('clearBtn');
   const resetBtn = document.getElementById('resetBtn');
   const toast = document.getElementById('toast');
@@ -114,8 +119,57 @@
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
 
+  function isDesktopBrowser() {
+    return window.matchMedia && window.matchMedia('(pointer:fine)').matches
+      && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+  }
+
   function isMobileBrowser() {
     return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  }
+
+  function setDesktopView(enabled, options) {
+    const opts = options || {};
+    if (enabled) {
+      if (viewportMeta) viewportMeta.setAttribute('content', 'width=1280');
+      document.documentElement.classList.add('desktop-site');
+    } else {
+      if (viewportMeta) viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+      document.documentElement.classList.remove('desktop-site');
+    }
+    if (mobileViewBtn) mobileViewBtn.classList.toggle('is-active', !enabled);
+    if (desktopViewBtn) desktopViewBtn.classList.toggle('is-active', enabled);
+    try { localStorage.setItem(DESKTOP_SITE_KEY, enabled ? '1' : '0'); } catch (_) {}
+    if (!opts.silent) {
+      showToast(enabled ? 'تم تفعيل عرض الكمبيوتر' : 'تم تفعيل عرض الجوال', 'success');
+    }
+  }
+
+  function openDesktopInBrowser() {
+    const url = APP_URL + (localStorage.getItem(DESKTOP_SITE_KEY) === '1' ? '?view=desktop' : '');
+    window.open(url, '_blank', 'noopener');
+  }
+
+  function setupViewSwitch() {
+    let desktop = false;
+    try {
+      const params = new URLSearchParams(location.search);
+      if (params.get('view') === 'desktop') desktop = true;
+      else desktop = localStorage.getItem(DESKTOP_SITE_KEY) === '1';
+    } catch (_) {}
+    setDesktopView(desktop, { silent: true });
+
+    if (isDesktopBrowser()) document.documentElement.classList.add('is-desktop');
+
+    if (mobileViewBtn) {
+      mobileViewBtn.addEventListener('click', () => setDesktopView(false));
+    }
+    if (desktopViewBtn) {
+      desktopViewBtn.addEventListener('click', () => {
+        setDesktopView(true);
+        if (isStandaloneApp()) openDesktopInBrowser();
+      });
+    }
   }
 
   function getInstallSteps() {
@@ -606,6 +660,7 @@
 
   setDefaults();
   updateTypeFieldsVisibility();
+  setupViewSwitch();
   setupInstallPrompt();
   render();
   window.addEventListener('load', () => { registerServiceWorker(); });
