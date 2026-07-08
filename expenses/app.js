@@ -130,19 +130,56 @@
     return /OPR|Opera/i.test(navigator.userAgent || '');
   }
 
+  function isTouchDevice() {
+    return (navigator.maxTouchPoints > 0)
+      || (window.matchMedia && (
+        window.matchMedia('(hover: none)').matches
+        || window.matchMedia('(pointer: coarse)').matches
+      ));
+  }
+
   function isDesktopBrowser() {
-    return window.matchMedia && window.matchMedia('(pointer:fine)').matches
-      && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    if (isMobileBrowser()) return false;
+    return window.matchMedia && window.matchMedia('(pointer:fine)').matches;
   }
 
   function isMobileBrowser() {
-    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    const ua = navigator.userAgent || '';
+    if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+    if (navigator.userAgentData && navigator.userAgentData.mobile) return true;
+    if (isTouchDevice() && Math.min(screen.width, screen.height) <= 1024) return true;
+    return false;
+  }
+
+  function isChromeDesktopSiteOnPhone() {
+    if (!isTouchDevice()) return false;
+    const desktopUa = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    const phoneScreen = Math.min(screen.width, screen.height) <= 900;
+    const wideViewport = window.innerWidth > 768;
+    return desktopUa && phoneScreen && wideViewport && isChrome();
   }
 
   function setupBrowserUi() {
-    if (isMobileBrowser()) document.documentElement.classList.add('is-mobile');
-    if (isDesktopBrowser()) document.documentElement.classList.add('is-desktop');
+    const root = document.documentElement;
+    root.classList.remove('is-mobile', 'is-desktop');
+    if (isMobileBrowser()) root.classList.add('is-mobile');
+    else if (isDesktopBrowser()) root.classList.add('is-desktop');
     try { localStorage.removeItem('expenses_desktop_site'); } catch (_) {}
+
+    const hint = document.getElementById('desktopSiteHint');
+    const dismiss = document.getElementById('desktopSiteDismiss');
+    const hintKey = 'expenses_desktop_site_hint_dismissed';
+    if (hint && isChromeDesktopSiteOnPhone() && localStorage.getItem(hintKey) !== '1') {
+      hint.hidden = false;
+      hint.classList.add('show');
+    }
+    if (dismiss && hint) {
+      dismiss.addEventListener('click', () => {
+        hint.hidden = true;
+        hint.classList.remove('show');
+        try { localStorage.setItem(hintKey, '1'); } catch (_) {}
+      });
+    }
   }
 
   function closeOptionsMenu() {
@@ -171,19 +208,20 @@
   }
 
   function getInstallSteps() {
-    const ua = navigator.userAgent || '';
     const steps = [
       'احذف أي أيقونة قديمة للمصاريف أو المبيعات من الشاشة الرئيسية.',
     ];
-    if (/iPhone|iPad|iPod/i.test(ua)) {
+    const ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(ua) || (isTouchDevice() && /Macintosh/i.test(ua))) {
       steps.push(
         'افتح هذا الرابط في Safari: fhaid10-ops.github.io/my-project/expenses/',
         'اضغط زر المشاركة ⬆️ أسفل الشاشة.',
         'اختر «إضافة إلى الشاشة الرئيسية» ثم «إضافة».',
       );
-    } else if (/Android/i.test(ua)) {
+    } else if (isMobileBrowser() || isTouchDevice()) {
       steps.push(
         'من Chrome أو Opera: اضغط ⋮ في القائمة.',
+        'أوقف «موقع الكمبيوتر» إن كان مفعّلاً.',
         'اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».',
         'اضغط «تثبيت» — ستظهر أيقونة «المصاريف».',
       );
