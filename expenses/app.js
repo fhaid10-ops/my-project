@@ -44,6 +44,8 @@
   const mobileViewBtn = document.getElementById('mobileViewBtn');
   const desktopViewBtn = document.getElementById('desktopViewBtn');
   const viewportMeta = document.getElementById('viewportMeta');
+  const browserHint = document.getElementById('browserHint');
+  const viewSwitch = document.getElementById('viewSwitch');
   const clearBtn = document.getElementById('clearBtn');
   const resetBtn = document.getElementById('resetBtn');
   const toast = document.getElementById('toast');
@@ -119,6 +121,11 @@
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
 
+  function isChrome() {
+    const ua = navigator.userAgent || '';
+    return (/Chrome|CriOS/i.test(ua)) && !/Edg|OPR|SamsungBrowser|Firefox|FxiOS/i.test(ua);
+  }
+
   function isDesktopBrowser() {
     return window.matchMedia && window.matchMedia('(pointer:fine)').matches
       && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
@@ -141,16 +148,38 @@
     if (desktopViewBtn) desktopViewBtn.classList.toggle('is-active', enabled);
     try { localStorage.setItem(DESKTOP_SITE_KEY, enabled ? '1' : '0'); } catch (_) {}
     if (!opts.silent) {
-      showToast(enabled ? 'تم تفعيل عرض الكمبيوتر' : 'تم تفعيل عرض الجوال', 'success');
+      const msg = enabled
+        ? 'عرض الكمبيوتر — مناسب لشاشة Chrome الواسعة'
+        : 'عرض الجوال — مناسب لاستخدام Chrome على الجوال';
+      showToast(msg, 'success');
     }
   }
 
   function openDesktopInBrowser() {
-    const url = APP_URL + (localStorage.getItem(DESKTOP_SITE_KEY) === '1' ? '?view=desktop' : '');
+    if (!isChrome()) return;
+    const url = APP_URL + '?view=desktop';
     window.open(url, '_blank', 'noopener');
   }
 
+  function setupBrowserUi() {
+    if (isChrome()) {
+      document.documentElement.classList.add('is-chrome');
+      if (browserHint) browserHint.textContent = 'مُحسَّن لمتصفح Chrome';
+      if (browserHint) browserHint.hidden = false;
+      return;
+    }
+    if (browserHint) {
+      browserHint.textContent = 'يعمل على جميع المتصفحات';
+      browserHint.hidden = false;
+    }
+    document.documentElement.classList.remove('desktop-site');
+    if (viewportMeta) viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+  }
+
   function setupViewSwitch() {
+    setupBrowserUi();
+    if (!isChrome()) return;
+
     let desktop = false;
     try {
       const params = new URLSearchParams(location.search);
@@ -158,8 +187,6 @@
       else desktop = localStorage.getItem(DESKTOP_SITE_KEY) === '1';
     } catch (_) {}
     setDesktopView(desktop, { silent: true });
-
-    if (isDesktopBrowser()) document.documentElement.classList.add('is-desktop');
 
     if (mobileViewBtn) {
       mobileViewBtn.addEventListener('click', () => setDesktopView(false));
@@ -170,6 +197,10 @@
         if (isStandaloneApp()) openDesktopInBrowser();
       });
     }
+  }
+
+  function applyDeviceUi() {
+    if (isDesktopBrowser()) document.documentElement.classList.add('is-desktop');
   }
 
   function getInstallSteps() {
@@ -212,7 +243,10 @@
   }
 
   function getInstallHelpText() {
-    return 'اضغط «تثبيت التطبيق» لعرض خطوات التثبيت من قائمة Chrome ⋮';
+    if (isChrome()) {
+      return 'من Chrome: اضغط «تثبيت التطبيق» أو ⋮ ثم تثبيت التطبيق';
+    }
+    return 'يعمل على جميع المتصفحات — للتثبيت الأفضل استخدم Chrome';
   }
 
   function updateInstallUi() {
@@ -660,6 +694,7 @@
 
   setDefaults();
   updateTypeFieldsVisibility();
+  applyDeviceUi();
   setupViewSwitch();
   setupInstallPrompt();
   render();

@@ -38,12 +38,14 @@
         <div>
           <h1>المصاريف اليومية</h1>
           <p class="subtitle">تتبّع مصاريفك وتذكير تبديل الزيت لسيارتك</p>
+          <p class="browser-hint" id="browserHint" hidden></p>
         </div>
       </div>
       <div class="header-actions">
-        <div class="view-switch" role="group" aria-label="وضع العرض">
-          <button type="button" id="mobileViewBtn" class="btn btn-view" title="عرض متصفح الجوال">📱 جوال</button>
-          <button type="button" id="desktopViewBtn" class="btn btn-view" title="عرض متصفح الكمبيوتر">🖥 كمبيوتر</button>
+        <div class="view-switch chrome-feature" id="viewSwitch" role="group" aria-label="وضع العرض على Chrome">
+          <span class="view-switch-label">Chrome</span>
+          <button type="button" id="mobileViewBtn" class="btn btn-view" title="عرض الجوال على Chrome">📱 جوال</button>
+          <button type="button" id="desktopViewBtn" class="btn btn-view" title="عرض الكمبيوتر على Chrome">🖥 كمبيوتر</button>
         </div>
         <a class="btn btn-ghost desktop-only" href="expenses-desktop.url" download="المصاريف.url" title="اختصار ويندوز">🪟 ويندوز</a>
         <a class="btn btn-ghost desktop-only" href="expenses.desktop" download="المصاريف.desktop" title="اختصار لينكس">🐧 لينكس</a>
@@ -199,7 +201,7 @@
     </section>
 
     <footer class="app-footer">
-      <p>يتم حفظ بياناتك محلياً في متصفحك فقط.</p>
+      <p>يتم حفظ بياناتك محلياً في متصفحك فقط. الأفضل على <strong>Chrome</strong> — ويعمل على باقي المتصفحات.</p>
     </footer>
   </div>
 
