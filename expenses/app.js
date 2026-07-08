@@ -12,6 +12,7 @@
   const dateEl = document.getElementById('date');
   const timeEl = document.getElementById('time');
   const gasFields = document.getElementById('gasFields');
+  const gasCarTypeEl = document.getElementById('gasCarType');
   const gasOdometerEl = document.getElementById('gasOdometer');
   const oilFields = document.getElementById('oilFields');
   const carTypeEl = document.getElementById('carType');
@@ -477,8 +478,13 @@
       let detailsCell = '<span style="color:var(--muted)">—</span>';
       if (isOilExpense(e)) {
         detailsCell = `${escapeHtml(e.carType || '—')}<br><small>${e.odometer ? Number(e.odometer).toLocaleString('ar-EG') + ' كم' : '—'}</small>`;
-      } else if (e.type === 'بنزين' && e.gasOdometer != null) {
-        detailsCell = `<small>${Number(e.gasOdometer).toLocaleString('ar-EG')} كم</small>`;
+      } else if (e.type === 'بنزين') {
+        const parts = [];
+        if (e.carType) parts.push(escapeHtml(e.carType));
+        if (e.gasOdometer != null) {
+          parts.push(`<small>${Number(e.gasOdometer).toLocaleString('ar-EG')} كم</small>`);
+        }
+        if (parts.length) detailsCell = parts.join('<br>');
       }
       return `
         <tr>
@@ -535,10 +541,17 @@
         return;
       }
     }
-    if (isGas && gasOdometerEl.value !== '' && !(parseFloat(gasOdometerEl.value) >= 0)) {
-      showToast('أدخل قراءة العداد بشكل صحيح', 'error');
-      gasOdometerEl.focus();
-      return;
+    if (isGas) {
+      if (!gasCarTypeEl.value) {
+        showToast('اختر نوع السيارة', 'error');
+        gasCarTypeEl.focus();
+        return;
+      }
+      if (gasOdometerEl.value !== '' && !(parseFloat(gasOdometerEl.value) >= 0)) {
+        showToast('أدخل قراءة العداد بشكل صحيح', 'error');
+        gasOdometerEl.focus();
+        return;
+      }
     }
 
     const record = {
@@ -548,7 +561,7 @@
       date: dateEl.value,
       time: timeEl.value,
       isOilChange: isOil,
-      carType: isOil ? carTypeEl.value.trim() : '',
+      carType: isOil ? carTypeEl.value.trim() : (isGas ? gasCarTypeEl.value : ''),
       odometer: isOil ? Number(odometerEl.value) : null,
       gasOdometer: isGas && gasOdometerEl.value !== '' ? Number(gasOdometerEl.value) : null,
       createdAt: new Date().toISOString(),
