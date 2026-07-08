@@ -1,5 +1,5 @@
 /* Service Worker — تطبيق المبيعات (رابط منفصل) */
-const CACHE_NAME = 'mabiat-sales-v12';
+const CACHE_NAME = 'mabiat-sales-v13';
 const APP_SHELL = [
   './',
   './index.html',
