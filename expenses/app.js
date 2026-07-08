@@ -46,6 +46,12 @@
   const viewportMeta = document.getElementById('viewportMeta');
   const browserHint = document.getElementById('browserHint');
   const viewSwitch = document.getElementById('viewSwitch');
+  const optionsBtn = document.getElementById('optionsBtn');
+  const optionsMenu = document.getElementById('optionsMenu');
+  const importBackupMenuBtn = document.getElementById('importBackupMenuBtn');
+  const backupMenuBtn = document.getElementById('backupMenuBtn');
+  const exportMenuBtn = document.getElementById('exportMenuBtn');
+  const clearMenuBtn = document.getElementById('clearMenuBtn');
   const clearBtn = document.getElementById('clearBtn');
   const resetBtn = document.getElementById('resetBtn');
   const toast = document.getElementById('toast');
@@ -162,6 +168,7 @@
   }
 
   function setupBrowserUi() {
+    if (isMobileBrowser()) document.documentElement.classList.add('is-mobile');
     if (isChrome()) {
       document.documentElement.classList.add('is-chrome');
       if (browserHint) browserHint.textContent = 'مُحسَّن لمتصفح Chrome';
@@ -176,8 +183,32 @@
     if (viewportMeta) viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
   }
 
+  function closeOptionsMenu() {
+    if (!optionsMenu || !optionsBtn) return;
+    optionsMenu.hidden = true;
+    optionsBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  function setupOptionsMenu() {
+    if (!optionsBtn || !optionsMenu) return;
+    optionsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = optionsMenu.hidden;
+      optionsMenu.hidden = !open;
+      optionsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', (e) => {
+      if (optionsMenu.hidden) return;
+      if (optionsBtn.contains(e.target) || optionsMenu.contains(e.target)) return;
+      closeOptionsMenu();
+    });
+    if (importBackupMenuBtn) importBackupMenuBtn.addEventListener('click', () => { closeOptionsMenu(); importBackupBtn.click(); });
+    if (backupMenuBtn) backupMenuBtn.addEventListener('click', () => { closeOptionsMenu(); backupBtn.click(); });
+    if (exportMenuBtn) exportMenuBtn.addEventListener('click', () => { closeOptionsMenu(); exportBtn.click(); });
+    if (clearMenuBtn) clearMenuBtn.addEventListener('click', () => { closeOptionsMenu(); clearBtn.click(); });
+  }
+
   function setupViewSwitch() {
-    setupBrowserUi();
     if (!isChrome()) return;
 
     let desktop = false;
@@ -695,6 +726,8 @@
   setDefaults();
   updateTypeFieldsVisibility();
   applyDeviceUi();
+  setupBrowserUi();
+  setupOptionsMenu();
   setupViewSwitch();
   setupInstallPrompt();
   render();

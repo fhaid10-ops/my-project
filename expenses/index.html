@@ -33,30 +33,44 @@
 <body>
   <div class="app">
     <header class="app-header">
-      <div class="brand">
-        <div class="logo">₪</div>
-        <div>
-          <h1>المصاريف اليومية</h1>
-          <p class="subtitle">تتبّع مصاريفك وتذكير تبديل الزيت لسيارتك</p>
-          <p class="browser-hint" id="browserHint" hidden></p>
+      <div class="header-top">
+        <div class="brand">
+          <div class="logo">₪</div>
+          <div>
+            <h1>المصاريف اليومية</h1>
+            <p class="subtitle">تتبّع مصاريفك وتذكير تبديل الزيت لسيارتك</p>
+            <p class="browser-hint" id="browserHint" hidden></p>
+          </div>
+        </div>
+        <div class="options-wrap mobile-only">
+          <button type="button" id="optionsBtn" class="btn btn-ghost btn-icon" aria-label="خيارات" aria-expanded="false">⚙</button>
+          <div id="optionsMenu" class="options-menu" hidden>
+            <button type="button" class="options-item" id="importBackupMenuBtn">استيراد نسخة</button>
+            <button type="button" class="options-item" id="backupMenuBtn">نسخة احتياطية</button>
+            <button type="button" class="options-item" id="exportMenuBtn">تصدير CSV</button>
+            <button type="button" class="options-item danger" id="clearMenuBtn">مسح الكل</button>
+          </div>
         </div>
       </div>
-      <div class="header-actions">
+
+      <div class="header-toolbar">
         <div class="view-switch chrome-feature" id="viewSwitch" role="group" aria-label="وضع العرض على Chrome">
           <span class="view-switch-label">Chrome</span>
           <button type="button" id="mobileViewBtn" class="btn btn-view" title="عرض الجوال على Chrome">📱 جوال</button>
           <button type="button" id="desktopViewBtn" class="btn btn-view" title="عرض الكمبيوتر على Chrome">🖥 كمبيوتر</button>
         </div>
-        <a class="btn btn-ghost desktop-only" href="expenses-desktop.url" download="المصاريف.url" title="اختصار ويندوز">🪟 ويندوز</a>
-        <a class="btn btn-ghost desktop-only" href="expenses.desktop" download="المصاريف.desktop" title="اختصار لينكس">🐧 لينكس</a>
-        <button type="button" id="installHeaderBtn" class="btn btn-primary install-btn mobile-only" hidden>📲 تثبيت التطبيق</button>
-        <button type="button" id="importBackupBtn" class="btn btn-ghost" title="استيراد نسخة احتياطية للمصاريف">استيراد</button>
-        <input type="file" id="importBackupInput" accept=".json,application/json" hidden />
-        <button type="button" id="backupBtn" class="btn btn-ghost" title="حفظ نسخة احتياطية للمصاريف">نسخة احتياطية</button>
-        <button id="exportBtn" class="btn btn-ghost" title="تصدير CSV">تصدير CSV</button>
-        <button id="clearBtn" class="btn btn-danger-ghost" title="مسح كل المصاريف">
-          <span>مسح الكل</span>
-        </button>
+        <div class="header-actions desktop-actions">
+          <a class="btn btn-ghost desktop-only" href="expenses-desktop.url" download="المصاريف.url" title="اختصار ويندوز">🪟 ويندوز</a>
+          <a class="btn btn-ghost desktop-only" href="expenses.desktop" download="المصاريف.desktop" title="اختصار لينكس">🐧 لينكس</a>
+          <button type="button" id="installHeaderBtn" class="btn btn-primary install-btn mobile-only" hidden>📲 تثبيت التطبيق</button>
+          <button type="button" id="importBackupBtn" class="btn btn-ghost" title="استيراد نسخة احتياطية للمصاريف">استيراد</button>
+          <input type="file" id="importBackupInput" accept=".json,application/json" hidden />
+          <button type="button" id="backupBtn" class="btn btn-ghost" title="حفظ نسخة احتياطية للمصاريف">نسخة احتياطية</button>
+          <button id="exportBtn" class="btn btn-ghost" title="تصدير CSV">تصدير CSV</button>
+          <button id="clearBtn" class="btn btn-danger-ghost" title="مسح كل المصاريف">
+            <span>مسح الكل</span>
+          </button>
+        </div>
       </div>
     </header>
 
