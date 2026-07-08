@@ -6,6 +6,19 @@
   <script>
     (function () {
       try { localStorage.removeItem('expenses_desktop_site'); } catch (e) {}
+      var ua = navigator.userAgent || '';
+      var uaMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+      var touch = (navigator.maxTouchPoints > 0)
+        || (window.matchMedia && (matchMedia('(hover: none)').matches || matchMedia('(pointer: coarse)').matches));
+      var narrowScreen = Math.min(screen.width, screen.height) <= 1024;
+      var mobile = uaMobile
+        || (navigator.userAgentData && navigator.userAgentData.mobile)
+        || (touch && narrowScreen);
+      if (mobile) {
+        document.documentElement.classList.add('is-mobile');
+      } else if (window.matchMedia && matchMedia('(pointer:fine)').matches) {
+        document.documentElement.classList.add('is-desktop');
+      }
     })();
   </script>
   <title>المصاريف اليومية</title>
@@ -60,6 +73,11 @@
         </button>
       </div>
     </header>
+
+    <div id="desktopSiteHint" class="desktop-site-hint" hidden>
+      <p>وضع «موقع الكمبيوتر» مفعّل في Chrome — اضغط ⋮ ثم أوقف «موقع الكمبيوتر» لعرض أفضل على الجوال.</p>
+      <button type="button" class="install-dismiss" id="desktopSiteDismiss" aria-label="إخفاء">×</button>
+    </div>
 
     <div id="installBar" class="install-bar">
       <p id="installBarText">ثبّت تطبيق المصاريف كأيقونة على شاشتك للوصول السريع.</p>
