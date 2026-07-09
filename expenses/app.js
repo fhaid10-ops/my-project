@@ -261,12 +261,15 @@
     }
   }
 
+  const SW_VERSION = '14';
+
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
     await cleanupLegacyServiceWorkers();
     try {
-      await navigator.serviceWorker.register('./sw.js');
+      const reg = await navigator.serviceWorker.register(`./sw.js?v=${SW_VERSION}`);
+      reg.update();
     } catch (_) {}
   }
 
