@@ -16,6 +16,8 @@
   const gasOdometerEl = document.getElementById('gasOdometer');
   const distributionFields = document.getElementById('distributionFields');
   const distributionNameEl = document.getElementById('distributionName');
+  const pharmacyFields = document.getElementById('pharmacyFields');
+  const pharmacyItemEl = document.getElementById('pharmacyItem');
   const oilFields = document.getElementById('oilFields');
   const carTypeEl = document.getElementById('carType');
   const odometerEl = document.getElementById('odometer');
@@ -266,7 +268,7 @@
     }
   }
 
-  const SW_VERSION = '17';
+  const SW_VERSION = '18';
 
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
@@ -411,6 +413,7 @@
     gasCarTypeEl.value = e.type === 'بنزين' ? (e.carType || '') : '';
     gasOdometerEl.value = e.gasOdometer != null ? e.gasOdometer : '';
     distributionNameEl.value = e.distributionName || '';
+    pharmacyItemEl.value = e.pharmacyItem || '';
     carTypeEl.value = isOilExpense(e) ? (e.carType || '') : '';
     odometerEl.value = e.odometer != null ? e.odometer : '';
     updateTypeFieldsVisibility();
@@ -446,6 +449,7 @@
     const isOil = typeEl.value === 'زيت السيارة';
     const isGas = typeEl.value === 'بنزين';
     const isDistribution = typeEl.value === 'توزيعات';
+    const isPharmacy = typeEl.value === 'صيدلية';
     return {
       id: existing?.id || uid(),
       amount: Number(parseFloat(amountEl.value).toFixed(2)),
@@ -457,6 +461,7 @@
       odometer: isOil ? Number(odometerEl.value) : null,
       gasOdometer: isGas && gasOdometerEl.value !== '' ? Number(gasOdometerEl.value) : null,
       distributionName: isDistribution ? distributionNameEl.value : '',
+      pharmacyItem: isPharmacy ? pharmacyItemEl.value : '',
       createdAt: existing?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -466,9 +471,11 @@
     const isGas = typeEl.value === 'بنزين';
     const isOil = typeEl.value === 'زيت السيارة';
     const isDistribution = typeEl.value === 'توزيعات';
+    const isPharmacy = typeEl.value === 'صيدلية';
     gasFields.hidden = !isGas;
     oilFields.hidden = !isOil;
     distributionFields.hidden = !isDistribution;
+    pharmacyFields.hidden = !isPharmacy;
     if (isOil) {
       const last = lastOilChange();
       if (last) {
@@ -542,7 +549,7 @@
     const filtered = sorted.filter(e => {
       if (ft && e.type !== ft) return false;
       if (!q) return true;
-      const hay = [e.type, e.carType, e.distributionName, e.notes, e.amount, e.date, e.odometer, e.gasOdometer]
+      const hay = [e.type, e.carType, e.distributionName, e.pharmacyItem, e.notes, e.amount, e.date, e.odometer, e.gasOdometer]
         .filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
@@ -570,6 +577,8 @@
         if (parts.length) detailsCell = parts.join('<br>');
       } else if (e.type === 'توزيعات' && e.distributionName) {
         detailsCell = escapeHtml(e.distributionName);
+      } else if (e.type === 'صيدلية' && e.pharmacyItem) {
+        detailsCell = escapeHtml(e.pharmacyItem);
       }
       return `
         <tr>
@@ -616,6 +625,7 @@
     const isOil = typeEl.value === 'زيت السيارة';
     const isGas = typeEl.value === 'بنزين';
     const isDistribution = typeEl.value === 'توزيعات';
+    const isPharmacy = typeEl.value === 'صيدلية';
     if (isOil) {
       if (!carTypeEl.value.trim()) {
         showToast('أدخل نوع السيارة', 'error');
@@ -644,6 +654,13 @@
       if (!distributionNameEl.value) {
         showToast('اختر الاسم', 'error');
         distributionNameEl.focus();
+        return;
+      }
+    }
+    if (isPharmacy) {
+      if (!pharmacyItemEl.value) {
+        showToast('اختر صنف الصيدلية', 'error');
+        pharmacyItemEl.focus();
         return;
       }
     }
@@ -758,11 +775,11 @@
       showToast('لا توجد بيانات للتصدير');
       return;
     }
-    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)', 'قراءة العداد بنزين (كم)', 'اسم التوزيع'];
+    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)', 'قراءة العداد بنزين (كم)', 'اسم التوزيع', 'صنف الصيدلية'];
     const rows = expenses.map(e => [
       e.date, e.time, e.type, e.amount,
       isOilExpense(e) ? 'نعم' : 'لا',
-      e.carType || '', e.odometer ?? '', e.gasOdometer ?? '', e.distributionName || ''
+      e.carType || '', e.odometer ?? '', e.gasOdometer ?? '', e.distributionName || '', e.pharmacyItem || ''
     ]);
     const csv = [headers, ...rows]
       .map(r => r.map(v => {
