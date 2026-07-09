@@ -1,4 +1,4 @@
-const CACHE = 'expenses-v13';
+const CACHE = 'expenses-v14';
 const ASSETS = [
   './',
   './index.html',
@@ -28,18 +28,17 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+
+  // الشبكة أولاً عند الاتصال — يضمن وصول التحديثات فور نشرها
   e.respondWith(
-    caches.match(req).then((cached) => {
-      const fetchPromise = fetch(req)
-        .then((res) => {
-          if (res && res.status === 200 && res.type === 'basic') {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || fetchPromise;
-    })
+    fetch(req).then((res) => {
+      if (res && res.ok && res.type === 'basic') {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy));
+      }
+      return res;
+    }).catch(() => caches.match(req))
   );
 });
