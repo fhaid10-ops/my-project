@@ -691,6 +691,12 @@ html.is-desktop .desktop-only { display: inline-flex; }
   background: var(--danger-soft);
 }
 
+.icon-btn.edit:hover {
+  color: var(--primary-strong);
+  border-color: #c7d2fe;
+  background: var(--primary-soft);
+}
+
 /* Empty */
 .empty {
   padding: 40px 20px;

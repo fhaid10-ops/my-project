@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="stylesheet" href="styles.css?v=17" />
 </head>
 <body>
   <div class="app">
@@ -93,8 +93,8 @@
     <section class="grid">
       <div class="card form-card">
         <div class="card-header">
-          <h2>إضافة مصروف جديد</h2>
-          <p>عبّي البيانات وسيتم حفظها تلقائياً في جهازك</p>
+          <h2 id="formTitle">إضافة مصروف جديد</h2>
+          <p id="formSubtitle">عبّي البيانات وسيتم حفظها تلقائياً في جهازك</p>
         </div>
 
         <form id="expenseForm" class="form" novalidate>
@@ -190,9 +190,10 @@
           </div>
 
           <div class="form-actions field-full">
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-primary" id="submitBtn">
               <span>حفظ المصروف</span>
             </button>
+            <button type="button" class="btn btn-ghost" id="cancelEditBtn" hidden>إلغاء التعديل</button>
             <button type="reset" class="btn btn-ghost" id="resetBtn">إعادة تعيين</button>
           </div>
         </form>
@@ -202,7 +203,7 @@
         <div class="card-header row">
           <div>
             <h2>سجل المصاريف</h2>
-            <p>كل المصاريف مرتبة من الأحدث للأقدم</p>
+            <p>كل المصاريف مرتبة من الأحدث للأقدم — اضغط <strong>تعديل</strong> لتصحيح أي مصروف</p>
           </div>
           <div class="filters">
             <input type="search" id="searchInput" placeholder="بحث..." />
@@ -249,6 +250,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>

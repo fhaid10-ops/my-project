@@ -51,10 +51,15 @@
   const clearMenuBtn = document.getElementById('clearMenuBtn');
   const clearBtn = document.getElementById('clearBtn');
   const resetBtn = document.getElementById('resetBtn');
+  const cancelEditBtn = document.getElementById('cancelEditBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  const formTitle = document.getElementById('formTitle');
+  const formSubtitle = document.getElementById('formSubtitle');
   const toast = document.getElementById('toast');
 
   let expenses = load();
   let installPromptEvent = null;
+  let editingId = null;
 
   function isSalesBackup(payload) {
     return payload && (Array.isArray(payload.executions) || payload.config && payload.config.employees);
@@ -261,7 +266,7 @@
     }
   }
 
-  const SW_VERSION = '16';
+  const SW_VERSION = '17';
 
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
@@ -386,6 +391,77 @@
     if (!timeEl.value) timeEl.value = nowTime();
   }
 
+  function updateEditUi() {
+    const editing = !!editingId;
+    if (formTitle) formTitle.textContent = editing ? 'تعديل مصروف' : 'إضافة مصروف جديد';
+    if (formSubtitle) {
+      formSubtitle.textContent = editing
+        ? 'عدّل البيانات ثم اضغط حفظ التعديل'
+        : 'عبّي البيانات وسيتم حفظها تلقائياً في جهازك';
+    }
+    if (submitBtn) submitBtn.querySelector('span').textContent = editing ? 'حفظ التعديل' : 'حفظ المصروف';
+    if (cancelEditBtn) cancelEditBtn.hidden = !editing;
+  }
+
+  function fillFormFromExpense(e) {
+    amountEl.value = e.amount ?? '';
+    typeEl.value = e.type || '';
+    dateEl.value = e.date || '';
+    timeEl.value = e.time || '';
+    gasCarTypeEl.value = e.type === 'بنزين' ? (e.carType || '') : '';
+    gasOdometerEl.value = e.gasOdometer != null ? e.gasOdometer : '';
+    distributionNameEl.value = e.distributionName || '';
+    carTypeEl.value = isOilExpense(e) ? (e.carType || '') : '';
+    odometerEl.value = e.odometer != null ? e.odometer : '';
+    updateTypeFieldsVisibility();
+  }
+
+  function clearForm() {
+    form.reset();
+    editingId = null;
+    updateTypeFieldsVisibility();
+    setDefaults();
+    updateEditUi();
+  }
+
+  function startEdit(id) {
+    const item = expenses.find(e => e.id === id);
+    if (!item) {
+      showToast('المصروف غير موجود', 'error');
+      return;
+    }
+    editingId = id;
+    fillFormFromExpense(item);
+    updateEditUi();
+    document.querySelector('.form-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    amountEl.focus();
+  }
+
+  function cancelEdit() {
+    clearForm();
+    showToast('تم إلغاء التعديل');
+  }
+
+  function buildExpenseRecord(existing) {
+    const isOil = typeEl.value === 'زيت السيارة';
+    const isGas = typeEl.value === 'بنزين';
+    const isDistribution = typeEl.value === 'توزيعات';
+    return {
+      id: existing?.id || uid(),
+      amount: Number(parseFloat(amountEl.value).toFixed(2)),
+      type: typeEl.value,
+      date: dateEl.value,
+      time: timeEl.value,
+      isOilChange: isOil,
+      carType: isOil ? carTypeEl.value.trim() : (isGas ? gasCarTypeEl.value : ''),
+      odometer: isOil ? Number(odometerEl.value) : null,
+      gasOdometer: isGas && gasOdometerEl.value !== '' ? Number(gasOdometerEl.value) : null,
+      distributionName: isDistribution ? distributionNameEl.value : '',
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
   function updateTypeFieldsVisibility() {
     const isGas = typeEl.value === 'بنزين';
     const isOil = typeEl.value === 'زيت السيارة';
@@ -504,6 +580,7 @@
           <td class="oil-cell">${detailsCell}</td>
           <td>
             <div class="row-actions">
+              <button class="icon-btn edit" data-action="edit" data-id="${escapeAttr(e.id)}" title="تعديل">تعديل</button>
               <button class="icon-btn" data-action="delete" data-id="${escapeAttr(e.id)}" title="حذف">حذف</button>
             </div>
           </td>
@@ -571,33 +648,39 @@
       }
     }
 
-    const record = {
-      id: uid(),
-      amount: Number(amount.toFixed(2)),
-      type: typeEl.value,
-      date: dateEl.value,
-      time: timeEl.value,
-      isOilChange: isOil,
-      carType: isOil ? carTypeEl.value.trim() : (isGas ? gasCarTypeEl.value : ''),
-      odometer: isOil ? Number(odometerEl.value) : null,
-      gasOdometer: isGas && gasOdometerEl.value !== '' ? Number(gasOdometerEl.value) : null,
-      distributionName: isDistribution ? distributionNameEl.value : '',
-      createdAt: new Date().toISOString(),
-    };
+    const record = buildExpenseRecord(editingId ? expenses.find(e => e.id === editingId) : null);
+
+    if (editingId) {
+      const idx = expenses.findIndex(e => e.id === editingId);
+      if (idx === -1) {
+        showToast('المصروف غير موجود', 'error');
+        cancelEdit();
+        return;
+      }
+      expenses[idx] = record;
+      save();
+      render();
+      showToast('تم تعديل المصروف بنجاح', 'success');
+      clearForm();
+      return;
+    }
 
     expenses.push(record);
     save();
     render();
     showToast('تم حفظ المصروف بنجاح', 'success');
-
-    form.reset();
-    updateTypeFieldsVisibility();
-    setDefaults();
+    clearForm();
     amountEl.focus();
   });
 
+  if (cancelEditBtn) cancelEditBtn.addEventListener('click', cancelEdit);
+
   resetBtn.addEventListener('click', () => {
     setTimeout(() => {
+      if (editingId) {
+        editingId = null;
+        updateEditUi();
+      }
       updateTypeFieldsVisibility();
       setDefaults();
     }, 0);
@@ -606,17 +689,27 @@
   typeEl.addEventListener('change', updateTypeFieldsVisibility);
 
   tbody.addEventListener('click', (ev) => {
-    const btn = ev.target.closest('button[data-action="delete"]');
+    const btn = ev.target.closest('button[data-action]');
     if (!btn) return;
     const id = btn.getAttribute('data-id');
+    const action = btn.getAttribute('data-action');
     const item = expenses.find(e => e.id === id);
     if (!item) return;
-    const confirmMsg = `هل تريد حذف مصروف بقيمة ${formatMoney(item.amount)} ريال؟`;
-    if (!confirm(confirmMsg)) return;
-    expenses = expenses.filter(e => e.id !== id);
-    save();
-    render();
-    showToast('تم حذف المصروف');
+
+    if (action === 'edit') {
+      startEdit(id);
+      return;
+    }
+
+    if (action === 'delete') {
+      const confirmMsg = `هل تريد حذف مصروف بقيمة ${formatMoney(item.amount)} ريال؟`;
+      if (!confirm(confirmMsg)) return;
+      if (editingId === id) clearForm();
+      expenses = expenses.filter(e => e.id !== id);
+      save();
+      render();
+      showToast('تم حذف المصروف');
+    }
   });
 
   searchInput.addEventListener('input', render);
@@ -691,6 +784,7 @@
 
   setDefaults();
   updateTypeFieldsVisibility();
+  updateEditUi();
   setupBrowserUi();
   setupOptionsMenu();
   setupInstallPrompt();
