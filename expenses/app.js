@@ -14,6 +14,8 @@
   const gasFields = document.getElementById('gasFields');
   const gasCarTypeEl = document.getElementById('gasCarType');
   const gasOdometerEl = document.getElementById('gasOdometer');
+  const distributionFields = document.getElementById('distributionFields');
+  const distributionNameEl = document.getElementById('distributionName');
   const oilFields = document.getElementById('oilFields');
   const carTypeEl = document.getElementById('carType');
   const odometerEl = document.getElementById('odometer');
@@ -384,8 +386,10 @@
   function updateTypeFieldsVisibility() {
     const isGas = typeEl.value === 'بنزين';
     const isOil = typeEl.value === 'زيت السيارة';
+    const isDistribution = typeEl.value === 'توزيعات';
     gasFields.hidden = !isGas;
     oilFields.hidden = !isOil;
+    distributionFields.hidden = !isDistribution;
     if (isOil) {
       const last = lastOilChange();
       if (last) {
@@ -459,7 +463,7 @@
     const filtered = sorted.filter(e => {
       if (ft && e.type !== ft) return false;
       if (!q) return true;
-      const hay = [e.type, e.carType, e.notes, e.amount, e.date, e.odometer, e.gasOdometer]
+      const hay = [e.type, e.carType, e.distributionName, e.notes, e.amount, e.date, e.odometer, e.gasOdometer]
         .filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
@@ -485,6 +489,8 @@
           parts.push(`<small>${Number(e.gasOdometer).toLocaleString('ar-EG')} كم</small>`);
         }
         if (parts.length) detailsCell = parts.join('<br>');
+      } else if (e.type === 'توزيعات' && e.distributionName) {
+        detailsCell = escapeHtml(e.distributionName);
       }
       return `
         <tr>
@@ -529,6 +535,7 @@
 
     const isOil = typeEl.value === 'زيت السيارة';
     const isGas = typeEl.value === 'بنزين';
+    const isDistribution = typeEl.value === 'توزيعات';
     if (isOil) {
       if (!carTypeEl.value.trim()) {
         showToast('أدخل نوع السيارة', 'error');
@@ -553,6 +560,13 @@
         return;
       }
     }
+    if (isDistribution) {
+      if (!distributionNameEl.value) {
+        showToast('اختر الاسم', 'error');
+        distributionNameEl.focus();
+        return;
+      }
+    }
 
     const record = {
       id: uid(),
@@ -564,6 +578,7 @@
       carType: isOil ? carTypeEl.value.trim() : (isGas ? gasCarTypeEl.value : ''),
       odometer: isOil ? Number(odometerEl.value) : null,
       gasOdometer: isGas && gasOdometerEl.value !== '' ? Number(gasOdometerEl.value) : null,
+      distributionName: isDistribution ? distributionNameEl.value : '',
       createdAt: new Date().toISOString(),
     };
 
@@ -647,11 +662,11 @@
       showToast('لا توجد بيانات للتصدير');
       return;
     }
-    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)', 'قراءة العداد بنزين (كم)'];
+    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)', 'قراءة العداد بنزين (كم)', 'اسم التوزيع'];
     const rows = expenses.map(e => [
       e.date, e.time, e.type, e.amount,
       isOilExpense(e) ? 'نعم' : 'لا',
-      e.carType || '', e.odometer ?? '', e.gasOdometer ?? ''
+      e.carType || '', e.odometer ?? '', e.gasOdometer ?? '', e.distributionName || ''
     ]);
     const csv = [headers, ...rows]
       .map(r => r.map(v => {
