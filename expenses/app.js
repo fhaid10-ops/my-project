@@ -472,7 +472,6 @@
     const isOil = typeEl.value === 'زيت السيارة';
     const isDistribution = typeEl.value === 'توزيعات';
     const isPharmacy = typeEl.value === 'صيدلية';
-    const isPharmacy = typeEl.value === 'صيدلية';
     gasFields.hidden = !isGas;
     oilFields.hidden = !isOil;
     distributionFields.hidden = !isDistribution;
@@ -658,6 +657,13 @@
         return;
       }
     }
+    if (isPharmacy) {
+      if (!pharmacyItemEl.value) {
+        showToast('اختر صنف الصيدلية', 'error');
+        pharmacyItemEl.focus();
+        return;
+      }
+    }
 
     const record = buildExpenseRecord(editingId ? expenses.find(e => e.id === editingId) : null);
 
@@ -769,11 +775,11 @@
       showToast('لا توجد بيانات للتصدير');
       return;
     }
-    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)', 'قراءة العداد بنزين (كم)', 'اسم التوزيع'];
+    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)', 'قراءة العداد بنزين (كم)', 'اسم التوزيع', 'صنف الصيدلية'];
     const rows = expenses.map(e => [
       e.date, e.time, e.type, e.amount,
       isOilExpense(e) ? 'نعم' : 'لا',
-      e.carType || '', e.odometer ?? '', e.gasOdometer ?? '', e.distributionName || ''
+      e.carType || '', e.odometer ?? '', e.gasOdometer ?? '', e.distributionName || '', e.pharmacyItem || ''
     ]);
     const csv = [headers, ...rows]
       .map(r => r.map(v => {
