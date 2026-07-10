@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20" />
+  <link rel="stylesheet" href="styles.css?v=21" />
 </head>
 <body>
   <div class="app">
@@ -126,16 +126,6 @@
             </select>
           </div>
 
-          <div class="field">
-            <label for="date">التاريخ</label>
-            <input type="date" id="date" name="date" required />
-          </div>
-
-          <div class="field">
-            <label for="time">الساعة</label>
-            <input type="time" id="time" name="time" required />
-          </div>
-
           <div id="gasFields" class="oil-fields" hidden>
             <div class="field">
               <label for="gasCarType">نوع السيارة</label>
@@ -187,7 +177,7 @@
 
           <div id="roasteryFields" class="oil-fields" hidden>
             <div class="field field-full">
-              <label for="roasteryItem">الصنف</label>
+              <label for="roasteryItem">صنف المحمصة</label>
               <select id="roasteryItem" name="roasteryItem">
                 <option value="">اختر الصنف</option>
                 <option value="هيل">هيل</option>
@@ -216,6 +206,16 @@
             <div class="field field-full oil-hint">
               <span id="lastOilInfo" class="last-oil"></span>
             </div>
+          </div>
+
+          <div class="field">
+            <label for="date">التاريخ</label>
+            <input type="date" id="date" name="date" required />
+          </div>
+
+          <div class="field">
+            <label for="time">الساعة</label>
+            <input type="time" id="time" name="time" required />
           </div>
 
           <div class="form-actions field-full">
@@ -279,6 +279,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=18"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>
