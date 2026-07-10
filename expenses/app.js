@@ -270,7 +270,7 @@
     }
   }
 
-  const SW_VERSION = '20';
+  const SW_VERSION = '21';
 
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
@@ -492,6 +492,17 @@
         lastOilInfo.textContent = 'لا يوجد سجل سابق لتبديل الزيت';
         lastOilInfo.classList.add('warn');
       }
+    }
+    const activePanel = isGas ? gasFields
+      : isOil ? oilFields
+      : isDistribution ? distributionFields
+      : isPharmacy ? pharmacyFields
+      : isRoastery ? roasteryFields
+      : null;
+    if (activePanel && !activePanel.hidden) {
+      requestAnimationFrame(() => {
+        activePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
     }
   }
 
