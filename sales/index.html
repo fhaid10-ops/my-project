@@ -2,16 +2,23 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta id="viewportMeta" name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <script>
     (function(){
-      try{
-        if(localStorage.getItem('mabiat_desktop_site')==='1'){
-          var m=document.getElementById('viewportMeta')||document.querySelector('meta[name=viewport]');
-          if(m)m.setAttribute('content','width=1280');
-          document.documentElement.classList.add('desktop-site');
-        }
-      }catch(e){}
+      try{localStorage.removeItem('mabiat_desktop_site');}catch(e){}
+      var ua=navigator.userAgent||'';
+      var uaMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+      var touch=(navigator.maxTouchPoints>0)
+        ||(window.matchMedia&&(matchMedia('(hover: none)').matches||matchMedia('(pointer: coarse)').matches));
+      var narrowScreen=Math.min(screen.width,screen.height)<=1024;
+      var mobile=uaMobile
+        ||(navigator.userAgentData&&navigator.userAgentData.mobile)
+        ||(touch&&narrowScreen);
+      if(mobile){
+        document.documentElement.classList.add('is-mobile');
+      }else if(window.matchMedia&&matchMedia('(pointer:fine)').matches){
+        document.documentElement.classList.add('is-desktop');
+      }
     })();
   </script>
   <meta name="theme-color" content="#00a884">
@@ -141,12 +148,28 @@
     .options-action{width:100%;text-align:right;background:transparent;border:none;color:#e9edef;padding:.85rem 1rem;font-size:.92rem;cursor:pointer;font-family:inherit}
     .options-action:hover{background:#1a242b}
     .btn-install-app{background:#00a884;color:#fff;font-weight:600;padding:.6rem 1rem;border-radius:999px;font-size:.9rem;display:inline-flex;align-items:center;gap:.4rem}
+    .desktop-site-hint{display:none;align-items:center;gap:.75rem;background:#3a2818;border:1px solid #c2410c;border-radius:12px;padding:.85rem 1rem;margin-bottom:1rem}
+    .desktop-site-hint.show{display:flex}
+    .desktop-site-hint p{flex:1;margin:0;font-size:.85rem;color:#fdba74;font-weight:600;line-height:1.5}
     .desktop-only{display:none}
     html.is-desktop .desktop-only{display:block}
     html.is-desktop .mobile-only{display:none}
-    html.desktop-site body{min-width:1280px}
-    html.desktop-site .page{max-width:1180px}
-    @media (min-width:520px){.cards{grid-template-columns:repeat(3,1fr)}.target-banner{grid-template-columns:repeat(3,1fr)}}
+    html.is-mobile .desktop-only{display:none!important}
+    html.is-mobile .mobile-only{display:block}
+    html.is-mobile .btn-install-app.mobile-only{display:inline-flex}
+    @media (min-width:520px) and (hover:hover) and (pointer:fine){
+      .cards{grid-template-columns:repeat(3,1fr)}
+      .target-banner{grid-template-columns:repeat(3,1fr)}
+    }
+    @media (hover:none),(pointer:coarse){
+      .desktop-only{display:none!important}
+      .mobile-only{display:block}
+      .btn-install-app.mobile-only{display:inline-flex}
+      .cards,.target-banner{grid-template-columns:1fr!important}
+      .filters,.btn-row{grid-template-columns:1fr}
+      .page{padding:1rem .85rem 2.5rem}
+      header h1{font-size:1.45rem}
+    }
   </style>
 </head>
 <body>
@@ -160,10 +183,6 @@
           <a class="options-action desktop-only" href="mabiat-desktop.url" download="مبيعات.url" style="text-decoration:none;display:block">🪟 اختصار ويندوز</a>
           <a class="options-action desktop-only" href="mabiat.desktop" download="مبيعات.desktop" style="text-decoration:none;display:block">🐧 اختصار لينكس</a>
           <div class="options-divider desktop-only"></div>
-          <label class="options-item" for="desktopSiteToggle">
-            <span class="options-item-text"><span aria-hidden="true">🖥</span><span>موقع مصمّم للكمبيوتر</span></span>
-            <input type="checkbox" id="desktopSiteToggle">
-          </label>
         </div>
       </div>
     </div>
@@ -176,6 +195,11 @@
         <button type="button" id="shareImageBtn" class="btn-share-image">↗ مشاركة التقرير</button>
       </div>
     </header>
+
+    <div id="desktopSiteHint" class="desktop-site-hint" hidden>
+      <p>وضع «موقع الكمبيوتر» مفعّل في Chrome — اضغط ⋮ ثم أوقف «موقع الكمبيوتر» لعرض أفضل على الجوال.</p>
+      <button type="button" class="dismiss" id="desktopSiteDismiss" aria-label="إخفاء">×</button>
+    </div>
 
     <div id="installBar" class="install-bar" role="region" aria-label="تثبيت التطبيق">
       <p id="installBarText">ثبّت التطبيق كأيقونة على شاشة جوالك للوصول السريع.</p>
@@ -320,7 +344,7 @@
 
   <script>
 const STORAGE_KEY = 'mabiat_sales_v1';
-const DESKTOP_SITE_KEY = 'mabiat_desktop_site';
+const DESKTOP_HINT_KEY = 'mabiat_desktop_site_hint_dismissed';
 const DEFAULT_CONFIG = { branchTarget: 2750000, month: '', employees: [
   { id: 'majed', name: 'ماجد' }, { id: 'abdulrahman', name: 'عبدالرحمن' }, { id: 'faiz', name: 'فايز' }
 ]};
@@ -428,37 +452,16 @@ async function shareReportImage(){
 }
 function renderStats(){const month=document.getElementById('monthInput').value;const date=document.getElementById('dateInput').value;const stats=buildStats(loadData(),month,date);updateReportDateLabel();document.getElementById('totalDailyAmount').textContent=formatMoney(stats.totals.dailyAmount);document.getElementById('totalDailyContracts').textContent=stats.totals.dailyContracts;document.getElementById('totalMonthlyAmount').textContent=formatMoney(stats.totals.monthlyAmount);document.getElementById('branchTarget').textContent=formatMoney(stats.branchTarget);document.getElementById('employeeTarget').textContent=formatMoney(stats.employeeTarget);const bp=stats.branchTarget?Math.round(stats.totals.monthlyAmount/stats.branchTarget*1000)/10:0;document.getElementById('branchProgress').textContent=formatMoney(stats.totals.monthlyAmount)+' ('+bp+'%)';document.querySelector('#employeeTable tbody').innerHTML=stats.employees.map(function(e){return'<tr><td><strong>'+escapeHtml(e.name)+'</strong></td><td>'+e.dailyContracts+'</td><td>'+formatMoney(e.dailyAmount)+'</td><td>'+e.monthlyContracts+'</td><td>'+formatMoney(e.monthlyAmount)+'</td><td><span class="progress-pill">'+e.progressPercent+'%</span></td></tr>';}).join('')||'<tr><td colspan="6" class="empty-cell">لا توجد بيانات</td></tr>';document.querySelector('#dailyTable tbody').innerHTML=stats.dailyBreakdown.map(function(day){const cells=['majed','abdulrahman','faiz'].map(function(id){const info=day.byEmployee[id];return info?'<td>'+info.contracts+' / '+formatMoney(info.amount)+'</td>':'<td>—</td>';}).join('');return'<tr><td>'+formatDateKey(day.date)+'</td>'+cells+'<td>'+day.contracts+'</td><td>'+formatMoney(day.amount)+'</td></tr>';}).join('')||'<tr><td colspan="6" class="empty-cell">لا توجد تنفيذات</td></tr>';const recent=document.getElementById('recentList');if(!stats.recent.length){recent.innerHTML='<p class="empty">لا توجد تنفيذات بعد</p>';return;}recent.innerHTML=stats.recent.map(function(i){return'<article class="contact"><div class="contact-top"><strong>'+escapeHtml(i.employeeName)+'</strong><span class="badge">'+formatMoney(i.amount)+'</span></div><div class="phone">طلب: '+escapeHtml(i.orderNumber)+'</div><div class="date">تاريخ التنفيذ: '+formatDateKey(i.executionDate)+'</div><div class="contact-actions"><button type="button" class="btn-edit" data-action="edit" data-id="'+escapeHtml(i.id)+'">تعديل</button><button type="button" class="btn-delete" data-action="delete" data-id="'+escapeHtml(i.id)+'">حذف</button></div></article>';}).join('');}
 function handleSave(ev){if(ev)ev.preventDefault();const msg=document.getElementById('formMessage');msg.textContent='';msg.className='form-hint';const empId=document.getElementById('employeeSelect').value;if(!empId){msg.textContent=ERROR_MESSAGES.employee_not_found;msg.className='form-hint error';showToast(ERROR_MESSAGES.employee_not_found,'error');return;}const result=addExecution(loadData(),{employeeId:empId,orderNumber:document.getElementById('orderNumber').value.trim(),amount:document.getElementById('amount').value,executionDate:document.getElementById('executionDate').value});if(result.error){msg.textContent=ERROR_MESSAGES[result.error]||result.error;msg.className='form-hint error';showToast(msg.textContent,'error');return;}const s=result.execution;syncFiltersToDate(s.executionDate);msg.textContent='تم الحفظ — '+s.employeeName+' — طلب '+s.orderNumber+' — '+formatMoney(s.amount);msg.className='form-hint success';showToast('تم إضافة العقد بنجاح ✓  '+formatMoney(s.amount)+' — يمكنك مشاركة التقرير من الزر أعلى الصفحة','success');document.getElementById('orderNumber').value='';document.getElementById('amount').value='';renderStats();document.getElementById('statsSection').scrollIntoView({behavior:'smooth',block:'start'});}
-function setDesktopSite(enabled){
-  const meta=document.getElementById('viewportMeta');
-  const toggle=document.getElementById('desktopSiteToggle');
-  if(enabled){
-    if(meta)meta.setAttribute('content','width=1280');
-    document.documentElement.classList.add('desktop-site');
-  }else{
-    if(meta)meta.setAttribute('content','width=device-width, initial-scale=1.0, viewport-fit=cover');
-    document.documentElement.classList.remove('desktop-site');
-  }
-  if(toggle)toggle.checked=!!enabled;
-  try{localStorage.setItem(DESKTOP_SITE_KEY,enabled?'1':'0');}catch(e){}
-  showToast(enabled?'تم تفعيل عرض سطح المكتب':'تم إرجاع عرض الجوال','success');
-}
 function setupOptionsMenu(){
   const btn=document.getElementById('optionsBtn');
   const menu=document.getElementById('optionsMenu');
-  const toggle=document.getElementById('desktopSiteToggle');
   const installMenuBtn=document.getElementById('installAppMenuBtn');
-  if(!btn||!menu||!toggle)return;
-  let desktop=false;
-  try{desktop=localStorage.getItem(DESKTOP_SITE_KEY)==='1';}catch(e){}
-  toggle.checked=desktop;
+  if(!btn||!menu)return;
   btn.addEventListener('click',function(e){
     e.stopPropagation();
     const open=!menu.hidden;
     menu.hidden=open;
     btn.setAttribute('aria-expanded',open?'false':'true');
-  });
-  toggle.addEventListener('change',function(){
-    setDesktopSite(toggle.checked);
   });
   if(installMenuBtn){
     installMenuBtn.addEventListener('click',function(){
@@ -478,20 +481,51 @@ let installPromptEvent=null;
 function isAppInstalled(){
   return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||(window.navigator&&window.navigator.standalone);
 }
+function isTouchDevice(){
+  return (navigator.maxTouchPoints>0)
+    ||(window.matchMedia&&(window.matchMedia('(hover: none)').matches||window.matchMedia('(pointer: coarse)').matches));
+}
+function isChrome(){
+  const ua=navigator.userAgent||'';
+  return (/Chrome|CriOS/i.test(ua))&&!/Edg|OPR|SamsungBrowser|Firefox|FxiOS/i.test(ua);
+}
 function isDesktopBrowser(){
-  return window.matchMedia&&window.matchMedia('(pointer:fine)').matches&&!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(isMobileBrowser())return false;
+  return window.matchMedia&&window.matchMedia('(pointer:fine)').matches;
 }
 function isMobileBrowser(){
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(window.matchMedia&&window.matchMedia('(max-width: 768px)').matches);
+  const ua=navigator.userAgent||'';
+  if(/Android|iPhone|iPad|iPod|Mobile/i.test(ua))return true;
+  if(navigator.userAgentData&&navigator.userAgentData.mobile)return true;
+  if(isTouchDevice()&&Math.min(screen.width,screen.height)<=1024)return true;
+  return false;
 }
-function isIOS(){
-  return /iPad|iPhone|iPod/i.test(navigator.userAgent)&&!window.MSStream;
-}
-function isAndroid(){
-  return /Android/i.test(navigator.userAgent);
+function isChromeDesktopSiteOnPhone(){
+  if(!isTouchDevice())return false;
+  const desktopUa=!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
+  const phoneScreen=Math.min(screen.width,screen.height)<=900;
+  const wideViewport=window.innerWidth>768;
+  return desktopUa&&phoneScreen&&wideViewport&&isChrome();
 }
 function applyDeviceUi(){
-  if(isDesktopBrowser())document.documentElement.classList.add('is-desktop');
+  const root=document.documentElement;
+  root.classList.remove('is-mobile','is-desktop','desktop-site');
+  if(isMobileBrowser())root.classList.add('is-mobile');
+  else if(isDesktopBrowser())root.classList.add('is-desktop');
+  try{localStorage.removeItem('mabiat_desktop_site');}catch(e){}
+  const hint=document.getElementById('desktopSiteHint');
+  const dismiss=document.getElementById('desktopSiteDismiss');
+  if(hint&&isChromeDesktopSiteOnPhone()&&localStorage.getItem(DESKTOP_HINT_KEY)!=='1'){
+    hint.hidden=false;
+    hint.classList.add('show');
+  }
+  if(dismiss&&hint){
+    dismiss.addEventListener('click',function(){
+      hint.hidden=true;
+      hint.classList.remove('show');
+      try{localStorage.setItem(DESKTOP_HINT_KEY,'1');}catch(e){}
+    });
+  }
 }
 function updateInstallUi(){
   const headerBtn=document.getElementById('installHeaderBtn');
@@ -515,12 +549,19 @@ function updateInstallUi(){
     if(menuDivider)menuDivider.style.display='none';
   }
 }
+function isIOS(){
+  const ua=navigator.userAgent||'';
+  return (/iPad|iPhone|iPod/i.test(ua)||(isTouchDevice()&&/Macintosh/i.test(ua)))&&!window.MSStream;
+}
+function isAndroid(){
+  return /Android/i.test(navigator.userAgent)||(isMobileBrowser()&&isTouchDevice()&&!isIOS());
+}
 function getInstallHelpText(){
   if(isIOS()){
     return 'من سفاري: اضغط زر المشاركة ⬆︎ ثم "إضافة إلى الشاشة الرئيسية".';
   }
-  if(isAndroid()){
-    return 'من Chrome: اضغط ⋮ ثم "إضافة إلى الشاشة الرئيسية" أو "تثبيت التطبيق".';
+  if(isMobileBrowser()||isTouchDevice()){
+    return 'من Chrome: اضغط ⋮ وأوقف «موقع الكمبيوتر» إن وُجد، ثم «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».';
   }
   if(isDesktopBrowser()){
     return 'من Chrome أو Edge: اضغط ⋮ ثم "تثبيت مبيعات".';
