@@ -216,6 +216,79 @@ public final class CallUiHelper {
                 formatClock(timestamp));
     }
 
+    public static String formatDateShort(long timestamp) {
+        if (timestamp <= 0) return "—";
+        Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(timestamp);
+        return String.format(Locale.getDefault(), "%02d/%02d/%d",
+                c.get(Calendar.DAY_OF_MONTH),
+                c.get(Calendar.MONTH) + 1,
+                c.get(Calendar.YEAR));
+    }
+
+    public static long startOfDay(long millis) {
+        Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(millis);
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
+
+    public static long endOfDay(long millis) {
+        Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(millis);
+        c.set(Calendar.HOUR_OF_DAY, 23);
+        c.set(Calendar.MINUTE, 59);
+        c.set(Calendar.SECOND, 59);
+        c.set(Calendar.MILLISECOND, 999);
+        return c.getTimeInMillis();
+    }
+
+    public static long startOfToday() {
+        return startOfDay(System.currentTimeMillis());
+    }
+
+    public static long endOfToday() {
+        return endOfDay(System.currentTimeMillis());
+    }
+
+    public static long startOfDaysAgo(int daysAgo) {
+        Calendar c = Calendar.getInstance();
+        c.add(Calendar.DAY_OF_YEAR, -daysAgo);
+        return startOfDay(c.getTimeInMillis());
+    }
+
+    public static long endOfDaysAgo(int daysAgo) {
+        Calendar c = Calendar.getInstance();
+        c.add(Calendar.DAY_OF_YEAR, -daysAgo);
+        return endOfDay(c.getTimeInMillis());
+    }
+
+    public static TextView makeFilterChip(Context context, String label, boolean selected) {
+        TextView chip = new TextView(context);
+        chip.setText(label);
+        chip.setTextSize(12f);
+        chip.setTypeface(null, Typeface.BOLD);
+        chip.setGravity(Gravity.CENTER);
+        int hPad = dp(context, 10);
+        int vPad = dp(context, 6);
+        chip.setPadding(hPad, vPad, hPad, vPad);
+        int fill = selected ? TEXT_PRIMARY : CARD_BG;
+        int fg = selected ? Color.WHITE : TEXT_PRIMARY;
+        int stroke = selected ? TEXT_PRIMARY : BORDER_MEDIUM;
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(context, 14));
+        bg.setColor(fill);
+        bg.setStroke(dp(context, 1), stroke);
+        chip.setBackground(bg);
+        chip.setTextColor(fg);
+        chip.setClickable(true);
+        chip.setFocusable(true);
+        return chip;
+    }
+
     private static String formatClock(long timestamp) {
         Calendar c = Calendar.getInstance();
         c.setTimeInMillis(timestamp);
