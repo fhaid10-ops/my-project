@@ -270,7 +270,7 @@
     }
   }
 
-  const SW_VERSION = '24';
+  const SW_VERSION = '26';
 
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
@@ -390,9 +390,17 @@
     showToast._t = setTimeout(() => { toast.hidden = true; }, 2200);
   }
 
+  function refreshNowDateTime() {
+    dateEl.value = todayISO();
+    timeEl.value = nowTime();
+  }
+
   function setDefaults() {
-    if (!dateEl.value) dateEl.value = todayISO();
-    if (!timeEl.value) timeEl.value = nowTime();
+    if (!editingId) refreshNowDateTime();
+    else {
+      if (!dateEl.value) dateEl.value = todayISO();
+      if (!timeEl.value) timeEl.value = nowTime();
+    }
   }
 
   function updateEditUi() {
@@ -426,7 +434,7 @@
     form.reset();
     editingId = null;
     updateTypeFieldsVisibility();
-    setDefaults();
+    refreshNowDateTime();
     updateEditUi();
   }
 
@@ -727,8 +735,14 @@
         updateEditUi();
       }
       updateTypeFieldsVisibility();
-      setDefaults();
+      refreshNowDateTime();
     }, 0);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !editingId) {
+      refreshNowDateTime();
+    }
   });
 
   typeEl.addEventListener('change', updateTypeFieldsVisibility);
