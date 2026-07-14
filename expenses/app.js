@@ -390,9 +390,17 @@
     showToast._t = setTimeout(() => { toast.hidden = true; }, 2200);
   }
 
+  function refreshNowDateTime() {
+    dateEl.value = todayISO();
+    timeEl.value = nowTime();
+  }
+
   function setDefaults() {
-    if (!dateEl.value) dateEl.value = todayISO();
-    if (!timeEl.value) timeEl.value = nowTime();
+    if (!editingId) refreshNowDateTime();
+    else {
+      if (!dateEl.value) dateEl.value = todayISO();
+      if (!timeEl.value) timeEl.value = nowTime();
+    }
   }
 
   function updateEditUi() {
