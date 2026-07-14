@@ -270,7 +270,7 @@
     }
   }
 
-  const SW_VERSION = '24';
+  const SW_VERSION = '26';
 
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
@@ -434,7 +434,7 @@
     form.reset();
     editingId = null;
     updateTypeFieldsVisibility();
-    setDefaults();
+    refreshNowDateTime();
     updateEditUi();
   }
 
@@ -735,8 +735,14 @@
         updateEditUi();
       }
       updateTypeFieldsVisibility();
-      setDefaults();
+      refreshNowDateTime();
     }, 0);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !editingId) {
+      refreshNowDateTime();
+    }
   });
 
   typeEl.addEventListener('change', updateTypeFieldsVisibility);
