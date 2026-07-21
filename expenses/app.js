@@ -20,6 +20,8 @@
   const pharmacyItemEl = document.getElementById('pharmacyItem');
   const roasteryFields = document.getElementById('roasteryFields');
   const roasteryItemEl = document.getElementById('roasteryItem');
+  const otherFields = document.getElementById('otherFields');
+  const otherNoteEl = document.getElementById('otherNote');
   const oilFields = document.getElementById('oilFields');
   const carTypeEl = document.getElementById('carType');
   const odometerEl = document.getElementById('odometer');
@@ -270,7 +272,7 @@
     }
   }
 
-  const SW_VERSION = '28';
+  const SW_VERSION = '29';
 
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
@@ -425,6 +427,7 @@
     distributionNameEl.value = e.distributionName || '';
     pharmacyItemEl.value = e.pharmacyItem || '';
     roasteryItemEl.value = e.roasteryItem || '';
+    otherNoteEl.value = e.type === 'أخرى' ? (e.notes || '') : '';
     carTypeEl.value = isOilExpense(e) ? (e.carType || '') : '';
     odometerEl.value = e.odometer != null ? e.odometer : '';
     updateTypeFieldsVisibility();
@@ -462,6 +465,7 @@
     const isDistribution = typeEl.value === 'توزيعات';
     const isPharmacy = typeEl.value === 'صيدلية';
     const isRoastery = typeEl.value === 'محمصة';
+    const isOther = typeEl.value === 'أخرى';
     return {
       id: existing?.id || uid(),
       amount: Number(parseFloat(amountEl.value).toFixed(2)),
@@ -475,6 +479,7 @@
       distributionName: isDistribution ? distributionNameEl.value : '',
       pharmacyItem: isPharmacy ? pharmacyItemEl.value : '',
       roasteryItem: isRoastery ? roasteryItemEl.value : '',
+      notes: isOther ? otherNoteEl.value.trim() : '',
       createdAt: existing?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -486,11 +491,13 @@
     const isDistribution = typeEl.value === 'توزيعات';
     const isPharmacy = typeEl.value === 'صيدلية';
     const isRoastery = typeEl.value === 'محمصة';
+    const isOther = typeEl.value === 'أخرى';
     gasFields.hidden = !isGas;
     oilFields.hidden = !isOil;
     distributionFields.hidden = !isDistribution;
     pharmacyFields.hidden = !isPharmacy;
     roasteryFields.hidden = !isRoastery;
+    otherFields.hidden = !isOther;
     if (isOil) {
       const last = lastOilChange();
       if (last) {
@@ -506,6 +513,7 @@
       : isDistribution ? distributionFields
       : isPharmacy ? pharmacyFields
       : isRoastery ? roasteryFields
+      : isOther ? otherFields
       : null;
     if (activePanel && !activePanel.hidden) {
       requestAnimationFrame(() => {
@@ -607,6 +615,8 @@
         detailsCell = escapeHtml(e.pharmacyItem);
       } else if (e.type === 'محمصة' && e.roasteryItem) {
         detailsCell = escapeHtml(e.roasteryItem);
+      } else if (e.type === 'أخرى' && e.notes) {
+        detailsCell = escapeHtml(e.notes);
       }
       return `
         <tr>
@@ -655,6 +665,7 @@
     const isDistribution = typeEl.value === 'توزيعات';
     const isPharmacy = typeEl.value === 'صيدلية';
     const isRoastery = typeEl.value === 'محمصة';
+    const isOther = typeEl.value === 'أخرى';
     if (isOil) {
       if (!carTypeEl.value.trim()) {
         showToast('أدخل نوع السيارة', 'error');
@@ -697,6 +708,13 @@
       if (!roasteryItemEl.value) {
         showToast('اختر صنف المحمصة', 'error');
         roasteryItemEl.focus();
+        return;
+      }
+    }
+    if (isOther) {
+      if (!otherNoteEl.value.trim()) {
+        showToast('اكتب ملاحظة توضّح نوع أخرى', 'error');
+        otherNoteEl.focus();
         return;
       }
     }
@@ -817,11 +835,11 @@
       showToast('لا توجد بيانات للتصدير');
       return;
     }
-    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)', 'قراءة العداد بنزين (كم)', 'اسم التوزيع', 'صنف الصيدلية', 'صنف المحمصة'];
+    const headers = ['التاريخ', 'الساعة', 'نوع الشراء', 'المبلغ', 'تبديل زيت', 'نوع السيارة', 'قراءة العداد (كم)', 'قراءة العداد بنزين (كم)', 'اسم التوزيع', 'صنف الصيدلية', 'صنف المحمصة', 'ملاحظة أخرى'];
     const rows = expenses.map(e => [
       e.date, e.time, e.type, e.amount,
       isOilExpense(e) ? 'نعم' : 'لا',
-      e.carType || '', e.odometer ?? '', e.gasOdometer ?? '', e.distributionName || '', e.pharmacyItem || '', e.roasteryItem || ''
+      e.carType || '', e.odometer ?? '', e.gasOdometer ?? '', e.distributionName || '', e.pharmacyItem || '', e.roasteryItem || '', e.notes || ''
     ]);
     const csv = [headers, ...rows]
       .map(r => r.map(v => {
