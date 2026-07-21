@@ -1,0 +1,15 @@
+{
+  "name": "finance-calc-server",
+  "version": "1.0.0",
+  "description": "حاسبة التمويل من البوت القديم + ربط Interakt",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test:calc": "node scripts/test-calc.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.22.2"
+  }
+}
