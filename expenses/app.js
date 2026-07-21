@@ -270,7 +270,7 @@
     }
   }
 
-  const SW_VERSION = '27';
+  const SW_VERSION = '28';
 
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
