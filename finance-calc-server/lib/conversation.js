@@ -82,12 +82,75 @@ function lowSalaryApology(jobCategory) {
 function realEstatePrompt() {
   return `هل عليك تمويل عقاري؟
 
+اختر من القائمة، أو أرسل الرقم:
 1- لا يوجد عقاري
 2- عقاري مدعوم
 3- عقاري غير مدعوم
-4- عقاري قديم الي قسطه 1667
+4- عقاري قديم الي قسطه 1667`;
+}
 
-أرسل الرقم أو النص.`;
+/** قائمة تفاعلية (Interakt InteractiveList) — أفضل من أزرار لأن الخيارات 4 */
+function realEstateInteractive() {
+  return {
+    kind: "list",
+    body: "هل عليك تمويل عقاري؟\nاختر النوع من القائمة:",
+    button: "اختر النوع",
+    sectionTitle: "التمويل العقاري",
+    rows: [
+      {
+        id: "re_none",
+        title: "لا يوجد عقاري",
+        description: "ما علي تمويل عقاري",
+      },
+      {
+        id: "re_supported",
+        title: "عقاري مدعوم",
+        description: "تمويل عقاري مدعوم",
+      },
+      {
+        id: "re_unsupported",
+        title: "عقاري غير مدعوم",
+        description: "تمويل عقاري غير مدعوم",
+      },
+      {
+        id: "re_old",
+        title: "عقاري قديم",
+        description: "الي قسطه 1667 ريال",
+      },
+    ],
+  };
+}
+
+function realEstateStepReply(state) {
+  return {
+    ok: true,
+    reply: realEstatePrompt(),
+    interactive: realEstateInteractive(),
+    draft: state,
+  };
+}
+
+function parseRealEstateChoice(raw) {
+  const t = String(raw || "").trim();
+  if (!t) return null;
+  if (/^(re_none|none)$/i.test(t) || /^1$/.test(t)) return "none";
+  if (/^(re_supported|supported)$/i.test(t) || /^2$/.test(t)) return "supported";
+  if (/^(re_unsupported|unsupported)$/i.test(t) || /^3$/.test(t)) {
+    return "unsupported";
+  }
+  if (/^(re_old|old)$/i.test(t) || /^4$/.test(t)) return "old";
+  return mapRealEstate(t);
+}
+
+function comboYesNoInteractive(bodyText) {
+  return {
+    kind: "buttons",
+    body: bodyText,
+    buttons: [
+      { id: "combo_yes", title: "نعم" },
+      { id: "combo_no", title: "لا" },
+    ],
+  };
 }
 
 /** عسكري راتبه تحت 10,000 + لا عقاري → باقة عقاري+شخصي */
@@ -102,6 +165,7 @@ function offerMilitaryPropertyCombo(state) {
   });
   return {
     ...result,
+    interactive: comboYesNoInteractive(result.reply),
     draft: {
       flow: "personal_chat",
       step: "done",
@@ -177,11 +241,7 @@ function advancePersonalFinanceFlow(draft, text) {
       state.commitments = 0;
       state.militaryLowSalaryPath = true;
       state.step = "real_estate";
-      return {
-        ok: true,
-        reply: realEstatePrompt(),
-        draft: state,
-      };
+      return realEstateStepReply(state);
     }
 
     state.step = "commitments";
@@ -207,30 +267,21 @@ function advancePersonalFinanceFlow(draft, text) {
     }
     state.commitments = commitments;
     state.step = "real_estate";
-    return {
-      ok: true,
-      reply: realEstatePrompt(),
-      draft: state,
-    };
+    return realEstateStepReply(state);
   }
 
   if (step === "real_estate") {
-    let realEstateType = mapRealEstate(raw);
-    if (!realEstateType) {
-      if (/^1$/.test(raw)) realEstateType = "none";
-      if (/^2$/.test(raw)) realEstateType = "supported";
-      if (/^3$/.test(raw)) realEstateType = "unsupported";
-      if (/^4$/.test(raw)) realEstateType = "old";
-    }
+    const realEstateType = parseRealEstateChoice(raw);
     if (!realEstateType) {
       return {
         ok: false,
         reply: `ما قدرت أحدد حالة العقاري.
-أرسل:
+اختر من القائمة أو أرسل:
 1- لا يوجد عقاري
 2- عقاري مدعوم
 3- عقاري غير مدعوم
 4- عقاري قديم الي قسطه 1667`,
+        interactive: realEstateInteractive(),
         draft: state,
       };
     }
@@ -292,9 +343,11 @@ function finishPersonalFlow(state) {
     supportAmount: state.supportAmount || 0,
   });
 
+  const awaitingCombo = Boolean(result.data?.awaitingCombo);
   return {
     ...result,
-    draft: result.data?.awaitingCombo
+    interactive: awaitingCombo ? comboYesNoInteractive(result.reply) : undefined,
+    draft: awaitingCombo
       ? {
           flow: "personal_chat",
           step: "done",
@@ -310,4 +363,6 @@ module.exports = {
   looksLikeStartPersonalFinance,
   startPersonalFinanceFlow,
   advancePersonalFinanceFlow,
+  realEstateInteractive,
+  parseRealEstateChoice,
 };

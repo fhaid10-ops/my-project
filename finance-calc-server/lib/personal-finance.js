@@ -317,9 +317,11 @@ ${formatMoney(personalAmount)} ريال شخصي
 
 function looksLikeYesNoReply(text) {
   const t = String(text || "").trim();
-  if (!t || t.length > 20) return null;
-  if (/^(1|نعم|اي|أي|أجل|موافق|ابي|أبي|أرغب|ارغب)$/i.test(t)) return "yes";
-  if (/^(2|لا|لأ|لاء|ما ابي|ماأبي|رفض)$/i.test(t)) return "no";
+  if (!t || t.length > 40) return null;
+  if (/^(1|نعم|اي|أي|أجل|موافق|ابي|أبي|أرغب|ارغب|combo_yes|yes)$/i.test(t)) {
+    return "yes";
+  }
+  if (/^(2|لا|لأ|لاء|ما ابي|ماأبي|رفض|combo_no|no)$/i.test(t)) return "no";
   return null;
 }
 

@@ -190,6 +190,24 @@ check("اختيار 1 للعقاري لا يُفسّر كبداية تمويل",
   assert.match(combo.reply, /هل ترغب بهذا العرض/);
 });
 
+check("سؤال العقاري يرسل قائمة تفاعلية", () => {
+  const {
+    parseRealEstateChoice,
+    realEstateInteractive,
+  } = require("../lib/conversation");
+  const start = startPersonalFinanceFlow();
+  const afterSector = advancePersonalFinanceFlow(start.draft, "مدني");
+  const afterSalary = advancePersonalFinanceFlow(afterSector.draft, "8000");
+  const afterCommitments = advancePersonalFinanceFlow(afterSalary.draft, "0");
+  assert.strictEqual(afterCommitments.draft.step, "real_estate");
+  assert.ok(afterCommitments.interactive);
+  assert.strictEqual(afterCommitments.interactive.kind, "list");
+  assert.strictEqual(afterCommitments.interactive.rows.length, 4);
+  assert.strictEqual(parseRealEstateChoice("re_none"), "none");
+  assert.strictEqual(parseRealEstateChoice("لا يوجد عقاري"), "none");
+  assert.strictEqual(realEstateInteractive().button, "اختر النوع");
+});
+
 if (!process.exitCode) {
   console.log("\nكل اختبارات webhook-parse نجحت");
 }

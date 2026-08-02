@@ -116,19 +116,10 @@ app.post("/calculate/select-amount", (req, res) => {
   res.status(result.ok ? 200 : 400).json(result);
 });
 
-async function sendInteraktText(countryCode, phoneNumber, message) {
+async function postInteraktPayload(payload) {
   if (!INTERAKT_API_KEY) {
     throw new Error("INTERAKT_API_KEY غير موجود في ملف .env");
   }
-
-  const payload = {
-    countryCode,
-    phoneNumber,
-    type: "Text",
-    data: {
-      message,
-    },
-  };
 
   let response;
   try {
@@ -173,6 +164,93 @@ async function sendInteraktText(countryCode, phoneNumber, message) {
   }
 
   return json;
+}
+
+async function sendInteraktText(countryCode, phoneNumber, message) {
+  return postInteraktPayload({
+    countryCode,
+    phoneNumber,
+    type: "Text",
+    data: {
+      message,
+    },
+  });
+}
+
+/** أزرار Quick Reply أو قائمة InteractiveList عبر Interakt */
+async function sendInteraktInteractive(countryCode, phoneNumber, interactive) {
+  if (!interactive || !interactive.kind) {
+    throw new Error("interactive payload ناقص");
+  }
+
+  if (interactive.kind === "buttons") {
+    const buttons = (interactive.buttons || []).slice(0, 3).map((b) => ({
+      type: "reply",
+      reply: {
+        id: String(b.id || b.title),
+        title: String(b.title).slice(0, 20),
+      },
+    }));
+    return postInteraktPayload({
+      countryCode,
+      phoneNumber,
+      type: "InteractiveButton",
+      data: {
+        message: {
+          type: "button",
+          body: { text: String(interactive.body || "").slice(0, 1024) },
+          action: { buttons },
+        },
+      },
+    });
+  }
+
+  if (interactive.kind === "list") {
+    const rows = (interactive.rows || []).slice(0, 10).map((row) => ({
+      id: String(row.id),
+      title: String(row.title).slice(0, 24),
+      description: row.description
+        ? String(row.description).slice(0, 72)
+        : undefined,
+    }));
+    return postInteraktPayload({
+      countryCode,
+      phoneNumber,
+      type: "InteractiveList",
+      data: {
+        message: {
+          type: "list",
+          body: { text: String(interactive.body || "").slice(0, 1024) },
+          action: {
+            button: String(interactive.button || "اختر").slice(0, 20),
+            sections: [
+              {
+                title: String(interactive.sectionTitle || "الخيارات").slice(
+                  0,
+                  24
+                ),
+                rows,
+              },
+            ],
+          },
+        },
+      },
+    });
+  }
+
+  throw new Error(`نوع interactive غير مدعوم: ${interactive.kind}`);
+}
+
+async function sendResultReply(countryCode, phone, result) {
+  if (result?.interactive) {
+    await sendInteraktInteractive(countryCode, phone, result.interactive);
+    return "interactive";
+  }
+  if (result?.reply) {
+    await sendInteraktText(countryCode, phone, result.reply);
+    return "text";
+  }
+  return null;
 }
 
 /**
@@ -282,13 +360,28 @@ app.post("/webhook/interakt", async (req, res) => {
       return;
     }
 
-    if (!result?.reply) return;
+    if (!result?.reply && !result?.interactive) return;
 
     try {
-      await sendInteraktText(countryCode, phone, result.reply);
-      console.log("[reply:ok]", phone, result.ok, result.offer || result.flow || "");
+      const mode = await sendResultReply(countryCode, phone, result);
+      console.log(
+        "[reply:ok]",
+        phone,
+        mode,
+        result.ok,
+        result.offer || result.flow || ""
+      );
     } catch (err) {
       console.error("[reply:fail]", err.message, err.details || "");
+      // إذا فشلت القائمة/الأزرار، حاول النص الاحتياطي
+      if (result?.interactive && result?.reply) {
+        try {
+          await sendInteraktText(countryCode, phone, result.reply);
+          console.log("[reply:fallback-text:ok]", phone);
+        } catch (err2) {
+          console.error("[reply:fallback-text:fail]", err2.message);
+        }
+      }
     }
   } catch (err) {
     console.error("[webhook:error]", err);
