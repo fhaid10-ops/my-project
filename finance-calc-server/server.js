@@ -11,10 +11,12 @@ const express = require("express");
 const {
   parsePersonalFinanceMessage,
   looksLikePersonalFinanceData,
+  looksLikeSectorOnlyReply,
   calculatePersonalFinance,
   looksLikeAmountChoice,
   parseAmountChoice,
   calculateSelectedAmount,
+  mapSector,
 } = require("./lib/personal-finance");
 
 const app = express();
@@ -26,6 +28,8 @@ const WEBHOOK_SECRET = String(process.env.WEBHOOK_SECRET || "").trim();
 
 /** جلسات مؤقتة: phone -> نتيجة الحسبة (أعلى مبلغ + نسبة) */
 const sessions = new Map();
+/** مسودات ناقصة: phone -> بيانات الراتب/الالتزامات بانتظار القطاع */
+const drafts = new Map();
 const SESSION_TTL_MS = 1000 * 60 * 60 * 6; // 6 ساعات
 
 function sessionKey(countryCode, phone) {
@@ -48,6 +52,28 @@ function getSession(countryCode, phone) {
     return null;
   }
   return row.data;
+}
+
+function saveDraft(countryCode, phone, data) {
+  drafts.set(sessionKey(countryCode, phone), {
+    data,
+    savedAt: Date.now(),
+  });
+}
+
+function getDraft(countryCode, phone) {
+  const key = sessionKey(countryCode, phone);
+  const row = drafts.get(key);
+  if (!row) return null;
+  if (Date.now() - row.savedAt > SESSION_TTL_MS) {
+    drafts.delete(key);
+    return null;
+  }
+  return row.data;
+}
+
+function clearDraft(countryCode, phone) {
+  drafts.delete(sessionKey(countryCode, phone));
 }
 
 app.get("/health", (_req, res) => {
@@ -190,6 +216,23 @@ app.post("/webhook/interakt", async (req, res) => {
       const parsed = parsePersonalFinanceMessage(text);
       result = calculatePersonalFinance(parsed);
       if (result.ok && result.data) {
+        clearDraft(countryCode, phone);
+        saveSession(countryCode, phone, result.data);
+      } else if (!parsed.jobCategory) {
+        // بيانات ناقصة: ننتظر رد القطاع فقط (مدني/متقاعد/عسكري)
+        saveDraft(countryCode, phone, parsed);
+      }
+    } else if (looksLikeSectorOnlyReply(text)) {
+      const draft = getDraft(countryCode, phone);
+      if (!draft) return;
+      const merged = {
+        ...draft,
+        sectorRaw: text,
+        jobCategory: mapSector(text),
+      };
+      result = calculatePersonalFinance(merged);
+      if (result.ok && result.data) {
+        clearDraft(countryCode, phone);
         saveSession(countryCode, phone, result.data);
       }
     } else if (looksLikeAmountChoice(text)) {

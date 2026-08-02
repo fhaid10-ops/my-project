@@ -32,9 +32,12 @@ function mapSector(text) {
 function mapRealEstate(text) {
   const t = String(text || "").trim();
   if (/قديم/.test(t)) return "old";
-  if (/مدعوم/.test(t) && !/غير/.test(t)) return "supported";
   if (/غير\s*مدعوم/.test(t)) return "unsupported";
-  if (/لا\s*يوجد|لا|بدون|ما\s*علي/.test(t)) return "none";
+  if (/مدعوم/.test(t)) return "supported";
+  if (/لا\s*يوجد|بدون|ما\s*علي|ما\s*فيه|لايوجد/.test(t)) return "none";
+  // "يوجد" / "عندي" بدون تفاصيل = عنده عقاري (نحسبه غير مدعوم)
+  if (/يوجد|عندي|فيه/.test(t)) return "unsupported";
+  if (/^(لا|لأ)$/.test(t)) return "none";
   return null;
 }
 
@@ -58,44 +61,48 @@ function parsePersonalFinanceMessage(text) {
 
   const salary =
     get([
-      /الراتب[^:\d]*[:：]?\s*([0-9][0-9,]*)/i,
-      /راتب[^:\d]*[:：]?\s*([0-9][0-9,]*)/i,
-      /ينزل بالصراف[^:\d]*[:：]?\s*([0-9][0-9,]*)/i,
+      /الراتب\s*[:：\-]?\s*([0-9][0-9,]*)/i,
+      /راتب\s*[:：\-]?\s*([0-9][0-9,]*)/i,
+      /ينزل بالصراف\s*[:：\-]?\s*([0-9][0-9,]*)/i,
     ]) || null;
 
   const commitments =
     get([
-      /الالتزامات[^:\d]*[:：]?\s*([0-9][0-9,]*)/i,
-      /التزام[^:\d]*[:：]?\s*([0-9][0-9,]*)/i,
+      /الالتزامات\s*[:：\-]?\s*([0-9][0-9,]*)/i,
+      /التزام(?:ات)?\s*[:：\-]?\s*([0-9][0-9,]*)/i,
     ]) || null;
 
+  // يدعم: "القطاع: مدني" أو "القطاع مدني" بدون نقطتين
   const sector =
     get([
-      /القطاع[^:\n]*[:：]?\s*([^\n]+)/i,
-      /قطاع[^:\n]*[:：]?\s*([^\n]+)/i,
+      /القطاع\s*[:：\-]?\s*([^\n]+)/i,
+      /قطاع\s*[:：\-]?\s*([^\n]+)/i,
     ]) || null;
 
   const realEstate =
     get([
-      /التمويل العقاري[^:\n]*[:：]?\s*([^\n]+)/i,
-      /العقاري[^:\n]*[:：]?\s*([^\n]+)/i,
-      /عقاري[^:\n]*[:：]?\s*([^\n]+)/i,
+      /التمويل العقاري\s*[:：\-]?\s*([^\n]+)/i,
+      /العقاري\s*[:：\-]?\s*([^\n]+)/i,
+      /عقاري\s*[:：\-]?\s*([^\n]+)/i,
     ]) || null;
 
   const support =
     get([
-      /الدعم العقاري[^:\d]*[:：]?\s*([0-9][0-9,]*)/i,
-      /قيمة الدعم[^:\d]*[:：]?\s*([0-9][0-9,]*)/i,
-      /الدعم[^:\d]*[:：]?\s*([0-9][0-9,]*)/i,
+      /الدعم العقاري\s*[:：\-]?\s*([0-9][0-9,]*)/i,
+      /قيمة الدعم\s*[:：\-]?\s*([0-9][0-9,]*)/i,
+      /الدعم\s*[:：\-]?\s*([0-9][0-9,]*)/i,
     ]) || "0";
+
+  // لو القطاع ما انالتقط من السطر، ابحث في كامل الرسالة
+  const jobCategory = mapSector(sector) || mapSector(raw);
 
   return {
     salary: parseNumber(salary),
     commitments: parseNumber(commitments),
-    sectorRaw: sector,
-    jobCategory: mapSector(sector),
+    sectorRaw: sector || (jobCategory ? raw : null),
+    jobCategory,
     realEstateRaw: realEstate,
-    realEstateType: mapRealEstate(realEstate),
+    realEstateType: mapRealEstate(realEstate) || mapRealEstate(raw),
     supportAmount: parseNumber(support) || 0,
   };
 }
@@ -104,8 +111,16 @@ function looksLikePersonalFinanceData(text) {
   const t = String(text || "");
   const hasSalary = /راتب|ينزل بالصراف/.test(t);
   const hasCommitments = /التزام/.test(t);
-  const hasSector = /قطاع|عسكري|مدني|متقاعد/.test(t);
-  return hasSalary && hasCommitments && hasSector;
+  // يكفي الراتب + الالتزامات؛ القطاع يُستخرج أو يُسأل عنه
+  return hasSalary && hasCommitments;
+}
+
+/** رد قصير لتحديد القطاع فقط: مدني / متقاعد / عسكري */
+function looksLikeSectorOnlyReply(text) {
+  const t = String(text || "").trim();
+  if (!t || t.length > 40) return false;
+  if (looksLikePersonalFinanceData(t)) return false;
+  return mapSector(t) != null;
 }
 
 /**
@@ -327,6 +342,7 @@ ${contactFooter()}`;
 module.exports = {
   parsePersonalFinanceMessage,
   looksLikePersonalFinanceData,
+  looksLikeSectorOnlyReply,
   calculatePersonalFinance,
   parseAmountChoice,
   looksLikeAmountChoice,
