@@ -1,0 +1,212 @@
+/**
+ * محادثة تمويل شخصي خطوة بخطوة (مثل البوت القديم)
+ */
+const {
+  mapSector,
+  mapRealEstate,
+  calculatePersonalFinance,
+} = require("./personal-finance");
+
+function looksLikeStartPersonalFinance(text) {
+  const t = String(text || "").trim();
+  if (!t) return false;
+  if (t.length > 60) return false;
+  return /^(1|تمويل شخصي|ابي تمويل شخصي|أبي تمويل شخصي|ابي تمويل|أبي تمويل|تمويل|ابدأ|ابدا|ابدأ الحسبة|ابدا الحسبة)$/i.test(
+    t
+  );
+}
+
+function startPersonalFinanceFlow() {
+  return {
+    ok: true,
+    flow: "personal_chat",
+    reply: `لنبدأ حسبة التمويل الشخصي ✅
+
+أول سؤال: وش قطاعك؟
+
+1- مدني
+2- متقاعد
+3- عسكري
+
+أرسل الرقم أو اسم القطاع.`,
+    draft: {
+      flow: "personal_chat",
+      step: "sector",
+    },
+  };
+}
+
+function parseSalaryReply(text) {
+  const t = String(text || "").trim();
+  const m = t.match(/([0-9][0-9,]*)/);
+  if (!m) return NaN;
+  return Number(String(m[1]).replace(/,/g, ""));
+}
+
+function advancePersonalFinanceFlow(draft, text) {
+  const state = { ...(draft || {}), flow: "personal_chat" };
+  const step = state.step || "sector";
+  const raw = String(text || "").trim();
+
+  if (step === "sector") {
+    let jobCategory = mapSector(raw);
+    if (!jobCategory) {
+      if (/^1$/.test(raw)) jobCategory = "civilian";
+      if (/^2$/.test(raw)) jobCategory = "retired";
+      if (/^3$/.test(raw)) jobCategory = "military";
+    }
+    if (!jobCategory) {
+      return {
+        ok: false,
+        reply: `ما قدرت أحدد القطاع.
+أرسل:
+1- مدني
+2- متقاعد
+3- عسكري`,
+        draft: state,
+      };
+    }
+    state.jobCategory = jobCategory;
+    state.step = "salary";
+    return {
+      ok: true,
+      reply: `تمام.
+كم راتبك الشهري؟
+أرسل الرقم فقط
+مثال: 8000`,
+      draft: state,
+    };
+  }
+
+  if (step === "salary") {
+    const salary = parseSalaryReply(raw);
+    if (!Number.isFinite(salary) || salary <= 0) {
+      return {
+        ok: false,
+        reply: `أرسل الراتب بالأرقام فقط.
+مثال: 8000`,
+        draft: state,
+      };
+    }
+    state.salary = salary;
+    state.step = "commitments";
+    return {
+      ok: true,
+      reply: `كم إجمالي التزاماتك الشهرية؟
+أرسل الرقم فقط
+مثال: 1500
+إذا ما عليك التزامات أرسل: 0`,
+      draft: state,
+    };
+  }
+
+  if (step === "commitments") {
+    const commitments = parseSalaryReply(raw);
+    if (!Number.isFinite(commitments) || commitments < 0) {
+      return {
+        ok: false,
+        reply: `أرسل الالتزامات بالأرقام فقط.
+مثال: 1500`,
+        draft: state,
+      };
+    }
+    state.commitments = commitments;
+    state.step = "real_estate";
+    return {
+      ok: true,
+      reply: `هل عليك تمويل عقاري؟
+
+1- لا يوجد
+2- مدعوم
+3- غير مدعوم
+4- قديم
+
+أرسل الرقم أو النص.`,
+      draft: state,
+    };
+  }
+
+  if (step === "real_estate") {
+    let realEstateType = mapRealEstate(raw);
+    if (!realEstateType) {
+      if (/^1$/.test(raw)) realEstateType = "none";
+      if (/^2$/.test(raw)) realEstateType = "supported";
+      if (/^3$/.test(raw)) realEstateType = "unsupported";
+      if (/^4$/.test(raw)) realEstateType = "old";
+    }
+    if (!realEstateType) {
+      return {
+        ok: false,
+        reply: `ما قدرت أحدد حالة العقاري.
+أرسل:
+1- لا يوجد
+2- مدعوم
+3- غير مدعوم
+4- قديم`,
+        draft: state,
+      };
+    }
+    state.realEstateType = realEstateType;
+
+    if (realEstateType === "supported") {
+      state.step = "support";
+      return {
+        ok: true,
+        reply: `كم قيمة الدعم العقاري الشهري؟
+أرسل الرقم فقط
+مثال: 1000
+إذا ما فيه دعم أرسل: 0`,
+        draft: state,
+      };
+    }
+
+    state.supportAmount = 0;
+    return finishPersonalFlow(state);
+  }
+
+  if (step === "support") {
+    const supportAmount = parseSalaryReply(raw);
+    if (!Number.isFinite(supportAmount) || supportAmount < 0) {
+      return {
+        ok: false,
+        reply: `أرسل مبلغ الدعم بالأرقام فقط.
+مثال: 1000`,
+        draft: state,
+      };
+    }
+    state.supportAmount = supportAmount;
+    return finishPersonalFlow(state);
+  }
+
+  // خطوة غير معروفة → نعيد من القطاع
+  return startPersonalFinanceFlow();
+}
+
+function finishPersonalFlow(state) {
+  const result = calculatePersonalFinance({
+    jobCategory: state.jobCategory,
+    salary: state.salary,
+    commitments: state.commitments,
+    realEstateType: state.realEstateType || "none",
+    supportAmount: state.supportAmount || 0,
+  });
+
+  return {
+    ...result,
+    draft: result.data?.awaitingCombo
+      ? {
+          flow: "personal_chat",
+          step: "done",
+          awaitingCombo: true,
+          ...result.data,
+        }
+      : null,
+    sessionData: result.ok ? result.data : null,
+  };
+}
+
+module.exports = {
+  looksLikeStartPersonalFinance,
+  startPersonalFinanceFlow,
+  advancePersonalFinanceFlow,
+};

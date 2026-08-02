@@ -20,6 +20,11 @@ const {
   replyPropertyComboDecision,
   mapSector,
 } = require("./lib/personal-finance");
+const {
+  looksLikeStartPersonalFinance,
+  startPersonalFinanceFlow,
+  advancePersonalFinanceFlow,
+} = require("./lib/conversation");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -215,27 +220,40 @@ app.post("/webhook/interakt", async (req, res) => {
     let result = null;
     const yesNo = looksLikeYesNoReply(text);
     const currentSession = getSession(countryCode, phone);
+    const draft = getDraft(countryCode, phone);
 
-    if (yesNo && currentSession?.awaitingCombo) {
+    if (yesNo && (currentSession?.awaitingCombo || draft?.awaitingCombo)) {
       result = replyPropertyComboDecision(yesNo);
-      // بعد القرار نغلق انتظار عرض العقاري
       saveSession(countryCode, phone, {
-        ...currentSession,
+        ...(currentSession || draft || {}),
         awaitingCombo: false,
         comboDecision: yesNo,
       });
+      clearDraft(countryCode, phone);
     } else if (looksLikePersonalFinanceData(text)) {
+      // ما زال يدعم إرسال كل البيانات دفعة واحدة
       const parsed = parsePersonalFinanceMessage(text);
       result = calculatePersonalFinance(parsed);
       if (result.ok && result.data) {
         clearDraft(countryCode, phone);
         saveSession(countryCode, phone, result.data);
       } else if (!parsed.jobCategory) {
-        // بيانات ناقصة: ننتظر رد القطاع فقط (مدني/متقاعد/عسكري)
         saveDraft(countryCode, phone, parsed);
       }
+    } else if (draft?.flow === "personal_chat" && draft.step && draft.step !== "done") {
+      result = advancePersonalFinanceFlow(draft, text);
+      if (result.draft) saveDraft(countryCode, phone, result.draft);
+      if (result.sessionData) {
+        clearDraft(countryCode, phone);
+        saveSession(countryCode, phone, result.sessionData);
+      } else if (result.data?.awaitingCombo) {
+        saveSession(countryCode, phone, result.data);
+        if (result.draft) saveDraft(countryCode, phone, result.draft);
+      }
+    } else if (looksLikeStartPersonalFinance(text)) {
+      result = startPersonalFinanceFlow();
+      saveDraft(countryCode, phone, result.draft);
     } else if (looksLikeSectorOnlyReply(text)) {
-      const draft = getDraft(countryCode, phone);
       if (!draft) return;
       const merged = {
         ...draft,
@@ -249,17 +267,19 @@ app.post("/webhook/interakt", async (req, res) => {
       }
     } else if (looksLikeAmountChoice(text)) {
       const sessionData = getSession(countryCode, phone);
-      // لا تفسّر "1"/"2" كمبلغ لو ننتظر رد عرض العقاري
       if (sessionData?.awaitingCombo) return;
+      if (!sessionData?.maxAmount && !sessionData?.rounded) return;
       const amount = parseAmountChoice(text);
       result = calculateSelectedAmount(sessionData || {}, amount);
     } else {
       return;
     }
 
+    if (!result?.reply) return;
+
     try {
       await sendInteraktText(countryCode, phone, result.reply);
-      console.log("[reply:ok]", phone, result.ok);
+      console.log("[reply:ok]", phone, result.ok, result.offer || result.flow || "");
     } catch (err) {
       console.error("[reply:fail]", err.message, err.details || "");
     }
