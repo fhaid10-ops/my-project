@@ -87,8 +87,19 @@ check("ضغط مدني يكمل لسؤال الراتب", () => {
   const next = advancePersonalFinanceFlow(start.draft, "مدني");
   assert.ok(next.ok);
   assert.match(next.reply, /راتبك/);
+  assert.match(next.reply, /4000 ريال/);
   assert.strictEqual(next.draft.step, "salary");
   assert.strictEqual(next.draft.jobCategory, "civilian");
+});
+
+check("مثال الراتب حسب القطاع", () => {
+  const start = startPersonalFinanceFlow();
+  const civilian = advancePersonalFinanceFlow(start.draft, "مدني");
+  const retired = advancePersonalFinanceFlow(start.draft, "متقاعد");
+  const military = advancePersonalFinanceFlow(start.draft, "عسكري");
+  assert.match(civilian.reply, /مثال: 4000 ريال/);
+  assert.match(retired.reply, /مثال: 4000 ريال/);
+  assert.match(military.reply, /مثال: 10000 ريال/);
 });
 
 check("سيناريو الزر الفاشل سابقًا", () => {

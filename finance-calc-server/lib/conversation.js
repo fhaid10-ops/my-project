@@ -37,6 +37,26 @@ function parseSalaryReply(text) {
   return Number(String(m[1]).replace(/,/g, ""));
 }
 
+/** مثال الراتب حسب القطاع */
+function salaryExampleForSector(jobCategory) {
+  if (jobCategory === "military") return "10000";
+  // مدني + متقاعد
+  return "4000";
+}
+
+function salaryPrompt(jobCategory) {
+  const example = salaryExampleForSector(jobCategory);
+  return `كم راتبك الشهري؟
+أرسل الرقم فقط
+مثال: ${example} ريال`;
+}
+
+function invalidSalaryPrompt(jobCategory) {
+  const example = salaryExampleForSector(jobCategory);
+  return `أرسل الراتب بالأرقام فقط.
+مثال: ${example} ريال`;
+}
+
 function advancePersonalFinanceFlow(draft, text) {
   const state = { ...(draft || {}), flow: "personal_chat" };
   const step = state.step || "sector";
@@ -64,10 +84,7 @@ function advancePersonalFinanceFlow(draft, text) {
     state.step = "salary";
     return {
       ok: true,
-      reply: `تمام.
-كم راتبك الشهري؟
-أرسل الرقم فقط
-مثال: 8000`,
+      reply: salaryPrompt(jobCategory),
       draft: state,
     };
   }
@@ -77,8 +94,7 @@ function advancePersonalFinanceFlow(draft, text) {
     if (!Number.isFinite(salary) || salary <= 0) {
       return {
         ok: false,
-        reply: `أرسل الراتب بالأرقام فقط.
-مثال: 8000`,
+        reply: invalidSalaryPrompt(state.jobCategory),
         draft: state,
       };
     }
