@@ -346,7 +346,10 @@ function finishPersonalFlow(state) {
   const awaitingCombo = Boolean(result.data?.awaitingCombo);
   return {
     ...result,
-    interactive: awaitingCombo ? comboYesNoInteractive(result.reply) : undefined,
+    // باقة: أزرار نعم/لا — أو قائمة اختيار المبلغ (أعلى + أقل)
+    interactive: awaitingCombo
+      ? comboYesNoInteractive(result.reply)
+      : result.interactive,
     draft: awaitingCombo
       ? {
           flow: "personal_chat",

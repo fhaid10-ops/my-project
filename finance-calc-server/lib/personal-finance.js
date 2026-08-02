@@ -249,10 +249,17 @@ function calculatePersonalFinance(input) {
     total,
     lowerTiers,
   });
+  const interactive = buildAmountChoiceInteractive({
+    rounded,
+    installment,
+    total,
+    lowerTiers,
+  });
 
   return {
     ok: true,
     reply,
+    interactive,
     data: {
       jobCategory,
       realEstateType,
@@ -266,6 +273,7 @@ function calculatePersonalFinance(input) {
       installment,
       total,
       lowerTiers,
+      awaitingAmountChoice: true,
     },
   };
 }
@@ -361,13 +369,18 @@ ${formatMoney(rounded)} ريال
 ${formatMoney(installment)} ريال
 
 الإجمالي التقريبي:
-${formatMoney(total)} ريال`;
+${formatMoney(total)} ريال
 
+اختر من القائمة:
+• أعلى مبلغ متاح (${formatMoney(rounded)} ريال)
+• أو مبلغ أقل`;
+
+  // نص احتياطي إذا القائمة التفاعلية ما اشتغلت
   if (lowerTiers && lowerTiers.length) {
     reply += `
 
-إذا تبي مبلغ أقل، أرسل أحد المبالغ من القائمة:`;
-    for (const amount of lowerTiers) {
+المبالغ الأقل:`;
+    for (const amount of lowerTiers.slice(0, 8)) {
       reply += `\n• ${formatMoney(amount)}`;
     }
   }
@@ -377,14 +390,73 @@ ${formatMoney(total)} ريال`;
 }
 
 /**
- * هل الرسالة اختيار مبلغ؟ (مثال: 90000 أو 90,000)
+ * قائمة اختيار المبلغ: أعلى مبلغ أولًا ثم الأقل
+ * (InteractiveList — أجمل من نقاط نصية)
+ */
+function buildAmountChoiceInteractive({
+  rounded,
+  installment,
+  total,
+  lowerTiers = [],
+}) {
+  const body = `تم حساب التمويل الشخصي:
+
+أعلى مبلغ متاح لك:
+${formatMoney(rounded)} ريال
+
+القسط الشهري لهذا المبلغ:
+${formatMoney(installment)} ريال
+
+الإجمالي التقريبي:
+${formatMoney(total)} ريال
+
+اختر المبلغ من القائمة (أعلى مبلغ أو أقل).
+
+${contactFooter()}`;
+
+  const rows = [
+    {
+      id: `amt_${rounded}`,
+      title: `${formatMoney(rounded)} ريال`,
+      description: `أعلى مبلغ | قسط ${formatMoney(installment)}`,
+    },
+  ];
+
+  for (const amount of lowerTiers) {
+    if (rows.length >= 10) break;
+    rows.push({
+      id: `amt_${amount}`,
+      title: `${formatMoney(amount)} ريال`,
+      description: "مبلغ أقل",
+    });
+  }
+
+  return {
+    kind: "list",
+    body: body.slice(0, 1024),
+    button: "اختر المبلغ",
+    sectionTitle: "المبالغ المتاحة",
+    rows,
+  };
+}
+
+/**
+ * هل الرسالة اختيار مبلغ؟ (مثال: 90000 أو 90,000 أو amt_60000)
  */
 function parseAmountChoice(text) {
   const raw = String(text || "").trim();
   if (!raw) return null;
 
+  const idMatch = raw.match(/^amt_(\d+)$/i);
+  if (idMatch) {
+    const amount = Number(idMatch[1]);
+    return Number.isFinite(amount) && amount > 0 ? amount : null;
+  }
+
   // رقم واحد في الرسالة (مع فواصل اختيارية)
-  const m = raw.match(/^[\s]*([0-9]{1,3}(?:[.,\s]?[0-9]{3})+|[0-9]+)[\s]*(?:ريال|ر\.س|SAR)?[\s]*$/i);
+  const m = raw.match(
+    /^[\s]*([0-9]{1,3}(?:[.,\s]?[0-9]{3})+|[0-9]+)[\s]*(?:ريال|ر\.س|SAR)?[\s]*$/i
+  );
   if (!m) return null;
 
   const amount = Number(String(m[1]).replace(/[^\d]/g, ""));
@@ -473,6 +545,7 @@ module.exports = {
   calculateSelectedAmount,
   replyPropertyComboDecision,
   buildMaxAmountReply,
+  buildAmountChoiceInteractive,
   buildPropertyComboOffer,
   mapSector,
   mapRealEstate,
