@@ -42,6 +42,11 @@ function advancePersonalFinanceFlow(draft, text) {
   const step = state.step || "sector";
   const raw = String(text || "").trim();
 
+  // إعادة بدء من داخل المحادثة (لا تفسّر "تمويل" كقطاع)
+  if (looksLikeStartPersonalFinance(raw)) {
+    return startPersonalFinanceFlow();
+  }
+
   if (step === "sector") {
     const jobCategory = mapSector(raw);
     if (!jobCategory) {
