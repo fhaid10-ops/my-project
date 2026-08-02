@@ -224,8 +224,8 @@ function calculatePersonalFinance(input) {
 }
 
 function contactFooter() {
-  return `للتقديم أو الاستفسار كلم عبدالرحمن:
-0531240724`;
+  return `للتقديم الإلكتروني:
+https://portal.sfco.com.sa/?DSA=SF195`;
 }
 
 function buildMaxAmountReply({ rounded, installment, total, lowerTiers }) {
