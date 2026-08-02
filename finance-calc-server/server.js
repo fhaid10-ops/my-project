@@ -130,14 +130,33 @@ async function sendInteraktText(countryCode, phoneNumber, message) {
     },
   };
 
-  const response = await fetch("https://api.interakt.ai/v1/public/message/", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${INTERAKT_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  let response;
+  try {
+    response = await fetch("https://api.interakt.ai/v1/public/message/", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${INTERAKT_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (netErr) {
+    const cause = netErr?.cause;
+    const detail = [
+      netErr.message,
+      cause?.code,
+      cause?.message,
+      cause?.hostname,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+    const err = new Error(`فشل الاتصال بـ Interakt: ${detail}`);
+    err.details = {
+      hint: "تأكد من الإنترنت على الجهاز، وأن جدار الحماية لا يمنع Node.js",
+      causeCode: cause?.code || null,
+    };
+    throw err;
+  }
 
   const text = await response.text();
   let json = null;
