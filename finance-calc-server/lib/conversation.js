@@ -6,6 +6,10 @@ const {
   mapRealEstate,
   calculatePersonalFinance,
 } = require("./personal-finance");
+const {
+  getMinSalaryForEntry,
+  meetsMinimumSalaryForEntry,
+} = require("./calculations");
 
 function looksLikeStartPersonalFinance(text) {
   const t = String(text || "").trim();
@@ -57,6 +61,21 @@ function invalidSalaryPrompt(jobCategory) {
 مثال: ${example} ريال`;
 }
 
+function lowSalaryApology(jobCategory) {
+  const min = getMinSalaryForEntry(jobCategory);
+  const formatted = Number(min).toLocaleString("en-US");
+  if (jobCategory === "military") {
+    return `نعتذر منك الراتب أقل من المطلوب.
+الراتب المطلوب للعسكري من ${formatted} ريال`;
+  }
+  if (jobCategory === "retired") {
+    return `نعتذر منك الراتب أقل من المطلوب.
+راتب المتقاعد من ${formatted} ريال`;
+  }
+  return `نعتذر منك الراتب أقل من المطلوب.
+راتب المدني من ${formatted} ريال`;
+}
+
 function advancePersonalFinanceFlow(draft, text) {
   const state = { ...(draft || {}), flow: "personal_chat" };
   const step = state.step || "sector";
@@ -96,6 +115,15 @@ function advancePersonalFinanceFlow(draft, text) {
         ok: false,
         reply: invalidSalaryPrompt(state.jobCategory),
         draft: state,
+      };
+    }
+    // رفض فوري إذا الراتب تحت الحد (مدني/متقاعد 4000، عسكري دخول 7000)
+    if (!meetsMinimumSalaryForEntry(salary, state.jobCategory)) {
+      return {
+        ok: false,
+        reply: lowSalaryApology(state.jobCategory),
+        draft: null,
+        clearDraft: true,
       };
     }
     state.salary = salary;

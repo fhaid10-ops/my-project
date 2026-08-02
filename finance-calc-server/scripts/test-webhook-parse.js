@@ -131,6 +131,26 @@ check("تمويل أثناء خطوة القطاع يعيد البدء بدون 
   assert.ok(!next.draft.jobCategory);
 });
 
+check("مدني راتبه أقل من 4000 يرفض فورًا", () => {
+  const start = startPersonalFinanceFlow();
+  const afterSector = advancePersonalFinanceFlow(start.draft, "مدني");
+  const rejected = advancePersonalFinanceFlow(afterSector.draft, "3500");
+  assert.strictEqual(rejected.ok, false);
+  assert.match(rejected.reply, /نعتذر منك/);
+  assert.match(rejected.reply, /4,000|4000/);
+  assert.strictEqual(rejected.clearDraft, true);
+  assert.strictEqual(rejected.draft, null);
+});
+
+check("مدني راتبه 4000 يكمل للالتزامات", () => {
+  const start = startPersonalFinanceFlow();
+  const afterSector = advancePersonalFinanceFlow(start.draft, "مدني");
+  const next = advancePersonalFinanceFlow(afterSector.draft, "4000");
+  assert.ok(next.ok);
+  assert.match(next.reply, /التزامات/);
+  assert.strictEqual(next.draft.step, "commitments");
+});
+
 if (!process.exitCode) {
   console.log("\nكل اختبارات webhook-parse نجحت");
 }

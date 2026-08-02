@@ -228,7 +228,11 @@ app.post("/webhook/interakt", async (req, res) => {
       saveDraft(countryCode, phone, result.draft);
     } else if (draft?.flow === "personal_chat" && draft.step && draft.step !== "done") {
       result = advancePersonalFinanceFlow(draft, text);
-      if (result.draft) saveDraft(countryCode, phone, result.draft);
+      if (result.clearDraft || result.draft == null) {
+        clearDraft(countryCode, phone);
+      } else if (result.draft) {
+        saveDraft(countryCode, phone, result.draft);
+      }
       if (result.sessionData) {
         clearDraft(countryCode, phone);
         saveSession(countryCode, phone, result.sessionData);
