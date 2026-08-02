@@ -3,7 +3,9 @@ const {
   parsePersonalFinanceMessage,
   calculateSelectedAmount,
   parseAmountChoice,
+  selectTiersForWhatsAppList,
 } = require("../lib/personal-finance");
+const { buildLowerAmountTiers } = require("../lib/calculations");
 
 const sample = `الراتب: 8000
 الالتزامات: 1500
@@ -38,13 +40,27 @@ if (!result.interactive || result.interactive.kind !== "list") {
   process.exitCode = 1;
 } else {
   const first = result.interactive.rows[0];
+  const last = result.interactive.rows[result.interactive.rows.length - 1];
   const max = result.data.maxAmount;
   if (first?.id === `amt_${max}`) {
     console.error("FAIL: أعلى مبلغ ما يكون داخل قائمة الأقل");
     process.exitCode = 1;
+  } else if (last?.id !== "amt_10000") {
+    console.error("FAIL: آخر خيار لازم 10,000", last);
+    process.exitCode = 1;
   } else {
-    console.log("OK: نص أعلى مبلغ + قائمة أقل منفصلة");
+    console.log("OK: نص أعلى مبلغ + قائمة أقل تنتهي بـ 10,000");
   }
+}
+
+// محاكاة مبلغ عالي مثل الشاشة (حوالي 126 ألف)
+const highTiers = buildLowerAmountTiers(126000, 10000, 10000);
+const picked = selectTiersForWhatsAppList(highTiers, 8);
+if (picked[picked.length - 1] !== 10000) {
+  console.error("FAIL: العيّنة ما توصل 10,000", picked);
+  process.exitCode = 1;
+} else {
+  console.log("OK: عيّنة المبالغ العالية تصل لـ 10,000:", picked.join(", "));
 }
 
 if (result.ok && result.data?.lowerTiers?.length) {

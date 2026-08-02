@@ -372,20 +372,57 @@ ${contactFooter()}`;
 }
 
 /**
+ * واتساب/Interakt عمليًا يعرض عدد محدود من صفوف القائمة.
+ * نختار عيّنة من الأعلى للأقل مع ضمان وصول آخر خيار إلى 10,000.
+ */
+function selectTiersForWhatsAppList(tiers, maxRows = 8) {
+  if (!tiers.length) return [];
+  if (tiers.length <= maxRows) return tiers.slice();
+
+  const first = tiers[0];
+  const last = tiers[tiers.length - 1];
+  const selected = [first];
+  const inner = tiers.slice(1, -1);
+  const innerSlots = Math.max(maxRows - 2, 0);
+
+  if (innerSlots > 0 && inner.length) {
+    for (let i = 0; i < innerSlots; i += 1) {
+      const idx =
+        innerSlots === 1
+          ? 0
+          : Math.round((i * (inner.length - 1)) / (innerSlots - 1));
+      const value = inner[Math.min(inner.length - 1, idx)];
+      if (selected[selected.length - 1] !== value) selected.push(value);
+    }
+  }
+
+  if (selected[selected.length - 1] !== last) selected.push(last);
+
+  const unique = [];
+  for (const value of selected) {
+    if (!unique.includes(value)) unique.push(value);
+  }
+  while (unique.length > maxRows) {
+    unique.splice(Math.floor(unique.length / 2), 1);
+  }
+  unique[0] = first;
+  unique[unique.length - 1] = last;
+  return unique;
+}
+
+/**
  * قائمة المبالغ الأقل فقط — زر: اذا ترغب بمبلغ اقل اختر هنا
+ * دائمًا تنتهي عند الحد الأدنى (10,000)
  */
 function buildLowerAmountInteractive(lowerTiers = []) {
   if (!lowerTiers.length) return null;
 
-  const rows = [];
-  for (const amount of lowerTiers) {
-    if (rows.length >= 10) break;
-    rows.push({
-      id: `amt_${amount}`,
-      title: `${formatMoney(amount)} ريال`,
-      description: "مبلغ أقل",
-    });
-  }
+  const displayTiers = selectTiersForWhatsAppList(lowerTiers, 8);
+  const rows = displayTiers.map((amount) => ({
+    id: `amt_${amount}`,
+    title: `${formatMoney(amount)} ريال`,
+    description: "مبلغ أقل",
+  }));
 
   return {
     kind: "list",
@@ -507,6 +544,8 @@ module.exports = {
   replyPropertyComboDecision,
   buildMaxAmountReply,
   buildAmountChoiceInteractive,
+  buildLowerAmountInteractive,
+  selectTiersForWhatsAppList,
   buildPropertyComboOffer,
   mapSector,
   mapRealEstate,
