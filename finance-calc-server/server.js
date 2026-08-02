@@ -240,12 +240,9 @@ app.post("/webhook/interakt", async (req, res) => {
       } else if (!parsed.jobCategory) {
         saveDraft(countryCode, phone, parsed);
       }
-    } else if (looksLikeStartPersonalFinance(text)) {
-      // مهم: حتى لو فيه مسودة قديمة على خطوة القطاع،
-      // "تمويل" = إعادة بدء (Interakt يعرض الأزرار؛ الكوبري ما يرد نص)
-      result = startPersonalFinanceFlow();
-      saveDraft(countryCode, phone, result.draft);
     } else if (draft?.flow === "personal_chat" && draft.step && draft.step !== "done") {
+      // أولوية للمحادثة الجارية (مثلاً اختيار 1 = لا يوجد عقاري)
+      // "تمويل" يعيد البدء من داخل advancePersonalFinanceFlow
       result = advancePersonalFinanceFlow(draft, text);
       if (result.clearDraft || result.draft == null) {
         clearDraft(countryCode, phone);
@@ -259,6 +256,10 @@ app.post("/webhook/interakt", async (req, res) => {
         saveSession(countryCode, phone, result.data);
         if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
+    } else if (looksLikeStartPersonalFinance(text)) {
+      // بدون مسودة نشطة: تجهيز الجلسة وأزرار Interakt تعرض القطاع
+      result = startPersonalFinanceFlow();
+      saveDraft(countryCode, phone, result.draft);
     } else if (looksLikeSectorOnlyReply(text)) {
       if (!draft) return;
       const merged = {

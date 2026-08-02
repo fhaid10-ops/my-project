@@ -176,6 +176,20 @@ check("عسكري أقل من 10000 مع عقاري يُرفض", () => {
   assert.match(rejected.reply, /نعتذر منك/);
 });
 
+check("اختيار 1 للعقاري لا يُفسّر كبداية تمويل", () => {
+  const { looksLikeStartPersonalFinance } = require("../lib/conversation");
+  assert.strictEqual(looksLikeStartPersonalFinance("1"), false);
+  assert.strictEqual(looksLikeStartPersonalFinance("تمويل"), true);
+
+  const start = startPersonalFinanceFlow();
+  const afterSector = advancePersonalFinanceFlow(start.draft, "عسكري");
+  const afterSalary = advancePersonalFinanceFlow(afterSector.draft, "8000");
+  const combo = advancePersonalFinanceFlow(afterSalary.draft, "1");
+  assert.ok(combo.ok);
+  assert.strictEqual(combo.offer, "property_combo");
+  assert.match(combo.reply, /هل ترغب بهذا العرض/);
+});
+
 if (!process.exitCode) {
   console.log("\nكل اختبارات webhook-parse نجحت");
 }
