@@ -43,8 +43,8 @@ module.exports = {
   // ---------------------------------------------------------------------------
   jobCategories: {
     military: { label: "عسكري", interestRate: 18.5 }, // 18.50% — تمويل شخصي جديد
-    civilian: { label: "مدني", interestRate: 13 },
-    retired: { label: "متقاعد", interestRate: 13 },
+    civilian: { label: "مدني", interestRate: 14.5 }, // 14.50%
+    retired: { label: "متقاعد", interestRate: 14.5 }, // 14.50%
   },
 
   // ---------------------------------------------------------------------------
