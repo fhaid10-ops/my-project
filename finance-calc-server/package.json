@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test:calc": "node scripts/test-calc.js"
+    "test:calc": "node scripts/test-calc.js",
+    "test:webhook": "node scripts/test-webhook-parse.js",
+    "test": "npm run test:calc && npm run test:webhook"
   },
   "type": "commonjs",
   "dependencies": {

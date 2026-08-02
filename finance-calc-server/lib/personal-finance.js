@@ -24,10 +24,19 @@ const CONFIG = require("../config");
 const AMOUNT_MENU_STEP = 10000;
 
 function mapSector(text) {
-  const t = String(text || "").trim();
-  if (/عسكري/.test(t)) return "military";
-  if (/متقاعد/.test(t)) return "retired";
-  if (/مدني/.test(t)) return "civilian";
+  const t = String(text || "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/[➦►▶➢➤•·●○▪️]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!t) return null;
+  // عسكري قبل مدني حتى لا تلتبس نصوص مركّبة
+  if (/عسكري|military|army/i.test(t)) return "military";
+  if (/متقاعد|retired|pension/i.test(t)) return "retired";
+  if (/مدني|civilian|civil/i.test(t)) return "civilian";
+  if (/^3$/.test(t)) return "military";
+  if (/^2$/.test(t)) return "retired";
+  if (/^1$/.test(t)) return "civilian";
   return null;
 }
 

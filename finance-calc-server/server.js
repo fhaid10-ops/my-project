@@ -25,6 +25,7 @@ const {
   startPersonalFinanceFlow,
   advancePersonalFinanceFlow,
 } = require("./lib/conversation");
+const { extractIncomingMessage } = require("./lib/webhook-parse");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -155,40 +156,6 @@ async function sendInteraktText(countryCode, phoneNumber, message) {
   return json;
 }
 
-function extractIncomingMessage(payload) {
-  const data = payload?.data || payload;
-  const messageObj = data?.message || {};
-  const customer = data?.customer || {};
-
-  const text =
-    messageObj?.message ||
-    messageObj?.text ||
-    messageObj?.body ||
-    data?.text ||
-    "";
-
-  let phone =
-    customer?.phone_number ||
-    customer?.phoneNumber ||
-    customer?.trailing_phone ||
-    "";
-  let countryCode =
-    customer?.country_code ||
-    customer?.countryCode ||
-    "+966";
-
-  phone = String(phone).replace(/\D/g, "");
-  if (phone.startsWith("966") && phone.length > 9) {
-    phone = phone.slice(3);
-  }
-  if (phone.startsWith("0")) phone = phone.slice(1);
-
-  countryCode = String(countryCode || "+966");
-  if (!countryCode.startsWith("+")) countryCode = `+${countryCode}`;
-
-  return { text: String(text || ""), phone, countryCode };
-}
-
 /**
  * Webhook من Interakt — فعّله من Developer Settings
  * URL مثال: https://xxxx.trycloudflare.com/webhook/interakt
@@ -211,9 +178,23 @@ app.post("/webhook/interakt", async (req, res) => {
 
     const payload = req.body || {};
     const type = payload?.type || payload?.event || "";
-    const { text, phone, countryCode } = extractIncomingMessage(payload);
+    const { text, phone, countryCode, contentType, eventType } =
+      extractIncomingMessage(payload);
 
-    console.log("[webhook]", { type, phone, preview: text.slice(0, 80) });
+    console.log("[webhook]", {
+      type: type || eventType,
+      phone,
+      contentType,
+      preview: text.slice(0, 80),
+      messageKeys: Object.keys(payload?.data?.message || {}),
+      hasButtonText: Boolean(payload?.data?.message?.button_text),
+    });
+
+    // تجاهل أحداث التسليم/القراءة؛ نقبل message_received وضغط الأزرار
+    const ignoredTypes = /^(message_api_sent|message_api_delivered|message_api_read|message_api_failed|message_campaign_)/i;
+    if (type && ignoredTypes.test(String(type)) && !payload?.data?.message?.button_text) {
+      return;
+    }
 
     if (!phone || !text) return;
 

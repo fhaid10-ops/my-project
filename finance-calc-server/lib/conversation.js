@@ -43,12 +43,7 @@ function advancePersonalFinanceFlow(draft, text) {
   const raw = String(text || "").trim();
 
   if (step === "sector") {
-    let jobCategory = mapSector(raw);
-    if (!jobCategory) {
-      if (/^1$/.test(raw)) jobCategory = "civilian";
-      if (/^2$/.test(raw)) jobCategory = "retired";
-      if (/^3$/.test(raw)) jobCategory = "military";
-    }
+    const jobCategory = mapSector(raw);
     if (!jobCategory) {
       return {
         ok: false,
