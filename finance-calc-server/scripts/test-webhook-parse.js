@@ -151,6 +151,31 @@ check("مدني راتبه 4000 يكمل للالتزامات", () => {
   assert.strictEqual(next.draft.step, "commitments");
 });
 
+check("عسكري أقل من 10000 يُسأل عن العقاري ثم باقة إذا لا يوجد", () => {
+  const start = startPersonalFinanceFlow();
+  const afterSector = advancePersonalFinanceFlow(start.draft, "عسكري");
+  const afterSalary = advancePersonalFinanceFlow(afterSector.draft, "8000");
+  assert.ok(afterSalary.ok);
+  assert.match(afterSalary.reply, /عقاري/);
+  assert.strictEqual(afterSalary.draft.step, "real_estate");
+  assert.strictEqual(afterSalary.draft.militaryLowSalaryPath, true);
+
+  const combo = advancePersonalFinanceFlow(afterSalary.draft, "لا يوجد");
+  assert.ok(combo.ok);
+  assert.strictEqual(combo.offer, "property_combo");
+  assert.match(combo.reply, /عقاري \+ الشخصي|العقاري \+ الشخصي/);
+  assert.strictEqual(combo.data.awaitingCombo, true);
+});
+
+check("عسكري أقل من 10000 مع عقاري يُرفض", () => {
+  const start = startPersonalFinanceFlow();
+  const afterSector = advancePersonalFinanceFlow(start.draft, "عسكري");
+  const afterSalary = advancePersonalFinanceFlow(afterSector.draft, "8500");
+  const rejected = advancePersonalFinanceFlow(afterSalary.draft, "مدعوم");
+  assert.strictEqual(rejected.ok, false);
+  assert.match(rejected.reply, /نعتذر منك/);
+});
+
 if (!process.exitCode) {
   console.log("\nكل اختبارات webhook-parse نجحت");
 }

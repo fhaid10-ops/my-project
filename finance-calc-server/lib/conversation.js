@@ -5,9 +5,11 @@ const {
   mapSector,
   mapRealEstate,
   calculatePersonalFinance,
+  buildPropertyComboOffer,
 } = require("./personal-finance");
 const {
   getMinSalaryForEntry,
+  getMinSalaryForCategory,
   meetsMinimumSalaryForEntry,
 } = require("./calculations");
 
@@ -76,6 +78,46 @@ function lowSalaryApology(jobCategory) {
 راتب المدني من ${formatted} ريال`;
 }
 
+function realEstatePrompt() {
+  return `هل عليك تمويل عقاري؟
+
+1- لا يوجد
+2- مدعوم
+3- غير مدعوم
+4- قديم
+
+أرسل الرقم أو النص.`;
+}
+
+/** عسكري راتبه تحت 10,000 + لا عقاري → باقة عقاري+شخصي */
+function offerMilitaryPropertyCombo(state) {
+  const result = buildPropertyComboOffer({
+    jobCategory: "military",
+    salary: state.salary,
+    commitments: state.commitments || 0,
+    realEstateType: "none",
+    supportAmount: 0,
+    reason: "military_low_salary",
+  });
+  return {
+    ...result,
+    draft: {
+      flow: "personal_chat",
+      step: "done",
+      awaitingCombo: true,
+      ...result.data,
+    },
+    sessionData: result.data,
+  };
+}
+
+function militaryWithPropertyReject() {
+  const min = getMinSalaryForCategory("military");
+  const formatted = Number(min).toLocaleString("en-US");
+  return `نعتذر منك الراتب أقل من المطلوب.
+الراتب المطلوب للعسكري للتمويل الشخصي من ${formatted} ريال`;
+}
+
 function advancePersonalFinanceFlow(draft, text) {
   const state = { ...(draft || {}), flow: "personal_chat" };
   const step = state.step || "sector";
@@ -127,6 +169,20 @@ function advancePersonalFinanceFlow(draft, text) {
       };
     }
     state.salary = salary;
+
+    // عسكري أقل من 10,000 → اسأله عن العقاري مباشرة (بدون التزامات)
+    const personalMin = getMinSalaryForCategory(state.jobCategory);
+    if (state.jobCategory === "military" && salary < personalMin) {
+      state.commitments = 0;
+      state.militaryLowSalaryPath = true;
+      state.step = "real_estate";
+      return {
+        ok: true,
+        reply: realEstatePrompt(),
+        draft: state,
+      };
+    }
+
     state.step = "commitments";
     return {
       ok: true,
@@ -152,14 +208,7 @@ function advancePersonalFinanceFlow(draft, text) {
     state.step = "real_estate";
     return {
       ok: true,
-      reply: `هل عليك تمويل عقاري؟
-
-1- لا يوجد
-2- مدعوم
-3- غير مدعوم
-4- قديم
-
-أرسل الرقم أو النص.`,
+      reply: realEstatePrompt(),
       draft: state,
     };
   }
@@ -185,6 +234,19 @@ function advancePersonalFinanceFlow(draft, text) {
       };
     }
     state.realEstateType = realEstateType;
+
+    // مسار العسكري تحت 10,000
+    if (state.militaryLowSalaryPath) {
+      if (realEstateType === "none") {
+        return offerMilitaryPropertyCombo(state);
+      }
+      return {
+        ok: false,
+        reply: militaryWithPropertyReject(),
+        draft: null,
+        clearDraft: true,
+      };
+    }
 
     if (realEstateType === "supported") {
       state.step = "support";
