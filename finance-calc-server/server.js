@@ -242,6 +242,12 @@ async function sendInteraktInteractive(countryCode, phoneNumber, interactive) {
 }
 
 async function sendResultReply(countryCode, phone, result) {
+  // نتيجة الحسبة: نص أعلى مبلغ ثم قائمة المبالغ الأقل
+  if (result?.sendTextThenInteractive && result?.reply && result?.interactive) {
+    await sendInteraktText(countryCode, phone, result.reply);
+    await sendInteraktInteractive(countryCode, phone, result.interactive);
+    return "text+interactive";
+  }
   if (result?.interactive) {
     await sendInteraktInteractive(countryCode, phone, result.interactive);
     return "interactive";

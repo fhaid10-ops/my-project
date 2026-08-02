@@ -247,19 +247,15 @@ function calculatePersonalFinance(input) {
     rounded,
     installment,
     total,
-    lowerTiers,
   });
-  const interactive = buildAmountChoiceInteractive({
-    rounded,
-    installment,
-    total,
-    lowerTiers,
-  });
+  const interactive = buildLowerAmountInteractive(lowerTiers);
 
   return {
     ok: true,
     reply,
     interactive,
+    // نص النتيجة أولًا، ثم قائمة المبالغ الأقل
+    sendTextThenInteractive: Boolean(interactive),
     data: {
       jobCategory,
       realEstateType,
@@ -280,6 +276,7 @@ function calculatePersonalFinance(input) {
 
 function contactFooter() {
   return `للتقديم الإلكتروني:
+قدم وارسلي رقم الطلب
 https://portal.sfco.com.sa/?DSA=SF195`;
 }
 
@@ -359,8 +356,8 @@ ${footer}`;
   return { ok: true, offer: "property_combo_declined", reply: apology };
 }
 
-function buildMaxAmountReply({ rounded, installment, total, lowerTiers }) {
-  let reply = `تم حساب التمويل الشخصي:
+function buildMaxAmountReply({ rounded, installment, total }) {
+  return `تم حساب التمويل الشخصي:
 
 أعلى مبلغ متاح لك:
 ${formatMoney(rounded)} ريال
@@ -371,57 +368,16 @@ ${formatMoney(installment)} ريال
 الإجمالي التقريبي:
 ${formatMoney(total)} ريال
 
-اختر من القائمة:
-• أعلى مبلغ متاح (${formatMoney(rounded)} ريال)
-• أو مبلغ أقل`;
-
-  // نص احتياطي إذا القائمة التفاعلية ما اشتغلت
-  if (lowerTiers && lowerTiers.length) {
-    reply += `
-
-المبالغ الأقل:`;
-    for (const amount of lowerTiers.slice(0, 8)) {
-      reply += `\n• ${formatMoney(amount)}`;
-    }
-  }
-
-  reply += `\n\n${contactFooter()}`;
-  return reply;
+${contactFooter()}`;
 }
 
 /**
- * قائمة اختيار المبلغ: أعلى مبلغ أولًا ثم الأقل
- * (InteractiveList — أجمل من نقاط نصية)
+ * قائمة المبالغ الأقل فقط — زر: اذا ترغب بمبلغ اقل اختر هنا
  */
-function buildAmountChoiceInteractive({
-  rounded,
-  installment,
-  total,
-  lowerTiers = [],
-}) {
-  const body = `تم حساب التمويل الشخصي:
+function buildLowerAmountInteractive(lowerTiers = []) {
+  if (!lowerTiers.length) return null;
 
-أعلى مبلغ متاح لك:
-${formatMoney(rounded)} ريال
-
-القسط الشهري لهذا المبلغ:
-${formatMoney(installment)} ريال
-
-الإجمالي التقريبي:
-${formatMoney(total)} ريال
-
-اختر المبلغ من القائمة (أعلى مبلغ أو أقل).
-
-${contactFooter()}`;
-
-  const rows = [
-    {
-      id: `amt_${rounded}`,
-      title: `${formatMoney(rounded)} ريال`,
-      description: `أعلى مبلغ | قسط ${formatMoney(installment)}`,
-    },
-  ];
-
+  const rows = [];
   for (const amount of lowerTiers) {
     if (rows.length >= 10) break;
     rows.push({
@@ -433,11 +389,16 @@ ${contactFooter()}`;
 
   return {
     kind: "list",
-    body: body.slice(0, 1024),
-    button: "اختر المبلغ",
-    sectionTitle: "المبالغ المتاحة",
+    body: "اذا ترغب بمبلغ اقل اختر هنا",
+    button: "اختر هنا",
+    sectionTitle: "مبالغ أقل",
     rows,
   };
+}
+
+/** @deprecated استخدم buildLowerAmountInteractive */
+function buildAmountChoiceInteractive({ lowerTiers = [] } = {}) {
+  return buildLowerAmountInteractive(lowerTiers);
 }
 
 /**
