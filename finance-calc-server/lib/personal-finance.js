@@ -11,6 +11,8 @@ const {
   meetsMinimumEstimatedAmount,
   formatMoney,
   getMinSalaryForCategory,
+  shouldOfferPropertyComboToMilitary,
+  resolveComboRejectReason,
 } = require("./calculations");
 const {
   resolveJobCategory,
@@ -156,7 +158,25 @@ function calculatePersonalFinance(input) {
     };
   }
 
+  const sessionLike = {
+    jobCategory,
+    salary,
+    grossSalary: salary,
+    realEstate: realEstateType,
+  };
+
   if (!meetsMinimumSalary(salary, jobCategory)) {
+    // عسكري راتبه أقل من حد الشخصي لكن يصلح لباقة عقاري+شخصي
+    if (shouldOfferPropertyComboToMilitary(sessionLike)) {
+      return buildPropertyComboOffer({
+        jobCategory,
+        salary,
+        commitments,
+        realEstateType,
+        supportAmount,
+        reason: "military_low_salary",
+      });
+    }
     const min = getMinSalaryForCategory(jobCategory);
     return {
       ok: false,
@@ -173,6 +193,24 @@ function calculatePersonalFinance(input) {
   const rounded = roundDownToStep(estimated);
 
   if (!meetsMinimumEstimatedAmount(rounded)) {
+    // مستنفد حد الشخصي / المبلغ قليل → عرض عقاري + شخصي إن انطبق
+    const comboReason = resolveComboRejectReason(
+      sessionLike,
+      rounded,
+      commitments
+    );
+    if (comboReason) {
+      return buildPropertyComboOffer({
+        jobCategory,
+        salary,
+        commitments,
+        realEstateType,
+        supportAmount,
+        estimated,
+        rounded,
+        reason: comboReason,
+      });
+    }
     return {
       ok: false,
       reply:
@@ -226,6 +264,80 @@ function calculatePersonalFinance(input) {
 function contactFooter() {
   return `للتقديم الإلكتروني:
 https://portal.sfco.com.sa/?DSA=SF195`;
+}
+
+function buildPropertyComboOffer(base = {}) {
+  const pkg = CONFIG.comboPackage || {};
+  const total = pkg.totalExample || 1000000;
+  const propertyAmount = pkg.propertyAmount || 400000;
+  const personalAmount = pkg.personalAmount || 600000;
+  const offerFn = CONFIG.messages?.propertyComboOffer;
+  const reply =
+    typeof offerFn === "function"
+      ? offerFn(
+          formatMoney(total),
+          formatMoney(propertyAmount),
+          formatMoney(personalAmount)
+        )
+      : `حلول تمويل أخرى
+في حال رغبتك بسداد جميع التزاماتك واستخراج
+عرض التمويل العقاري + الشخصي
+
+مثال ${formatMoney(total)} ريال
+${formatMoney(propertyAmount)} ريال عقاري
+${formatMoney(personalAmount)} ريال شخصي
+
+هل ترغب بهذا العرض؟
+
+1- نعم
+2- لا`;
+
+  return {
+    ok: true,
+    offer: "property_combo",
+    reply,
+    data: {
+      ...base,
+      awaitingCombo: true,
+      comboTotal: total,
+      comboProperty: propertyAmount,
+      comboPersonal: personalAmount,
+    },
+  };
+}
+
+function looksLikeYesNoReply(text) {
+  const t = String(text || "").trim();
+  if (!t || t.length > 20) return null;
+  if (/^(1|نعم|اي|أي|أجل|موافق|ابي|أبي|أرغب|ارغب)$/i.test(t)) return "yes";
+  if (/^(2|لا|لأ|لاء|ما ابي|ماأبي|رفض)$/i.test(t)) return "no";
+  return null;
+}
+
+function replyPropertyComboDecision(choice) {
+  if (choice === "yes") {
+    const agentName =
+      CONFIG.financing?.propertyComboAgentName || "أبو صالح";
+    const agentPhone =
+      CONFIG.financing?.propertyComboAgentPhone || "0501812339";
+    const footer =
+      CONFIG.financing?.propertyComboContactFooter ||
+      "من طرف رائد الحربي\nربي يسر أمرك";
+    const direct = CONFIG.messages?.propertyComboAgentDirect;
+    const reply =
+      typeof direct === "function"
+        ? direct(agentName, agentPhone, footer)
+        : `للتواصل مع المندوب ${agentName}:
+${agentPhone}
+
+${footer}`;
+    return { ok: true, offer: "property_combo_accepted", reply };
+  }
+
+  const apology =
+    CONFIG.messages?.propertyComboDeclinedApology ||
+    "حسناً، نعتذر منك ونأسف على عدم خدمتك.";
+  return { ok: true, offer: "property_combo_declined", reply: apology };
 }
 
 function buildMaxAmountReply({ rounded, installment, total, lowerTiers }) {
@@ -343,11 +455,14 @@ module.exports = {
   parsePersonalFinanceMessage,
   looksLikePersonalFinanceData,
   looksLikeSectorOnlyReply,
+  looksLikeYesNoReply,
   calculatePersonalFinance,
   parseAmountChoice,
   looksLikeAmountChoice,
   calculateSelectedAmount,
+  replyPropertyComboDecision,
   buildMaxAmountReply,
+  buildPropertyComboOffer,
   mapSector,
   mapRealEstate,
 };

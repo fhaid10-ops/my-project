@@ -12,10 +12,12 @@ const {
   parsePersonalFinanceMessage,
   looksLikePersonalFinanceData,
   looksLikeSectorOnlyReply,
+  looksLikeYesNoReply,
   calculatePersonalFinance,
   looksLikeAmountChoice,
   parseAmountChoice,
   calculateSelectedAmount,
+  replyPropertyComboDecision,
   mapSector,
 } = require("./lib/personal-finance");
 
@@ -211,8 +213,18 @@ app.post("/webhook/interakt", async (req, res) => {
     if (!phone || !text) return;
 
     let result = null;
+    const yesNo = looksLikeYesNoReply(text);
+    const currentSession = getSession(countryCode, phone);
 
-    if (looksLikePersonalFinanceData(text)) {
+    if (yesNo && currentSession?.awaitingCombo) {
+      result = replyPropertyComboDecision(yesNo);
+      // بعد القرار نغلق انتظار عرض العقاري
+      saveSession(countryCode, phone, {
+        ...currentSession,
+        awaitingCombo: false,
+        comboDecision: yesNo,
+      });
+    } else if (looksLikePersonalFinanceData(text)) {
       const parsed = parsePersonalFinanceMessage(text);
       result = calculatePersonalFinance(parsed);
       if (result.ok && result.data) {
@@ -237,6 +249,8 @@ app.post("/webhook/interakt", async (req, res) => {
       }
     } else if (looksLikeAmountChoice(text)) {
       const sessionData = getSession(countryCode, phone);
+      // لا تفسّر "1"/"2" كمبلغ لو ننتظر رد عرض العقاري
+      if (sessionData?.awaitingCombo) return;
       const amount = parseAmountChoice(text);
       result = calculateSelectedAmount(sessionData || {}, amount);
     } else {
