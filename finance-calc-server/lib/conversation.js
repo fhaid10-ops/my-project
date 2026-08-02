@@ -17,18 +17,12 @@ function looksLikeStartPersonalFinance(text) {
 }
 
 function startPersonalFinanceFlow() {
+  // لا نرسل سؤال القطاع هنا إذا Interakt يعرض أزرار القطاع
+  // فقط نجهّز الجلسة؛ لما يضغط مدني/متقاعد/عسكري نكمل للراتب
   return {
     ok: true,
     flow: "personal_chat",
-    reply: `لنبدأ حسبة التمويل الشخصي ✅
-
-أول سؤال: وش قطاعك؟
-
-1- مدني
-2- متقاعد
-3- عسكري
-
-أرسل الرقم أو اسم القطاع.`,
+    reply: null,
     draft: {
       flow: "personal_chat",
       step: "sector",
