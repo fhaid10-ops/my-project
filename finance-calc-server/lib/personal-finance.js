@@ -4,6 +4,7 @@
 const {
   calculateEstimatedAmount,
   roundDownToStep,
+  buildLowerAmountTiers,
   calculateMonthlyInstallment,
   calculateTotalRepayment,
   meetsMinimumSalary,
@@ -15,6 +16,10 @@ const {
   resolveJobCategory,
   resolveInterestRate,
 } = require("./interest-rate");
+const CONFIG = require("../config");
+
+/** خطوة قائمة المبالغ الأقل للعميل (100 ألف → 90 → 80 … → 10) */
+const AMOUNT_MENU_STEP = 10000;
 
 function mapSector(text) {
   const t = String(text || "").trim();
@@ -170,20 +175,18 @@ function calculatePersonalFinance(input) {
     jobCategory
   );
   const total = calculateTotalRepayment(rounded, rate);
+  const lowerTiers = buildLowerAmountTiers(
+    rounded,
+    AMOUNT_MENU_STEP,
+    CONFIG.financing.minLowerAmount || 10000
+  );
 
-  const reply = `تم حساب التمويل الشخصي:
-
-قيمة التمويل:
-${formatMoney(rounded)} ريال
-
-القسط الشهري:
-${formatMoney(installment)} ريال
-
-الإجمالي التقريبي:
-${formatMoney(total)} ريال
-
-للتقديم أو الاستفسار كلم عبدالرحمن:
-0531240724`;
+  const reply = buildMaxAmountReply({
+    rounded,
+    installment,
+    total,
+    lowerTiers,
+  });
 
   return {
     ok: true,
@@ -196,7 +199,125 @@ ${formatMoney(total)} ريال
       supportAmount,
       estimated,
       rounded,
+      maxAmount: rounded,
       rate,
+      installment,
+      total,
+      lowerTiers,
+    },
+  };
+}
+
+function contactFooter() {
+  return `للتقديم أو الاستفسار كلم عبدالرحمن:
+0531240724`;
+}
+
+function buildMaxAmountReply({ rounded, installment, total, lowerTiers }) {
+  let reply = `تم حساب التمويل الشخصي:
+
+أعلى مبلغ متاح لك:
+${formatMoney(rounded)} ريال
+
+القسط الشهري لهذا المبلغ:
+${formatMoney(installment)} ريال
+
+الإجمالي التقريبي:
+${formatMoney(total)} ريال`;
+
+  if (lowerTiers && lowerTiers.length) {
+    reply += `
+
+إذا تبي مبلغ أقل، أرسل أحد المبالغ من القائمة:`;
+    for (const amount of lowerTiers) {
+      reply += `\n• ${formatMoney(amount)}`;
+    }
+  }
+
+  reply += `\n\n${contactFooter()}`;
+  return reply;
+}
+
+/**
+ * هل الرسالة اختيار مبلغ؟ (مثال: 90000 أو 90,000)
+ */
+function parseAmountChoice(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+
+  // رقم واحد في الرسالة (مع فواصل اختيارية)
+  const m = raw.match(/^[\s]*([0-9]{1,3}(?:[.,\s]?[0-9]{3})+|[0-9]+)[\s]*(?:ريال|ر\.س|SAR)?[\s]*$/i);
+  if (!m) return null;
+
+  const amount = Number(String(m[1]).replace(/[^\d]/g, ""));
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return amount;
+}
+
+function looksLikeAmountChoice(text) {
+  return parseAmountChoice(text) != null;
+}
+
+/**
+ * حساب القسط لمبلغ اختاره العميل (أقل من أو يساوي الأعلى)
+ */
+function calculateSelectedAmount(sessionData, selectedAmount) {
+  const maxAmount = Number(sessionData?.maxAmount || sessionData?.rounded || 0);
+  const rate = Number(sessionData?.rate);
+  const jobCategory = sessionData?.jobCategory;
+  const minAmount = CONFIG.financing.minLowerAmount || 10000;
+  const amount = Number(selectedAmount);
+
+  if (!maxAmount || !Number.isFinite(rate) || !jobCategory) {
+    return {
+      ok: false,
+      reply:
+        "أرسل بيانات التمويل أولًا بهذا الشكل:\nالراتب: 8000\nالالتزامات: 1500\nالقطاع: مدني\nالعقاري: لا يوجد\nالدعم: 0",
+    };
+  }
+
+  if (!Number.isFinite(amount) || amount < minAmount) {
+    return {
+      ok: false,
+      reply: `أقل مبلغ يمكن اختياره ${formatMoney(minAmount)} ريال.\nأرسل مبلغ من القائمة.`,
+    };
+  }
+
+  if (amount > maxAmount) {
+    return {
+      ok: false,
+      reply: `أعلى مبلغ متاح لك ${formatMoney(maxAmount)} ريال.\nأرسل مبلغ من القائمة أو أقل.`,
+    };
+  }
+
+  // اسمح بأي مبلغ ضمن الحد، مع تفضيل مضاعفات الخطوة
+  const installment = calculateMonthlyInstallment(
+    amount,
+    rate,
+    undefined,
+    jobCategory
+  );
+  const total = calculateTotalRepayment(amount, rate);
+
+  const reply = `تم اختيار المبلغ:
+
+قيمة التمويل:
+${formatMoney(amount)} ريال
+
+القسط الشهري:
+${formatMoney(installment)} ريال
+
+الإجمالي التقريبي:
+${formatMoney(total)} ريال
+
+${contactFooter()}`;
+
+  return {
+    ok: true,
+    reply,
+    data: {
+      ...sessionData,
+      selectedAmount: amount,
       installment,
       total,
     },
@@ -207,6 +328,10 @@ module.exports = {
   parsePersonalFinanceMessage,
   looksLikePersonalFinanceData,
   calculatePersonalFinance,
+  parseAmountChoice,
+  looksLikeAmountChoice,
+  calculateSelectedAmount,
+  buildMaxAmountReply,
   mapSector,
   mapRealEstate,
 };

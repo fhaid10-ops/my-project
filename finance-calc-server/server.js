@@ -1,6 +1,10 @@
 /**
  * سيرفر الحاسبة + Webhook Interakt
  * يشتغل على جهاز البيت (جهاز عبدالرحمن)
+ *
+ * التدفق:
+ * 1) العميل يرسل بيانات التمويل → نحسب أعلى مبلغ + قائمة أقل
+ * 2) إذا أرسل مبلغ من القائمة → نحسب قسط المبلغ المختار
  */
 require("dotenv").config();
 const express = require("express");
@@ -8,6 +12,9 @@ const {
   parsePersonalFinanceMessage,
   looksLikePersonalFinanceData,
   calculatePersonalFinance,
+  looksLikeAmountChoice,
+  parseAmountChoice,
+  calculateSelectedAmount,
 } = require("./lib/personal-finance");
 
 const app = express();
@@ -17,11 +24,38 @@ const PORT = Number(process.env.PORT || 5055);
 const INTERAKT_API_KEY = String(process.env.INTERAKT_API_KEY || "").trim();
 const WEBHOOK_SECRET = String(process.env.WEBHOOK_SECRET || "").trim();
 
+/** جلسات مؤقتة: phone -> نتيجة الحسبة (أعلى مبلغ + نسبة) */
+const sessions = new Map();
+const SESSION_TTL_MS = 1000 * 60 * 60 * 6; // 6 ساعات
+
+function sessionKey(countryCode, phone) {
+  return `${countryCode}:${phone}`;
+}
+
+function saveSession(countryCode, phone, data) {
+  sessions.set(sessionKey(countryCode, phone), {
+    data,
+    savedAt: Date.now(),
+  });
+}
+
+function getSession(countryCode, phone) {
+  const key = sessionKey(countryCode, phone);
+  const row = sessions.get(key);
+  if (!row) return null;
+  if (Date.now() - row.savedAt > SESSION_TTL_MS) {
+    sessions.delete(key);
+    return null;
+  }
+  return row.data;
+}
+
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
     service: "finance-calc-server",
     interaktConfigured: Boolean(INTERAKT_API_KEY),
+    activeSessions: sessions.size,
   });
 });
 
@@ -35,6 +69,16 @@ app.post("/calculate/personal", (req, res) => {
   }
 
   const result = calculatePersonalFinance(input);
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
+/** اختبار اختيار مبلغ أقل */
+app.post("/calculate/select-amount", (req, res) => {
+  const body = req.body || {};
+  const sessionData = body.session || body.data || {};
+  const amount =
+    body.amount != null ? Number(body.amount) : parseAmountChoice(body.message || body.text || "");
+  const result = calculateSelectedAmount(sessionData, amount);
   res.status(result.ok ? 200 : 400).json(result);
 });
 
@@ -139,10 +183,22 @@ app.post("/webhook/interakt", async (req, res) => {
     console.log("[webhook]", { type, phone, preview: text.slice(0, 80) });
 
     if (!phone || !text) return;
-    if (!looksLikePersonalFinanceData(text)) return;
 
-    const parsed = parsePersonalFinanceMessage(text);
-    const result = calculatePersonalFinance(parsed);
+    let result = null;
+
+    if (looksLikePersonalFinanceData(text)) {
+      const parsed = parsePersonalFinanceMessage(text);
+      result = calculatePersonalFinance(parsed);
+      if (result.ok && result.data) {
+        saveSession(countryCode, phone, result.data);
+      }
+    } else if (looksLikeAmountChoice(text)) {
+      const sessionData = getSession(countryCode, phone);
+      const amount = parseAmountChoice(text);
+      result = calculateSelectedAmount(sessionData || {}, amount);
+    } else {
+      return;
+    }
 
     try {
       await sendInteraktText(countryCode, phone, result.reply);
