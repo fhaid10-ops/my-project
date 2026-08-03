@@ -83,9 +83,8 @@ check("mapSector يفهم مدني مع رمز السهم", () => {
 
 check("ضغط مدني يكمل لسؤال الراتب", () => {
   const start = startPersonalFinanceFlow();
-  assert.match(start.reply, /قطاع/);
-  assert.ok(start.interactive);
-  assert.strictEqual(start.interactive.kind, "buttons");
+  assert.strictEqual(start.reply, null);
+  assert.strictEqual(start.interactive, null);
   const next = advancePersonalFinanceFlow(start.draft, "مدني");
   assert.ok(next.ok);
   assert.match(next.reply, /راتبك/);
@@ -122,13 +121,13 @@ check("سيناريو الزر الفاشل سابقًا", () => {
   assert.strictEqual(next.draft.jobCategory, "civilian");
 });
 
-check("تمويل أثناء خطوة القطاع يعيد البدء ويسأل القطاع", () => {
+check("تمويل أثناء خطوة القطاع يعيد البدء بدون رد مكرر", () => {
   const stuck = {
     flow: "personal_chat",
     step: "sector",
   };
   const next = advancePersonalFinanceFlow(stuck, "تمويل");
-  assert.match(next.reply, /قطاع/);
+  assert.strictEqual(next.reply, null);
   assert.strictEqual(next.draft.step, "sector");
   assert.ok(!next.draft.jobCategory);
 });

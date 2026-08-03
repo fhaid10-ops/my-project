@@ -25,10 +25,9 @@ function looksLikeStartPersonalFinance(text) {
 }
 
 function startPersonalFinanceFlow(options = {}) {
-  // من القائمة الرئيسية: نعرض أزرار القطاع من الكوبري
-  // من اختصار «تمويل» عبر Interakt: قد تُعرض الأزرار من Interakt (askSector=false)
-  const askSector = options.askSector !== false;
-  // النص قصير فقط — الخيارات من الأزرار بدون قائمة مرقمة
+  // افتراضيًا صامت: Interakt يعرض أزرار القطاع (مدني/متقاعد/عسكري)
+  // حتى لا تتكرر الرسالة مرتين
+  const askSector = options.askSector === true;
   const sectorBody = "أي قطاع؟";
   return {
     ok: true,

@@ -399,10 +399,10 @@ app.post("/webhook/interakt", async (req, res) => {
         clearSession(countryCode, phone);
         result = menuResult;
       } else if (menuResult.startFlow === "personal") {
-        result = startPersonalFinanceFlow({ askSector: true });
+        result = startPersonalFinanceFlow();
         saveDraft(countryCode, phone, result.draft);
       } else if (menuResult.startFlow === "debt") {
-        result = startDebtPurchaseFlow({ askSector: true });
+        result = startDebtPurchaseFlow();
         saveDraft(countryCode, phone, result.draft);
       } else {
         result = menuResult;
@@ -442,10 +442,10 @@ app.post("/webhook/interakt", async (req, res) => {
         saveDraft(countryCode, phone, parsed);
       }
     } else if (looksLikeStartPersonalFinance(text)) {
-      result = startPersonalFinanceFlow({ askSector: true });
+      result = startPersonalFinanceFlow();
       saveDraft(countryCode, phone, result.draft);
     } else if (looksLikeStartDebtPurchase(text)) {
-      result = startDebtPurchaseFlow({ askSector: true });
+      result = startDebtPurchaseFlow();
       saveDraft(countryCode, phone, result.draft);
     } else if (draft?.flow === "personal_chat" && draft.step && draft.step !== "done") {
       result = advancePersonalFinanceFlow(draft, text);
@@ -502,10 +502,10 @@ app.post("/webhook/interakt", async (req, res) => {
         pauseChat(countryCode, phone);
         result = menuResult;
       } else if (menuResult.startFlow === "personal") {
-        result = startPersonalFinanceFlow({ askSector: true });
+        result = startPersonalFinanceFlow();
         saveDraft(countryCode, phone, result.draft);
       } else if (menuResult.startFlow === "debt") {
-        result = startDebtPurchaseFlow({ askSector: true });
+        result = startDebtPurchaseFlow();
         saveDraft(countryCode, phone, result.draft);
       } else {
         result = menuResult;

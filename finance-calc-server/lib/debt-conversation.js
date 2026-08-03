@@ -32,9 +32,8 @@ function looksLikeStartDebtPurchase(text) {
 }
 
 function startDebtPurchaseFlow(options = {}) {
-  // من القائمة الرئيسية: نعرض أزرار القطاع من الكوبري
-  const askSector = options.askSector !== false;
-  // النص قصير فقط — الخيارات من الأزرار بدون قائمة مرقمة
+  // افتراضيًا صامت: Interakt يعرض أزرار القطاع حتى لا تتكرر الرسالة
+  const askSector = options.askSector === true;
   const sectorBody = "أي قطاع؟";
   return {
     ok: true,
