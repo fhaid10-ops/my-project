@@ -324,16 +324,18 @@ function createAdminRouter(deps) {
 function mountAdmin(app, deps) {
   const router = createAdminRouter(deps);
   app.use("/admin/api", router);
+
+  // مهم: /admin بدون شرطة أخيرة يكسر مسارات JS/CSS النسبية
+  app.get("/admin", (_req, res) => {
+    res.redirect(302, "/admin/");
+  });
+
   app.use(
     "/admin",
     express.static(path.join(__dirname, "..", "public", "admin"), {
       index: "index.html",
-      fallthrough: true,
     })
   );
-  app.get(["/admin", "/admin/"], (_req, res) => {
-    res.sendFile(path.join(__dirname, "..", "public", "admin", "index.html"));
-  });
 }
 
 module.exports = {

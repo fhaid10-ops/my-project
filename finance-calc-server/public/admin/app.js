@@ -197,8 +197,17 @@
       showLogin("أدخل رمز الإدارة");
       return;
     }
-    setToken(token);
-    await tryEnter();
+    loginBtn.disabled = true;
+    loginBtn.textContent = "جاري الدخول...";
+    try {
+      setToken(token);
+      await tryEnter();
+    } catch (err) {
+      showLogin(err.message || "فشل الدخول");
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.textContent = "دخول";
+    }
   });
 
   tokenInput.addEventListener("keydown", (e) => {
