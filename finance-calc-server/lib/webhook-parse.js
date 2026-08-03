@@ -3,6 +3,7 @@
  * مهم: ضغط زر Quick Reply قد يوصل button_text منفصل عن message
  * (و message أحيانًا يكون نص الرسالة الأصلية أو JSON)
  */
+const { normalizeDigits } = require("./digits");
 
 function asTrimmedString(value) {
   if (value == null) return "";
@@ -187,6 +188,7 @@ function extractIncomingMessage(payload) {
     "";
 
   text = normalizeIncomingText(text);
+  text = normalizeDigits(text);
   text = extractChoiceFromMultiline(text);
 
   let phone =

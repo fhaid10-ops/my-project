@@ -190,6 +190,15 @@ check("اختيار 1 للعقاري لا يُفسّر كبداية تمويل",
   assert.match(combo.reply, /هل ترغب بهذا العرض/);
 });
 
+check("الراتب بالأرقام العربية يُقبل", () => {
+  const start = startPersonalFinanceFlow();
+  const afterSector = advancePersonalFinanceFlow(start.draft, "مدني");
+  const next = advancePersonalFinanceFlow(afterSector.draft, "٨٠٠٠");
+  assert.ok(next.ok, next.reply);
+  assert.strictEqual(next.draft.salary, 8000);
+  assert.match(next.reply, /التزامات/);
+});
+
 check("سؤال العقاري يرسل قائمة تفاعلية", () => {
   const {
     parseRealEstateChoice,

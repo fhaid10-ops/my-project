@@ -12,6 +12,7 @@ const {
   getMinSalaryForCategory,
   meetsMinimumSalaryForEntry,
 } = require("./calculations");
+const { normalizeDigits } = require("./digits");
 
 function looksLikeStartPersonalFinance(text) {
   const t = String(text || "").trim();
@@ -38,7 +39,7 @@ function startPersonalFinanceFlow() {
 }
 
 function parseSalaryReply(text) {
-  const t = String(text || "").trim();
+  const t = normalizeDigits(text).trim();
   const m = t.match(/([0-9][0-9,]*)/);
   if (!m) return NaN;
   return Number(String(m[1]).replace(/,/g, ""));

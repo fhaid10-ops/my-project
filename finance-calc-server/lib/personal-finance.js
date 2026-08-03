@@ -19,6 +19,7 @@ const {
   resolveInterestRate,
 } = require("./interest-rate");
 const CONFIG = require("../config");
+const { normalizeDigits } = require("./digits");
 
 /** خطوة قائمة المبالغ الأقل للعميل (100 ألف → 90 → 80 … → 10) */
 const AMOUNT_MENU_STEP = 10000;
@@ -53,7 +54,7 @@ function mapRealEstate(text) {
 }
 
 function parseNumber(value) {
-  const n = Number(String(value ?? "").replace(/[^\d.]/g, ""));
+  const n = Number(normalizeDigits(value).replace(/[^\d.]/g, ""));
   return Number.isFinite(n) ? n : NaN;
 }
 
@@ -61,7 +62,7 @@ function parseNumber(value) {
  * يستخرج الحقول من رسالة العميل (نموذج البيانات).
  */
 function parsePersonalFinanceMessage(text) {
-  const raw = String(text || "");
+  const raw = normalizeDigits(text);
   const get = (patterns) => {
     for (const re of patterns) {
       const m = raw.match(re);
@@ -442,7 +443,7 @@ function buildAmountChoiceInteractive({ lowerTiers = [] } = {}) {
  * هل الرسالة اختيار مبلغ؟ (مثال: 90000 أو 90,000 أو amt_60000)
  */
 function parseAmountChoice(text) {
-  const raw = String(text || "").trim();
+  const raw = normalizeDigits(text).trim();
   if (!raw) return null;
 
   const idMatch = raw.match(/^amt_(\d+)$/i);
