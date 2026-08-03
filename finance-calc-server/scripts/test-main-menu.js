@@ -62,7 +62,6 @@ assert.ok(hours.reply.includes("الأحد") || hours.reply.includes("دوام")
 const assistant = handleMainMenuChoice("7");
 assert.ok(assistant.reply.includes("ماجد"));
 assert.ok(assistant.reply.includes("0507009290"));
-assert.ok(assistant.reply.includes("رائد الحربي"));
-assert.ok(assistant.reply.includes("0501812339"));
+assert.ok(!assistant.reply.includes("0501812339"));
 
 console.log("test-main-menu: OK");

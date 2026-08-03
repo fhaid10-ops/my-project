@@ -20,7 +20,7 @@ function buildAmountList(jobCategory) {
   const { min, max, step } = amountExamplesConfig();
   const rate =
     CONFIG.jobCategories?.[jobCategory]?.interestRate ||
-    (jobCategory === "military" ? 18.5 : 14.5);
+    (jobCategory === "military" ? 18.5 : 13);
   const label =
     CONFIG.jobCategories?.[jobCategory]?.label ||
     (jobCategory === "military" ? "عسكري" : "مدني");

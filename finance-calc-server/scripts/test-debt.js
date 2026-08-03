@@ -47,10 +47,10 @@ check("مثال العميل: 10000 مدني بدون عقاري والتزام 
   // User wrote: التزاماته 3500 ... باقي من 45% 1500
   // Arithmetic inconsistency: 4500-3500=1000, not 1500.
   // We'll follow the formula (ratio*salary - commitments) and their max amount example
-  // which used 1500 → 52173 at 14.5%.
+  // which used 1500 → 54545 at 13%.
   // So verify reverse formula with 1500:
-  const maxFrom1500 = calculateMaxAmountFromMonthlyCapacity(1500, 14.5);
-  assert.strictEqual(maxFrom1500, 52173);
+  const maxFrom1500 = calculateMaxAmountFromMonthlyCapacity(1500, 13);
+  assert.strictEqual(maxFrom1500, 54545);
 
   // With actual 3500 commitments → capacity 1000
   assert.strictEqual(capacity, 1000);
@@ -62,13 +62,13 @@ check("مثال العميل: 10000 مدني بدون عقاري والتزام 
     commitments: 3500,
     realEstateType: "none",
   });
-  // max from 1000 at 14.5% = floor(1000/0.02875)=34782
+  // max from 1000 at 13% = floor(1000/0.0275)=36363
   assert.ok(offer.ok);
-  assert.strictEqual(offer.data.maxAmount, 34782);
-  assert.strictEqual(offer.data.surplus, 34782 - 10000);
+  assert.strictEqual(offer.data.maxAmount, 36363);
+  assert.strictEqual(offer.data.surplus, 36363 - 10000);
 });
 
-check("مثال المطابقة مع 1500 متبقي → فائض 42173", () => {
+check("مثال المطابقة مع 1500 متبقي → فائض 44545", () => {
   // التزامات 3000 حتى يبقى 1500 من 45%
   const offer = calculateDebtPurchaseOffer({
     debtAmount: 10000,
@@ -79,8 +79,8 @@ check("مثال المطابقة مع 1500 متبقي → فائض 42173", () =>
   });
   assert.ok(offer.ok);
   assert.strictEqual(offer.data.monthlyCapacity, 1500);
-  assert.strictEqual(offer.data.maxAmount, 52173);
-  assert.strictEqual(offer.data.surplus, 42173);
+  assert.strictEqual(offer.data.maxAmount, 54545);
+  assert.strictEqual(offer.data.surplus, 44545);
   assert.strictEqual(offer.data.rate, 12);
 });
 
@@ -104,7 +104,7 @@ check("مسار مدني كامل حتى العرض", () => {
   r = advanceDebtPurchaseFlow(r.draft, "10000");
   assert.ok(r.ok);
   assert.strictEqual(r.offer, "debt_purchase");
-  assert.strictEqual(r.data.surplus, 42173);
+  assert.strictEqual(r.data.surplus, 44545);
   assert.strictEqual(looksLikeDebtContinueReply("نعم"), "yes");
   const done = advanceDebtPurchaseFlow(r.draft, "نعم");
   assert.strictEqual(done.offer, "debt_purchase_accepted");
