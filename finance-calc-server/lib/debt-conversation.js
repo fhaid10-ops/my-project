@@ -273,24 +273,15 @@ ${salaryPrompt(jobCategory)}`,
   if (step === "debt_continue") {
     const choice = looksLikeDebtContinueReply(raw);
     if (!choice) {
+      const retryQ =
+        CONFIG.messages?.debtContinueQuestion ||
+        `هل تبي تكمل إجراءات شراء المديونية؟`;
       return {
         ok: false,
-        reply:
-          CONFIG.messages?.invalidDebtContinue ||
-          `الرجاء الرد على السؤال بالشكل الصحيح.
-
-هل تبي تكمل؟
-
-1- نعم
-2- لا`,
+        reply: retryQ,
         interactive: {
           kind: "buttons",
-          body:
-            CONFIG.messages?.debtContinueQuestion ||
-            `هل تبي تكمل إجراءات شراء المديونية؟
-
-1- نعم
-2- لا`,
+          body: retryQ,
           buttons: [
             { id: "debt_yes", title: "نعم" },
             { id: "debt_no", title: "لا" },

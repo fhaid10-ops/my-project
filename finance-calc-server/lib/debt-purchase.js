@@ -153,11 +153,9 @@ function calculateDebtPurchaseOffer(input) {
 
   const continueQ =
     CONFIG.messages?.debtContinueQuestion ||
-    `هل تبي تكمل إجراءات شراء المديونية؟
+    `هل تبي تكمل إجراءات شراء المديونية؟`;
 
-1- نعم
-2- لا`;
-
+  // النص: العرض + السؤال — بدون 1/2 لأن الخيارات من الأزرار فقط
   const reply = `${offerText}
 
 ${continueQ}`;

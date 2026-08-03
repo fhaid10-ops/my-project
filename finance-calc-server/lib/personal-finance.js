@@ -302,10 +302,7 @@ function buildPropertyComboOffer(base = {}) {
 ${formatMoney(propertyAmount)} ريال عقاري
 ${formatMoney(personalAmount)} ريال شخصي
 
-هل ترغب بهذا العرض؟
-
-1- نعم
-2- لا`;
+هل ترغب بهذا العرض؟`;
 
   return {
     ok: true,
