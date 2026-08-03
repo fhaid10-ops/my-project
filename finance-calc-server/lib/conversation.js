@@ -24,13 +24,31 @@ function looksLikeStartPersonalFinance(text) {
   );
 }
 
-function startPersonalFinanceFlow() {
-  // لا نرسل سؤال القطاع هنا إذا Interakt يعرض أزرار القطاع
-  // فقط نجهّز الجلسة؛ لما يضغط مدني/متقاعد/عسكري نكمل للراتب
+function startPersonalFinanceFlow(options = {}) {
+  // من القائمة الرئيسية: نعرض أزرار القطاع من الكوبري
+  // من اختصار «تمويل» عبر Interakt: قد تُعرض الأزرار من Interakt (askSector=false)
+  const askSector = options.askSector !== false;
+  const sectorBody = `أي قطاع؟
+
+اختر الزر، أو أرسل:
+1- مدني
+2- متقاعد
+3- عسكري`;
   return {
     ok: true,
     flow: "personal_chat",
-    reply: null,
+    reply: askSector ? sectorBody : null,
+    interactive: askSector
+      ? {
+          kind: "buttons",
+          body: sectorBody,
+          buttons: [
+            { id: "civilian", title: "مدني" },
+            { id: "retired", title: "متقاعد" },
+            { id: "military", title: "عسكري" },
+          ],
+        }
+      : null,
     draft: {
       flow: "personal_chat",
       step: "sector",

@@ -35,7 +35,14 @@ const {
   buildDebtPurchaseComplete,
   buildDebtPurchaseDeclined,
 } = require("./lib/debt-purchase");
+const {
+  looksLikeShowMainMenu,
+  showMainMenu,
+  parseMainMenuChoice,
+  handleMainMenuChoice,
+} = require("./lib/main-menu");
 const { extractIncomingMessage } = require("./lib/webhook-parse");
+const { normalizeDigits } = require("./lib/digits");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -48,6 +55,8 @@ const WEBHOOK_SECRET = String(process.env.WEBHOOK_SECRET || "").trim();
 const sessions = new Map();
 /** مسودات ناقصة: phone -> بيانات الراتب/الالتزامات بانتظار القطاع */
 const drafts = new Map();
+/** محادثات أوقف العميل فيها الرد الآلي (خيار 6) */
+const pausedChats = new Set();
 const SESSION_TTL_MS = 1000 * 60 * 60 * 6; // 6 ساعات
 
 function sessionKey(countryCode, phone) {
@@ -92,6 +101,22 @@ function getDraft(countryCode, phone) {
 
 function clearDraft(countryCode, phone) {
   drafts.delete(sessionKey(countryCode, phone));
+}
+
+function clearSession(countryCode, phone) {
+  sessions.delete(sessionKey(countryCode, phone));
+}
+
+function isChatPaused(countryCode, phone) {
+  return pausedChats.has(sessionKey(countryCode, phone));
+}
+
+function pauseChat(countryCode, phone) {
+  pausedChats.add(sessionKey(countryCode, phone));
+}
+
+function resumeChat(countryCode, phone) {
+  pausedChats.delete(sessionKey(countryCode, phone));
 }
 
 app.get("/health", (_req, res) => {
@@ -316,7 +341,39 @@ app.post("/webhook/interakt", async (req, res) => {
     const currentSession = getSession(countryCode, phone);
     const draft = getDraft(countryCode, phone);
 
-    if (yesNo && (currentSession?.awaitingCombo || draft?.awaitingCombo)) {
+    // السلام عليكم / قائمة → ترحيب + القائمة الرئيسية (يعيد تفعيل الرد إن كان موقف)
+    if (looksLikeShowMainMenu(text)) {
+      result = showMainMenu(text);
+      resumeChat(countryCode, phone);
+      clearDraft(countryCode, phone);
+      clearSession(countryCode, phone);
+      saveDraft(countryCode, phone, result.draft);
+    } else if (isChatPaused(countryCode, phone)) {
+      // خيار 6: لا نرد إلا بعد سلام / قائمة
+      return;
+    } else if (
+      draft?.flow === "main_menu" &&
+      draft.step === "awaiting_choice" &&
+      parseMainMenuChoice(text)
+    ) {
+      const menuResult = handleMainMenuChoice(parseMainMenuChoice(text));
+      if (menuResult.pauseChat) {
+        pauseChat(countryCode, phone);
+        clearDraft(countryCode, phone);
+        clearSession(countryCode, phone);
+        result = menuResult;
+      } else if (menuResult.startFlow === "personal") {
+        result = startPersonalFinanceFlow({ askSector: true });
+        saveDraft(countryCode, phone, result.draft);
+      } else if (menuResult.startFlow === "debt") {
+        result = startDebtPurchaseFlow({ askSector: true });
+        saveDraft(countryCode, phone, result.draft);
+      } else {
+        result = menuResult;
+        if (result.clearDraft) clearDraft(countryCode, phone);
+        else if (result.draft) saveDraft(countryCode, phone, result.draft);
+      }
+    } else if (yesNo && (currentSession?.awaitingCombo || draft?.awaitingCombo)) {
       result = replyPropertyComboDecision(yesNo);
       saveSession(countryCode, phone, {
         ...(currentSession || draft || {}),
@@ -349,10 +406,10 @@ app.post("/webhook/interakt", async (req, res) => {
         saveDraft(countryCode, phone, parsed);
       }
     } else if (looksLikeStartPersonalFinance(text)) {
-      result = startPersonalFinanceFlow();
+      result = startPersonalFinanceFlow({ askSector: true });
       saveDraft(countryCode, phone, result.draft);
     } else if (looksLikeStartDebtPurchase(text)) {
-      result = startDebtPurchaseFlow();
+      result = startDebtPurchaseFlow({ askSector: true });
       saveDraft(countryCode, phone, result.draft);
     } else if (draft?.flow === "personal_chat" && draft.step && draft.step !== "done") {
       result = advancePersonalFinanceFlow(draft, text);
@@ -400,6 +457,24 @@ app.post("/webhook/interakt", async (req, res) => {
       if (!sessionData?.maxAmount && !sessionData?.rounded) return;
       const amount = parseAmountChoice(text);
       result = calculateSelectedAmount(sessionData || {}, amount);
+    } else if (!draft && parseMainMenuChoice(text)) {
+      // عناوين القائمة بدون مسودة — نتجاهل الأرقام وحدها لتجنب التضارب
+      const choice = parseMainMenuChoice(text);
+      if (/^[1-7]$/.test(normalizeDigits(text).trim())) return;
+      const menuResult = handleMainMenuChoice(choice);
+      if (menuResult.pauseChat) {
+        pauseChat(countryCode, phone);
+        result = menuResult;
+      } else if (menuResult.startFlow === "personal") {
+        result = startPersonalFinanceFlow({ askSector: true });
+        saveDraft(countryCode, phone, result.draft);
+      } else if (menuResult.startFlow === "debt") {
+        result = startDebtPurchaseFlow({ askSector: true });
+        saveDraft(countryCode, phone, result.draft);
+      } else {
+        result = menuResult;
+        if (result.draft) saveDraft(countryCode, phone, result.draft);
+      }
     } else {
       return;
     }

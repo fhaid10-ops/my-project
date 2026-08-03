@@ -31,12 +31,30 @@ function looksLikeStartDebtPurchase(text) {
   );
 }
 
-function startDebtPurchaseFlow() {
-  // Interakt يعرض أزرار القطاع؛ الكوبري يجهّز الجلسة فقط
+function startDebtPurchaseFlow(options = {}) {
+  // من القائمة الرئيسية: نعرض أزرار القطاع من الكوبري
+  const askSector = options.askSector !== false;
+  const sectorBody = `أي قطاع؟
+
+اختر الزر، أو أرسل:
+1- مدني
+2- متقاعد
+3- عسكري`;
   return {
     ok: true,
     flow: "debt_chat",
-    reply: null,
+    reply: askSector ? sectorBody : null,
+    interactive: askSector
+      ? {
+          kind: "buttons",
+          body: sectorBody,
+          buttons: [
+            { id: "civilian", title: "مدني" },
+            { id: "retired", title: "متقاعد" },
+            { id: "military", title: "عسكري" },
+          ],
+        }
+      : null,
     draft: {
       flow: "debt_chat",
       step: "sector",
