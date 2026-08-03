@@ -210,6 +210,9 @@ module.exports = {
     /** التمويل الشخصي — تقديم إلكتروني واستفسارات المسار الشخصي */
     personalAgentName: "عبدالرحمن",
     personalAgentPhone: "0531240724",
+    /** شراء المديونية — بعد موافقة العميل على الإكمال */
+    debtPurchaseAgentName: "ماجد",
+    debtPurchaseAgentPhone: "0507009290",
     /** زيارة الفرع — بعد اختيار التقديم بالفرع */
     branchEmployeeName: "ماجد",
     branchEmployeePhone: "0507009290",

@@ -196,8 +196,10 @@ ${continueQ}`;
 function buildDebtPurchaseComplete() {
   const fin = CONFIG.financing || {};
   const completeFn = CONFIG.templates?.debtPurchaseComplete;
-  const employeeName = fin.employeeName || "عبدالرحمن";
-  const employeePhone = fin.employeePhone || "0507009290";
+  const employeeName =
+    fin.debtPurchaseAgentName || fin.branchEmployeeName || "ماجد";
+  const employeePhone =
+    fin.debtPurchaseAgentPhone || fin.branchEmployeePhone || "0507009290";
   const portalUrl =
     fin.portalUrl || "https://portal.sfco.com.sa/?DSA=SF1888";
   const letterCompany =
