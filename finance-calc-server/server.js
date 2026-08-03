@@ -584,5 +584,7 @@ app.listen(PORT, () => {
   console.log(`Admin: http://127.0.0.1:${PORT}/admin`);
   if (!ADMIN_TOKEN) {
     console.log("تنبيه: ضع ADMIN_TOKEN في ملف .env لتفعيل لوحة التحكم");
+  } else {
+    console.log(`Admin token length: ${ADMIN_TOKEN.length} (جاهز)`);
   }
 });
