@@ -468,7 +468,7 @@ app.post("/webhook/interakt", async (req, res) => {
     } else if (!draft && parseMainMenuChoice(text)) {
       // عناوين القائمة بدون مسودة — نتجاهل الأرقام وحدها لتجنب التضارب
       const choice = parseMainMenuChoice(text);
-      if (/^[1-8]$/.test(normalizeDigits(text).trim())) return;
+      if (/^[1-7]$/.test(normalizeDigits(text).trim())) return;
       const menuResult = handleMainMenuChoice(choice);
       if (menuResult.pauseChat) {
         pauseChat(countryCode, phone);

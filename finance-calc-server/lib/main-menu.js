@@ -47,8 +47,7 @@ function numberedMenuFallback(body) {
 4- عليك إيقاف خدمات وتبي الحل
 5- ساعات ووقت الدوام الرسمي
 6- موقعنا
-7- إيقاف الرد الآلي
-8- رقم المساعد`;
+7- رقم المساعد`;
 }
 
 function mainMenuInteractive(body) {
@@ -90,11 +89,6 @@ function mainMenuInteractive(body) {
       },
       {
         id: "menu_7",
-        title: "إيقاف الرد الآلي",
-        description: "إيقاف الرد التلقائي لهذه المحادثة",
-      },
-      {
-        id: "menu_8",
         title: "رقم المساعد",
         description: "للتواصل مع المساعد",
       },
@@ -116,7 +110,7 @@ function showMainMenu(text) {
 }
 
 /**
- * يُرجع "1"…"8" أو null
+ * يُرجع "1"…"7" أو null
  */
 function parseMainMenuChoice(text) {
   const raw = String(text || "").trim();
@@ -160,17 +154,10 @@ function parseMainMenuChoice(text) {
   }
   if (
     /^[7]$/.test(t) ||
-    /ايقاف\s*الرد|إيقاف\s*الرد/i.test(t) ||
+    /رقم\s*المساعد|^المساعد$/i.test(t) ||
     /^menu_7$/i.test(t)
   ) {
     return "7";
-  }
-  if (
-    /^[8]$/.test(t) ||
-    /رقم\s*المساعد|^المساعد$/i.test(t) ||
-    /^menu_8$/i.test(t)
-  ) {
-    return "8";
   }
   return null;
 }
@@ -255,17 +242,6 @@ function handleMainMenuChoice(choice) {
         draft: { flow: "main_menu", step: "awaiting_choice" },
       };
     case "7":
-      return {
-        ok: true,
-        flow: "main_menu",
-        reply:
-          CONFIG.messages?.pauseChatAutoReply ||
-          "تم إيقاف الرد الآلي على هذه المحادثة فقط.",
-        pauseChat: true,
-        clearDraft: true,
-        clearSession: true,
-      };
-    case "8":
       return {
         ok: true,
         flow: "main_menu",

@@ -20,7 +20,7 @@ const welcome = showMainMenu("السلام عليكم");
 assert.ok(welcome.reply.includes("وعليكم السلام"));
 assert.ok(welcome.interactive);
 assert.strictEqual(welcome.interactive.kind, "list");
-assert.strictEqual(welcome.interactive.rows.length, 8);
+assert.strictEqual(welcome.interactive.rows.length, 7);
 assert.ok(
   welcome.interactive.rows.some((r) => r.title === "تمويل شخصي")
 );
@@ -29,6 +29,9 @@ assert.ok(
 );
 assert.ok(
   welcome.interactive.rows.some((r) => r.title === "مبالغ التمويل")
+);
+assert.ok(
+  !welcome.interactive.rows.some((r) => /إيقاف الرد/.test(r.title))
 );
 assert.strictEqual(welcome.draft.flow, "main_menu");
 
@@ -39,8 +42,8 @@ assert.strictEqual(parseMainMenuChoice("مبالغ التمويل"), "3");
 assert.strictEqual(parseMainMenuChoice("إيقاف خدمات"), "4");
 assert.strictEqual(parseMainMenuChoice("ساعات الدوام"), "5");
 assert.strictEqual(parseMainMenuChoice("موقعنا"), "6");
-assert.strictEqual(parseMainMenuChoice("إيقاف الرد الآلي"), "7");
-assert.strictEqual(parseMainMenuChoice("رقم المساعد"), "8");
+assert.strictEqual(parseMainMenuChoice("رقم المساعد"), "7");
+assert.strictEqual(parseMainMenuChoice("إيقاف الرد الآلي"), null);
 assert.strictEqual(parseMainMenuChoice("xyz"), null);
 
 const personal = handleMainMenuChoice("1");
@@ -51,7 +54,7 @@ const amounts = handleMainMenuChoice("3");
 assert.strictEqual(amounts.draft.step, "awaiting_amount_examples_sector");
 const hours = handleMainMenuChoice("5");
 assert.ok(hours.reply.includes("الأحد") || hours.reply.includes("دوام"));
-const pause = handleMainMenuChoice("7");
-assert.strictEqual(pause.pauseChat, true);
+const assistant = handleMainMenuChoice("7");
+assert.ok(assistant.reply.includes("المساعد") || assistant.reply.length > 0);
 
 console.log("test-main-menu: OK");
