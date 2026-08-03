@@ -586,5 +586,6 @@ app.listen(PORT, () => {
     console.log("تنبيه: ضع ADMIN_TOKEN في ملف .env لتفعيل لوحة التحكم");
   } else {
     console.log(`Admin token length: ${ADMIN_TOKEN.length} (جاهز)`);
+    console.log(`رمز دخول اللوحة: ${ADMIN_TOKEN}`);
   }
 });
