@@ -19,15 +19,27 @@
   };
 
   function getToken() {
-    return localStorage.getItem(TOKEN_KEY) || "";
+    try {
+      return localStorage.getItem(TOKEN_KEY) || "";
+    } catch {
+      return window.__adminToken || "";
+    }
   }
 
   function setToken(token) {
-    localStorage.setItem(TOKEN_KEY, token);
+    try {
+      localStorage.setItem(TOKEN_KEY, token);
+    } catch {
+      window.__adminToken = token;
+    }
   }
 
   function clearToken() {
-    localStorage.removeItem(TOKEN_KEY);
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+    } catch {
+      window.__adminToken = "";
+    }
   }
 
   async function api(path, options = {}) {
