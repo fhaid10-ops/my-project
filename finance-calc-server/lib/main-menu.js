@@ -21,6 +21,15 @@ function looksLikeMainMenuTrigger(text) {
   return /^(قائمة|القائمة|قائمة رئيسية|القائمة الرئيسية|menu|start)$/i.test(t);
 }
 
+/**
+ * اختصار المكتب لعرض القائمة للعميل — اكتب: 1
+ * (يُستخدم أيضًا إذا العميل كتب 1 وهو مو داخل مسار)
+ */
+function looksLikeMenuShortcut(text) {
+  const t = normalizeDigits(String(text || "").trim());
+  return /^(1)$/.test(t);
+}
+
 function looksLikeShowMainMenu(text) {
   return looksLikeGreeting(text) || looksLikeMainMenuTrigger(text);
 }
@@ -275,6 +284,7 @@ function sectorButtonsInteractive() {
 module.exports = {
   looksLikeGreeting,
   looksLikeMainMenuTrigger,
+  looksLikeMenuShortcut,
   looksLikeShowMainMenu,
   showMainMenu,
   parseMainMenuChoice,

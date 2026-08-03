@@ -37,6 +37,7 @@ const {
 } = require("./lib/debt-purchase");
 const {
   looksLikeShowMainMenu,
+  looksLikeMenuShortcut,
   showMainMenu,
   parseMainMenuChoice,
   handleMainMenuChoice,
@@ -329,9 +330,18 @@ app.post("/webhook/interakt", async (req, res) => {
       hasButtonText: Boolean(payload?.data?.message?.button_text),
     });
 
-    // تجاهل أحداث التسليم/القراءة؛ نقبل message_received وضغط الأزرار
-    const ignoredTypes = /^(message_api_sent|message_api_delivered|message_api_read|message_api_failed|message_campaign_)/i;
-    if (type && ignoredTypes.test(String(type)) && !payload?.data?.message?.button_text) {
+    // تجاهل التسليم/القراءة؛ نقبل الوارد + اختصار المكتب (1) حتى لو message_api_sent
+    const isOutboundSent = /^message_api_sent$/i.test(String(type));
+    const ignoredTypes =
+      /^(message_api_sent|message_api_delivered|message_api_read|message_api_failed|message_campaign_)/i;
+    const staffMenuShortcut =
+      isOutboundSent && phone && text && looksLikeMenuShortcut(text);
+    if (
+      type &&
+      ignoredTypes.test(String(type)) &&
+      !payload?.data?.message?.button_text &&
+      !staffMenuShortcut
+    ) {
       return;
     }
 
@@ -342,15 +352,33 @@ app.post("/webhook/interakt", async (req, res) => {
     const currentSession = getSession(countryCode, phone);
     const draft = getDraft(countryCode, phone);
 
-    // السلام عليكم / قائمة → ترحيب + القائمة الرئيسية (يعيد تفعيل الرد إن كان موقف)
-    if (looksLikeShowMainMenu(text)) {
+    // داخل مسار/اختيار قائمة: الرقم 1 له معنى ثاني (لا نعيد القائمة)
+    const inActiveChoice =
+      (draft?.flow === "main_menu" &&
+        (draft.step === "awaiting_choice" ||
+          draft.step === "awaiting_amount_examples_sector")) ||
+      (draft?.flow === "personal_chat" &&
+        draft.step &&
+        draft.step !== "done") ||
+      (draft?.flow === "debt_chat" && draft.step && draft.step !== "done") ||
+      currentSession?.awaitingCombo ||
+      currentSession?.awaitingDebtContinue ||
+      draft?.awaitingCombo ||
+      draft?.awaitingDebtContinue;
+
+    // السلام / قائمة / اختصار المكتب (1) → القائمة الرئيسية
+    if (
+      looksLikeShowMainMenu(text) ||
+      staffMenuShortcut ||
+      (!inActiveChoice && looksLikeMenuShortcut(text))
+    ) {
       result = showMainMenu(text);
       resumeChat(countryCode, phone);
       clearDraft(countryCode, phone);
       clearSession(countryCode, phone);
       saveDraft(countryCode, phone, result.draft);
     } else if (isChatPaused(countryCode, phone)) {
-      // خيار 6: لا نرد إلا بعد سلام / قائمة
+      // محادثة موقوفة: لا نرد إلا بعد سلام / قائمة / اختصار
       return;
     } else if (
       draft?.flow === "main_menu" &&

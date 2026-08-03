@@ -2,6 +2,7 @@ const assert = require("assert");
 const {
   looksLikeGreeting,
   looksLikeShowMainMenu,
+  looksLikeMenuShortcut,
   showMainMenu,
   parseMainMenuChoice,
   handleMainMenuChoice,
@@ -15,6 +16,10 @@ assert.strictEqual(looksLikeGreeting("تمويل شخصي"), false);
 assert.strictEqual(looksLikeShowMainMenu("السلام عليكم"), true);
 assert.strictEqual(looksLikeShowMainMenu("قائمة"), true);
 assert.strictEqual(looksLikeShowMainMenu("قائمة رئيسية"), true);
+assert.strictEqual(looksLikeMenuShortcut("1"), true);
+assert.strictEqual(looksLikeMenuShortcut("١"), true);
+assert.strictEqual(looksLikeMenuShortcut("12"), false);
+assert.strictEqual(looksLikeMenuShortcut("تمويل"), false);
 
 const welcome = showMainMenu("السلام عليكم");
 assert.ok(welcome.reply.includes("وعليكم السلام"));
