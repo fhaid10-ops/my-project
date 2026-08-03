@@ -192,20 +192,29 @@ function serviceStopInfoReply() {
 }
 
 function assistantContactReply() {
+  const assistants = CONFIG.brand?.assistants;
+  const multiTpl = CONFIG.templates?.assistantContacts;
+  if (Array.isArray(assistants) && assistants.length && typeof multiTpl === "function") {
+    return multiTpl(assistants);
+  }
+  if (Array.isArray(assistants) && assistants.length) {
+    return assistants
+      .filter((a) => a && a.name && a.phone)
+      .map((a) => `رقم المساعد — ${a.name}:\n${a.phone}`)
+      .join("\n\n");
+  }
   const name =
-    CONFIG.contact?.personalAgentName ||
+    CONFIG.financing?.branchEmployeeName ||
     CONFIG.brand?.name ||
     "رائد الحربي";
   const phone =
-    CONFIG.contact?.personalAgentPhone ||
+    CONFIG.financing?.branchEmployeePhone ||
     CONFIG.brand?.contactPhone ||
     "0501812339";
   const tpl = CONFIG.templates?.assistantContact;
   if (typeof tpl === "function") return tpl(name, phone);
   return `رقم المساعد — ${name}:
-${phone}
-
-رائد الحربي`;
+${phone}`;
 }
 
 /**

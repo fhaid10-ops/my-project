@@ -19,6 +19,11 @@ module.exports = {
     name: "رائد الحربي",
     contactPhone: "0501812339",
     contactHint: "من طرف رائد الحربي",
+    /** أرقام المساعدين — خيار «رقم المساعد» في القائمة */
+    assistants: [
+      { name: "ماجد يحيى", phone: "0507009290" },
+      { name: "رائد الحربي", phone: "0501812339" },
+    ],
     /** عدّل نصوص الخيارات 2 و 4 و 5 من هنا */
     debtPurchaseInfo: `لطلب شراء المديونية فضلاً تواصل معنا على الرقم:
 0501812339
@@ -615,6 +620,17 @@ module.exports = {
 ${phone}
 
 رائد الحربي`,
+
+    assistantContacts: (assistants = []) => {
+      const lines = (assistants || [])
+        .filter((a) => a && a.name && a.phone)
+        .map((a) => `رقم المساعد — ${a.name}:\n${a.phone}`);
+      if (!lines.length) {
+        return `رقم المساعد — رائد الحربي:
+0501812339`;
+      }
+      return lines.join("\n\n");
+    },
 
     serviceStopWelcome: (
       totalFormatted,
