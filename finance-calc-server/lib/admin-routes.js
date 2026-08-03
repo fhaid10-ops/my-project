@@ -47,21 +47,33 @@ function createAdminRouter(deps) {
     if (activityLog.length > 100) activityLog.length = 100;
   }
 
+  function normalizeToken(value) {
+    return String(value || "")
+      .replace(/^\uFEFF/, "")
+      .replace(/[\r\n]/g, "")
+      .trim()
+      .replace(/^['"]|['"]$/g, "");
+  }
+
   function requireAdmin(req, res, next) {
-    const token = String(adminToken || "").trim();
+    const token = normalizeToken(adminToken);
     if (!token) {
       return res.status(503).json({
         ok: false,
-        error: "ADMIN_TOKEN غير مضبوط في ملف .env",
+        error: "ADMIN_TOKEN غير مضبوط في ملف .env — أضفه وأعد تشغيل السيرفر",
       });
     }
-    const got =
+    const got = normalizeToken(
       req.get("x-admin-token") ||
-      (req.get("authorization") || "").replace(/^Bearer\s+/i, "") ||
-      req.query.token ||
-      "";
-    if (String(got).trim() !== token) {
-      return res.status(401).json({ ok: false, error: "غير مصرح" });
+        (req.get("authorization") || "").replace(/^Bearer\s+/i, "") ||
+        req.query.token ||
+        ""
+    );
+    if (got !== token) {
+      return res.status(401).json({
+        ok: false,
+        error: "الرمز غير صحيح — تأكد من ADMIN_TOKEN في .env وأعد تشغيل السيرفر",
+      });
     }
     return next();
   }

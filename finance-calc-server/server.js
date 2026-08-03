@@ -47,13 +47,21 @@ const { extractIncomingMessage } = require("./lib/webhook-parse");
 const { normalizeDigits } = require("./lib/digits");
 const { mountAdmin } = require("./lib/admin-routes");
 
+function normalizeEnvValue(value) {
+  return String(value || "")
+    .replace(/^\uFEFF/, "")
+    .replace(/[\r\n]/g, "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "");
+}
+
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 
 const PORT = Number(process.env.PORT || 5055);
-const INTERAKT_API_KEY = String(process.env.INTERAKT_API_KEY || "").trim();
-const WEBHOOK_SECRET = String(process.env.WEBHOOK_SECRET || "").trim();
-const ADMIN_TOKEN = String(process.env.ADMIN_TOKEN || "").trim();
+const INTERAKT_API_KEY = normalizeEnvValue(process.env.INTERAKT_API_KEY);
+const WEBHOOK_SECRET = normalizeEnvValue(process.env.WEBHOOK_SECRET);
+const ADMIN_TOKEN = normalizeEnvValue(process.env.ADMIN_TOKEN);
 
 /** جلسات مؤقتة: phone -> نتيجة الحسبة (أعلى مبلغ + نسبة) */
 const sessions = new Map();
