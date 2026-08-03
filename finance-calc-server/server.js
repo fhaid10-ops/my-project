@@ -45,6 +45,7 @@ const {
 const { handleAmountExamplesSector } = require("./lib/amount-examples");
 const { extractIncomingMessage } = require("./lib/webhook-parse");
 const { normalizeDigits } = require("./lib/digits");
+const { mountAdmin } = require("./lib/admin-routes");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -52,6 +53,7 @@ app.use(express.json({ limit: "1mb" }));
 const PORT = Number(process.env.PORT || 5055);
 const INTERAKT_API_KEY = String(process.env.INTERAKT_API_KEY || "").trim();
 const WEBHOOK_SECRET = String(process.env.WEBHOOK_SECRET || "").trim();
+const ADMIN_TOKEN = String(process.env.ADMIN_TOKEN || "").trim();
 
 /** جلسات مؤقتة: phone -> نتيجة الحسبة (أعلى مبلغ + نسبة) */
 const sessions = new Map();
@@ -126,7 +128,10 @@ app.get("/health", (_req, res) => {
     ok: true,
     service: "finance-calc-server",
     interaktConfigured: Boolean(INTERAKT_API_KEY),
+    adminConfigured: Boolean(ADMIN_TOKEN),
     activeSessions: sessions.size,
+    drafts: drafts.size,
+    paused: pausedChats.size,
   });
 });
 
@@ -546,8 +551,30 @@ app.post("/webhook/interakt", async (req, res) => {
   }
 });
 
+mountAdmin(app, {
+  adminToken: ADMIN_TOKEN,
+  sessions,
+  drafts,
+  pausedChats,
+  sessionKey,
+  clearDraft,
+  clearSession,
+  pauseChat,
+  resumeChat,
+  isChatPaused,
+  saveDraft,
+  sendInteraktText,
+  sendResultReply,
+  showMainMenu,
+  interaktConfigured: Boolean(INTERAKT_API_KEY),
+});
+
 app.listen(PORT, () => {
   console.log(`finance-calc-server على المنفذ ${PORT}`);
   console.log(`Health: http://127.0.0.1:${PORT}/health`);
   console.log(`Webhook: http://127.0.0.1:${PORT}/webhook/interakt`);
+  console.log(`Admin: http://127.0.0.1:${PORT}/admin`);
+  if (!ADMIN_TOKEN) {
+    console.log("تنبيه: ضع ADMIN_TOKEN في ملف .env لتفعيل لوحة التحكم");
+  }
 });

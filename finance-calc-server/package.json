@@ -10,7 +10,8 @@
     "test:debt": "node scripts/test-debt.js",
     "test:menu": "node scripts/test-main-menu.js",
     "test:amounts": "node scripts/test-amount-examples.js",
-    "test": "npm run test:calc && npm run test:webhook && npm run test:debt && npm run test:menu && npm run test:amounts"
+    "test:admin": "node scripts/test-admin.js",
+    "test": "npm run test:calc && npm run test:webhook && npm run test:debt && npm run test:menu && npm run test:amounts && npm run test:admin"
   },
   "type": "commonjs",
   "dependencies": {
