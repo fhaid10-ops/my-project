@@ -276,9 +276,12 @@ function calculatePersonalFinance(input) {
 }
 
 function contactFooter() {
+  const portalUrl =
+    CONFIG.financing?.personalPortalUrl ||
+    "https://portal.sfco.com.sa/?DSA=SF1695";
   return `للتقديم الإلكتروني:
 قدم وارسلي رقم الطلب
-https://portal.sfco.com.sa/?DSA=SF195`;
+${portalUrl}`;
 }
 
 function buildPropertyComboOffer(base = {}) {
