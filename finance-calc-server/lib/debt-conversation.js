@@ -4,10 +4,7 @@
  */
 const CONFIG = require("../config");
 const { mapSector } = require("./personal-finance");
-const {
-  getMinSalaryForCategory,
-  meetsMinimumSalary,
-} = require("./calculations");
+const { meetsMinimumSalary } = require("./calculations");
 const {
   calculateDebtPurchaseOffer,
   buildDebtPurchaseComplete,
