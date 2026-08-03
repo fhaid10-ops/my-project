@@ -672,10 +672,7 @@ ${personalFormatted} ريال شخصي
 
 يعني 60% كاش حسب حسبتك بالبنك
 
-هل ترغب بهذا العرض؟
-
-1- نعم
-2- لا`,
+هل ترغب بهذا العرض؟`,
 
     propertyComboAgentDirect: (agentName, agentPhone, footer) =>
       `للتواصل مع المندوب ${agentName}:
