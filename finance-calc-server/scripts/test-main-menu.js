@@ -20,32 +20,38 @@ const welcome = showMainMenu("السلام عليكم");
 assert.ok(welcome.reply.includes("وعليكم السلام"));
 assert.ok(welcome.interactive);
 assert.strictEqual(welcome.interactive.kind, "list");
-assert.strictEqual(welcome.interactive.rows.length, 7);
+assert.strictEqual(welcome.interactive.rows.length, 8);
 assert.ok(
   welcome.interactive.rows.some((r) => r.title === "تمويل شخصي")
 );
 assert.ok(
   welcome.interactive.rows.some((r) => r.title === "شراء مديونية")
 );
+assert.ok(
+  welcome.interactive.rows.some((r) => r.title === "مبالغ التمويل")
+);
 assert.strictEqual(welcome.draft.flow, "main_menu");
 
 assert.strictEqual(parseMainMenuChoice("1"), "1");
 assert.strictEqual(parseMainMenuChoice("تمويل شخصي"), "1");
 assert.strictEqual(parseMainMenuChoice("شراء مديونية"), "2");
-assert.strictEqual(parseMainMenuChoice("إيقاف خدمات"), "3");
-assert.strictEqual(parseMainMenuChoice("ساعات الدوام"), "4");
-assert.strictEqual(parseMainMenuChoice("موقعنا"), "5");
-assert.strictEqual(parseMainMenuChoice("إيقاف الرد الآلي"), "6");
-assert.strictEqual(parseMainMenuChoice("رقم المساعد"), "7");
+assert.strictEqual(parseMainMenuChoice("مبالغ التمويل"), "3");
+assert.strictEqual(parseMainMenuChoice("إيقاف خدمات"), "4");
+assert.strictEqual(parseMainMenuChoice("ساعات الدوام"), "5");
+assert.strictEqual(parseMainMenuChoice("موقعنا"), "6");
+assert.strictEqual(parseMainMenuChoice("إيقاف الرد الآلي"), "7");
+assert.strictEqual(parseMainMenuChoice("رقم المساعد"), "8");
 assert.strictEqual(parseMainMenuChoice("xyz"), null);
 
 const personal = handleMainMenuChoice("1");
 assert.strictEqual(personal.startFlow, "personal");
 const debt = handleMainMenuChoice("2");
 assert.strictEqual(debt.startFlow, "debt");
-const hours = handleMainMenuChoice("4");
+const amounts = handleMainMenuChoice("3");
+assert.strictEqual(amounts.draft.step, "awaiting_amount_examples_sector");
+const hours = handleMainMenuChoice("5");
 assert.ok(hours.reply.includes("الأحد") || hours.reply.includes("دوام"));
-const pause = handleMainMenuChoice("6");
+const pause = handleMainMenuChoice("7");
 assert.strictEqual(pause.pauseChat, true);
 
 console.log("test-main-menu: OK");

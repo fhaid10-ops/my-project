@@ -3,6 +3,7 @@
  */
 const CONFIG = require("../config");
 const { normalizeDigits } = require("./digits");
+const { askAmountExamplesSector } = require("./amount-examples");
 
 function looksLikeGreeting(text) {
   const t = String(text || "").trim();
@@ -42,11 +43,12 @@ function numberedMenuFallback(body) {
 
 1- تمويل شخصي
 2- شراء مديونية
-3- عليك إيقاف خدمات وتبي الحل
-4- ساعات ووقت الدوام الرسمي
-5- موقعنا
-6- إيقاف الرد الآلي
-7- رقم المساعد`;
+3- مبالغ التمويل
+4- عليك إيقاف خدمات وتبي الحل
+5- ساعات ووقت الدوام الرسمي
+6- موقعنا
+7- إيقاف الرد الآلي
+8- رقم المساعد`;
 }
 
 function mainMenuInteractive(body) {
@@ -68,26 +70,31 @@ function mainMenuInteractive(body) {
       },
       {
         id: "menu_3",
+        title: "مبالغ التمويل",
+        description: "أمثلة المبالغ والأقساط",
+      },
+      {
+        id: "menu_4",
         title: "إيقاف خدمات",
         description: "عليك إيقاف خدمات وتبي الحل",
       },
       {
-        id: "menu_4",
+        id: "menu_5",
         title: "ساعات الدوام",
         description: "ساعات ووقت الدوام الرسمي",
       },
       {
-        id: "menu_5",
+        id: "menu_6",
         title: "موقعنا",
         description: "عنوان المعرض والتواصل",
       },
       {
-        id: "menu_6",
+        id: "menu_7",
         title: "إيقاف الرد الآلي",
         description: "إيقاف الرد التلقائي لهذه المحادثة",
       },
       {
-        id: "menu_7",
+        id: "menu_8",
         title: "رقم المساعد",
         description: "للتواصل مع المساعد",
       },
@@ -109,8 +116,7 @@ function showMainMenu(text) {
 }
 
 /**
- * يُرجع "1"…"7" أو null
- * يعمل بعناوين القائمة والأرقام والنصوص الطويلة من config
+ * يُرجع "1"…"8" أو null
  */
 function parseMainMenuChoice(text) {
   const raw = String(text || "").trim();
@@ -130,34 +136,41 @@ function parseMainMenuChoice(text) {
   }
   if (
     /^[3]$/.test(t) ||
-    /ايقاف\s*خدمات|إيقاف\s*خدمات|إيقاف خدمات/i.test(t) ||
+    /مبالغ\s*التمويل|امثلة\s*المبالغ|أمثلة\s*المبالغ/i.test(t) ||
     /^menu_3$/i.test(t)
   ) {
     return "3";
   }
   if (
     /^[4]$/.test(t) ||
-    /ساعات|الدوام|وقت الدوام/i.test(t) ||
+    /ايقاف\s*خدمات|إيقاف\s*خدمات|إيقاف خدمات/i.test(t) ||
     /^menu_4$/i.test(t)
   ) {
     return "4";
   }
-  if (/^[5]$/.test(t) || /^موقعنا$/i.test(t) || /^menu_5$/i.test(t)) {
+  if (
+    /^[5]$/.test(t) ||
+    /ساعات|الدوام|وقت الدوام/i.test(t) ||
+    /^menu_5$/i.test(t)
+  ) {
     return "5";
   }
-  if (
-    /^[6]$/.test(t) ||
-    /ايقاف\s*الرد|إيقاف\s*الرد/i.test(t) ||
-    /^menu_6$/i.test(t)
-  ) {
+  if (/^[6]$/.test(t) || /^موقعنا$/i.test(t) || /^menu_6$/i.test(t)) {
     return "6";
   }
   if (
     /^[7]$/.test(t) ||
-    /رقم\s*المساعد|المساعد/i.test(t) ||
+    /ايقاف\s*الرد|إيقاف\s*الرد/i.test(t) ||
     /^menu_7$/i.test(t)
   ) {
     return "7";
+  }
+  if (
+    /^[8]$/.test(t) ||
+    /رقم\s*المساعد|^المساعد$/i.test(t) ||
+    /^menu_8$/i.test(t)
+  ) {
+    return "8";
   }
   return null;
 }
@@ -201,7 +214,6 @@ ${phone}
 
 /**
  * معالجة اختيار من القائمة الرئيسية
- * للخيار 1 و 2 يُرجع startFlow ليبدأ المسار في السيرفر
  */
 function handleMainMenuChoice(choice) {
   switch (String(choice)) {
@@ -220,27 +232,29 @@ function handleMainMenuChoice(choice) {
         clearDraft: true,
       };
     case "3":
+      return askAmountExamplesSector();
+    case "4":
       return {
         ok: true,
         flow: "main_menu",
         reply: serviceStopInfoReply(),
         draft: { flow: "main_menu", step: "awaiting_choice" },
       };
-    case "4":
+    case "5":
       return {
         ok: true,
         flow: "main_menu",
         reply: CONFIG.brand?.workingHours || "ساعات الدوام: الأحد–الخميس 9ص–5م",
         draft: { flow: "main_menu", step: "awaiting_choice" },
       };
-    case "5":
+    case "6":
       return {
         ok: true,
         flow: "main_menu",
         reply: CONFIG.brand?.locationInfo || "موقعنا: معرض السديري للسيارات",
         draft: { flow: "main_menu", step: "awaiting_choice" },
       };
-    case "6":
+    case "7":
       return {
         ok: true,
         flow: "main_menu",
@@ -251,7 +265,7 @@ function handleMainMenuChoice(choice) {
         clearDraft: true,
         clearSession: true,
       };
-    case "7":
+    case "8":
       return {
         ok: true,
         flow: "main_menu",
@@ -261,7 +275,9 @@ function handleMainMenuChoice(choice) {
     default:
       return {
         ok: false,
-        reply: CONFIG.messages?.invalidInquiryType || numberedMenuFallback("اختر من القائمة:"),
+        reply:
+          CONFIG.messages?.invalidInquiryType ||
+          numberedMenuFallback("اختر من القائمة:"),
         interactive: mainMenuInteractive("اختر نوع استفسارك من القائمة:"),
         draft: { flow: "main_menu", step: "awaiting_choice" },
       };

@@ -41,6 +41,7 @@ const {
   parseMainMenuChoice,
   handleMainMenuChoice,
 } = require("./lib/main-menu");
+const { handleAmountExamplesSector } = require("./lib/amount-examples");
 const { extractIncomingMessage } = require("./lib/webhook-parse");
 const { normalizeDigits } = require("./lib/digits");
 
@@ -353,6 +354,13 @@ app.post("/webhook/interakt", async (req, res) => {
       return;
     } else if (
       draft?.flow === "main_menu" &&
+      draft.step === "awaiting_amount_examples_sector"
+    ) {
+      result = handleAmountExamplesSector(text);
+      if (result.draft) saveDraft(countryCode, phone, result.draft);
+      else clearDraft(countryCode, phone);
+    } else if (
+      draft?.flow === "main_menu" &&
       draft.step === "awaiting_choice" &&
       parseMainMenuChoice(text)
     ) {
@@ -460,7 +468,7 @@ app.post("/webhook/interakt", async (req, res) => {
     } else if (!draft && parseMainMenuChoice(text)) {
       // عناوين القائمة بدون مسودة — نتجاهل الأرقام وحدها لتجنب التضارب
       const choice = parseMainMenuChoice(text);
-      if (/^[1-7]$/.test(normalizeDigits(text).trim())) return;
+      if (/^[1-8]$/.test(normalizeDigits(text).trim())) return;
       const menuResult = handleMainMenuChoice(choice);
       if (menuResult.pauseChat) {
         pauseChat(countryCode, phone);
