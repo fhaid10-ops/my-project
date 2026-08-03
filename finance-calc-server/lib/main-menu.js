@@ -271,7 +271,7 @@ function handleMainMenuChoice(choice) {
 function sectorButtonsInteractive() {
   return {
     kind: "buttons",
-    body: CONFIG.messages?.jobType || "أي قطاع؟\n\n1- عسكري\n2- مدني\n3- متقاعد",
+    body: "أي قطاع؟",
     buttons: [
       { id: "civilian", title: "مدني" },
       { id: "retired", title: "متقاعد" },

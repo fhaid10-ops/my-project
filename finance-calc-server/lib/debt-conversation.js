@@ -34,12 +34,8 @@ function looksLikeStartDebtPurchase(text) {
 function startDebtPurchaseFlow(options = {}) {
   // من القائمة الرئيسية: نعرض أزرار القطاع من الكوبري
   const askSector = options.askSector !== false;
-  const sectorBody = `أي قطاع؟
-
-اختر الزر، أو أرسل:
-1- مدني
-2- متقاعد
-3- عسكري`;
+  // النص قصير فقط — الخيارات من الأزرار بدون قائمة مرقمة
+  const sectorBody = "أي قطاع؟";
   return {
     ok: true,
     flow: "debt_chat",
