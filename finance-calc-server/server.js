@@ -25,6 +25,16 @@ const {
   startPersonalFinanceFlow,
   advancePersonalFinanceFlow,
 } = require("./lib/conversation");
+const {
+  looksLikeStartDebtPurchase,
+  startDebtPurchaseFlow,
+  advanceDebtPurchaseFlow,
+} = require("./lib/debt-conversation");
+const {
+  looksLikeDebtContinueReply,
+  buildDebtPurchaseComplete,
+  buildDebtPurchaseDeclined,
+} = require("./lib/debt-purchase");
 const { extractIncomingMessage } = require("./lib/webhook-parse");
 
 const app = express();
@@ -314,6 +324,20 @@ app.post("/webhook/interakt", async (req, res) => {
         comboDecision: yesNo,
       });
       clearDraft(countryCode, phone);
+    } else if (
+      looksLikeDebtContinueReply(text) &&
+      (currentSession?.awaitingDebtContinue || draft?.awaitingDebtContinue)
+    ) {
+      const choice = looksLikeDebtContinueReply(text);
+      result =
+        choice === "yes"
+          ? buildDebtPurchaseComplete()
+          : buildDebtPurchaseDeclined();
+      clearDraft(countryCode, phone);
+      saveSession(countryCode, phone, {
+        ...(currentSession || draft || {}),
+        awaitingDebtContinue: false,
+      });
     } else if (looksLikePersonalFinanceData(text)) {
       // ما زال يدعم إرسال كل البيانات دفعة واحدة
       const parsed = parsePersonalFinanceMessage(text);
@@ -324,9 +348,13 @@ app.post("/webhook/interakt", async (req, res) => {
       } else if (!parsed.jobCategory) {
         saveDraft(countryCode, phone, parsed);
       }
+    } else if (looksLikeStartPersonalFinance(text)) {
+      result = startPersonalFinanceFlow();
+      saveDraft(countryCode, phone, result.draft);
+    } else if (looksLikeStartDebtPurchase(text)) {
+      result = startDebtPurchaseFlow();
+      saveDraft(countryCode, phone, result.draft);
     } else if (draft?.flow === "personal_chat" && draft.step && draft.step !== "done") {
-      // أولوية للمحادثة الجارية (مثلاً اختيار 1 = لا يوجد عقاري)
-      // "تمويل" يعيد البدء من داخل advancePersonalFinanceFlow
       result = advancePersonalFinanceFlow(draft, text);
       if (result.clearDraft || result.draft == null) {
         clearDraft(countryCode, phone);
@@ -340,10 +368,20 @@ app.post("/webhook/interakt", async (req, res) => {
         saveSession(countryCode, phone, result.data);
         if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
-    } else if (looksLikeStartPersonalFinance(text)) {
-      // بدون مسودة نشطة: تجهيز الجلسة وأزرار Interakt تعرض القطاع
-      result = startPersonalFinanceFlow();
-      saveDraft(countryCode, phone, result.draft);
+    } else if (draft?.flow === "debt_chat" && draft.step && draft.step !== "done") {
+      result = advanceDebtPurchaseFlow(draft, text);
+      if (result.clearDraft || result.draft == null) {
+        clearDraft(countryCode, phone);
+      } else if (result.draft) {
+        saveDraft(countryCode, phone, result.draft);
+      }
+      if (result.sessionData) {
+        if (!result.draft || result.clearDraft) clearDraft(countryCode, phone);
+        saveSession(countryCode, phone, result.sessionData);
+      } else if (result.data?.awaitingCombo) {
+        saveSession(countryCode, phone, result.data);
+        if (result.draft) saveDraft(countryCode, phone, result.draft);
+      }
     } else if (looksLikeSectorOnlyReply(text)) {
       if (!draft) return;
       const merged = {

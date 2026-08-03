@@ -168,7 +168,7 @@ function offerMilitaryPropertyCombo(state) {
     ...result,
     interactive: comboYesNoInteractive(result.reply),
     draft: {
-      flow: "personal_chat",
+      flow: state.flow || "personal_chat",
       step: "done",
       awaitingCombo: true,
       ...result.data,
@@ -181,7 +181,7 @@ function militaryWithPropertyReject() {
   const min = getMinSalaryForCategory("military");
   const formatted = Number(min).toLocaleString("en-US");
   return `نعتذر منك الراتب أقل من المطلوب.
-الراتب المطلوب للعسكري للتمويل الشخصي من ${formatted} ريال`;
+الراتب المطلوب للعسكري من ${formatted} ريال`;
 }
 
 function advancePersonalFinanceFlow(draft, text) {
@@ -369,4 +369,11 @@ module.exports = {
   advancePersonalFinanceFlow,
   realEstateInteractive,
   parseRealEstateChoice,
+  parseSalaryReply,
+  salaryPrompt,
+  invalidSalaryPrompt,
+  lowSalaryApology,
+  realEstateStepReply,
+  offerMilitaryPropertyCombo,
+  militaryWithPropertyReject,
 };
