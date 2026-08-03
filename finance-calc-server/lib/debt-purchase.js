@@ -1,23 +1,76 @@
 /**
- * حسبة شراء المديونية — فائدة 12% للجميع، فائض حتى 50% من مبلغ المديونية
+ * حسبة شراء المديونية
+ *
+ * 1) نسبة الاستقطاع حسب العقاري (45% / 55% / 65%)
+ * 2) المتبقي الشهري = (الدخل × النسبة) − الالتزامات
+ * 3) أعلى مبلغ متاح من المتبقي بمعادلة القسط + فائدة القطاع الشخصية
+ * 4) إذا أعلى مبلغ >= مبلغ المديونية → مؤهل
+ *    الفائض = أعلى مبلغ − مبلغ المديونية
+ * 5) القسط المعروض على الإجمالي بفائدة شراء المديونية 12%
  */
 const CONFIG = require("../config");
 const {
   calculateMonthlyInstallment,
   formatMoney,
 } = require("./calculations");
-const { resolveDebtPurchaseInterestRate } = require("./interest-rate");
+const {
+  resolveInterestRate,
+  resolveDebtPurchaseInterestRate,
+} = require("./interest-rate");
 
-function getSurplusMaxRatio() {
-  return (
-    Number(CONFIG.debtPurchase?.surplusMaxRatioOfDebt) ||
-    Number(CONFIG.debtPurchasePath?.surplusMaxRatioOfDebt) ||
-    0.5
-  );
+const { ratios } = CONFIG.calculation;
+const loanTermMonths = CONFIG.financing?.loanTermMonths || 60;
+
+function getDeductionRatio(realEstateType) {
+  if (realEstateType === "supported") return ratios.supported;
+  if (realEstateType === "unsupported" || realEstateType === "old") {
+    return ratios.unsupported;
+  }
+  return ratios.none;
+}
+
+function calculateMonthlyCapacity({
+  realEstateType,
+  salary,
+  commitments,
+  supportAmount = 0,
+}) {
+  const ratio = getDeductionRatio(realEstateType);
+  let income = Number(salary) || 0;
+  if (realEstateType === "supported") {
+    income += Number(supportAmount) || 0;
+  }
+  return income * ratio - Number(commitments || 0);
 }
 
 /**
- * @param {{ debtAmount: number, jobCategory?: string }} input
+ * عكس معادلة القسط:
+ * قسط = مبلغ/60 + مبلغ×نسبة/12
+ * ⇒ مبلغ = قسط / (1/60 + نسبة/12)
+ */
+function calculateMaxAmountFromMonthlyCapacity(
+  monthlyCapacity,
+  annualRatePercent,
+  months = loanTermMonths
+) {
+  const cap = Number(monthlyCapacity);
+  const annual = Number(annualRatePercent) / 100;
+  if (!Number.isFinite(cap) || cap <= 0) return 0;
+  const denom = 1 / months + annual / 12;
+  if (!denom || denom <= 0) return 0;
+  // للأقل (محافظ) مثل مثال 52,173
+  return Math.floor(cap / denom);
+}
+
+/**
+ * @param {{
+ *   debtAmount: number,
+ *   jobCategory: string,
+ *   salary: number,
+ *   commitments: number,
+ *   realEstateType?: string,
+ *   supportAmount?: number,
+ * }} input
  */
 function calculateDebtPurchaseOffer(input) {
   const debtAmount = Number(input.debtAmount);
@@ -33,14 +86,56 @@ function calculateDebtPurchaseOffer(input) {
     };
   }
 
-  const rate = resolveDebtPurchaseInterestRate();
-  const surplus = Math.round(debtAmount * getSurplusMaxRatio());
-  const total = debtAmount + surplus;
+  const jobCategory = input.jobCategory || "civilian";
+  const realEstateType = input.realEstateType || "none";
+  const salary = Number(input.salary);
+  const commitments = Number(input.commitments);
+  const supportAmount = Number(input.supportAmount || 0);
+
+  const ratio = getDeductionRatio(realEstateType);
+  const monthlyCapacity = calculateMonthlyCapacity({
+    realEstateType,
+    salary,
+    commitments,
+    supportAmount,
+  });
+
+  if (!Number.isFinite(monthlyCapacity) || monthlyCapacity <= 0) {
+    return {
+      ok: false,
+      reply: "نعتذر منك التزامك عالي حسب نسبة الاستقطاع المتاحة.",
+      data: { monthlyCapacity, ratio },
+    };
+  }
+
+  const personalRate = resolveInterestRate({ jobCategory });
+  const maxAmount = calculateMaxAmountFromMonthlyCapacity(
+    monthlyCapacity,
+    personalRate
+  );
+
+  if (maxAmount < debtAmount) {
+    return {
+      ok: false,
+      reply: `نعتذر منك، حسب بياناتك أعلى مبلغ متاح لك ${formatMoney(maxAmount)} ريال، وهو أقل من مبلغ شراء المديونية ${formatMoney(debtAmount)} ريال.`,
+      data: {
+        monthlyCapacity,
+        ratio,
+        personalRate,
+        maxAmount,
+        debtAmount,
+      },
+    };
+  }
+
+  const surplus = maxAmount - debtAmount;
+  const total = debtAmount + surplus; // = maxAmount
+  const debtRate = resolveDebtPurchaseInterestRate();
   const installment = calculateMonthlyInstallment(
     total,
-    rate,
+    debtRate,
     undefined,
-    input.jobCategory || "civilian"
+    jobCategory
   );
 
   const offerFn = CONFIG.templates?.debtPurchaseOffer;
@@ -81,11 +176,19 @@ ${continueQ}`;
     },
     data: {
       flow: "debt_chat",
-      jobCategory: input.jobCategory || null,
+      jobCategory,
+      salary,
+      commitments,
+      realEstateType,
+      supportAmount,
+      ratio,
+      monthlyCapacity,
+      personalRate,
+      maxAmount,
       debtAmount,
       surplus,
       total,
-      rate,
+      rate: debtRate,
       installment,
       awaitingDebtContinue: true,
     },
@@ -143,5 +246,7 @@ module.exports = {
   buildDebtPurchaseComplete,
   buildDebtPurchaseDeclined,
   looksLikeDebtContinueReply,
-  getSurplusMaxRatio,
+  getDeductionRatio,
+  calculateMonthlyCapacity,
+  calculateMaxAmountFromMonthlyCapacity,
 };

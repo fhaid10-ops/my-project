@@ -5,11 +5,9 @@
 const CONFIG = require("../config");
 const { mapSector } = require("./personal-finance");
 const {
-  getMinSalaryForEntry,
   getMinSalaryForCategory,
-  meetsMinimumSalaryForEntry,
+  meetsMinimumSalary,
 } = require("./calculations");
-const { normalizeDigits } = require("./digits");
 const {
   calculateDebtPurchaseOffer,
   buildDebtPurchaseComplete,
@@ -24,8 +22,6 @@ const {
   realEstateStepReply,
   parseRealEstateChoice,
   realEstateInteractive,
-  offerMilitaryPropertyCombo,
-  militaryWithPropertyReject,
 } = require("./conversation");
 
 function looksLikeStartDebtPurchase(text) {
@@ -126,7 +122,8 @@ ${salaryPrompt(jobCategory)}`,
         draft: state,
       };
     }
-    if (!meetsMinimumSalaryForEntry(salary, state.jobCategory)) {
+    // مدني/متقاعد من 4000 — عسكري من 10000
+    if (!meetsMinimumSalary(salary, state.jobCategory)) {
       return {
         ok: false,
         reply: lowSalaryApology(state.jobCategory),
@@ -135,15 +132,6 @@ ${salaryPrompt(jobCategory)}`,
       };
     }
     state.salary = salary;
-
-    const personalMin = getMinSalaryForCategory(state.jobCategory);
-    if (state.jobCategory === "military" && salary < personalMin) {
-      state.commitments = 0;
-      state.militaryLowSalaryPath = true;
-      state.step = "real_estate";
-      return realEstateStepReply(state);
-    }
-
     state.step = "real_estate";
     return realEstateStepReply(state);
   }
@@ -164,18 +152,6 @@ ${salaryPrompt(jobCategory)}`,
       };
     }
     state.realEstateType = realEstateType;
-
-    if (state.militaryLowSalaryPath) {
-      if (realEstateType === "none") {
-        return offerMilitaryPropertyCombo(state);
-      }
-      return {
-        ok: false,
-        reply: militaryWithPropertyReject(),
-        draft: null,
-        clearDraft: true,
-      };
-    }
 
     if (realEstateType === "supported") {
       state.step = "support";
@@ -259,9 +235,17 @@ ${salaryPrompt(jobCategory)}`,
     const offer = calculateDebtPurchaseOffer({
       debtAmount,
       jobCategory: state.jobCategory,
+      salary: state.salary,
+      commitments: state.commitments,
+      realEstateType: state.realEstateType || "none",
+      supportAmount: state.supportAmount || 0,
     });
     if (!offer.ok) {
-      return { ...offer, draft: state };
+      return {
+        ...offer,
+        draft: null,
+        clearDraft: true,
+      };
     }
     return {
       ...offer,

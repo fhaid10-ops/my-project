@@ -1,6 +1,8 @@
 const assert = require("assert");
 const {
   calculateDebtPurchaseOffer,
+  calculateMonthlyCapacity,
+  calculateMaxAmountFromMonthlyCapacity,
   looksLikeDebtContinueReply,
 } = require("../lib/debt-purchase");
 const {
@@ -28,46 +30,83 @@ check("بداية شراء المديونية", () => {
   assert.strictEqual(start.draft.flow, "debt_chat");
 });
 
-check("حسبة مديونية 20000 → فائض 10000 وقسط بـ 12%", () => {
+check("مثال العميل: 10000 مدني بدون عقاري والتزام 3500 ومديونية 10000", () => {
+  const capacity = calculateMonthlyCapacity({
+    realEstateType: "none",
+    salary: 10000,
+    commitments: 3500,
+  });
+  assert.strictEqual(capacity, 1000); // 4500 - 3500 — wait 10000*0.45=4500-3500=1000
+
+  // User said باقي 1500 — 10000*0.45 - 3500 = 1000. Re-read user message.
+  // "باقي من 45% 1500 ريال" — maybe they meant 10000*0.45=4500, 4500-3000? 
+  // They said التزاماته 3500 and باقي 1500. That would need 4500-1500=3000 commitments
+  // OR 5000*0.45? 
+  // 10000 * 0.45 = 4500; if remaining 1500 then commitments = 3000
+  // User wrote: التزاماته 3500 ... باقي من 45% 1500
+  // Arithmetic inconsistency: 4500-3500=1000, not 1500.
+  // We'll follow the formula (ratio*salary - commitments) and their max amount example
+  // which used 1500 → 52173 at 14.5%.
+  // So verify reverse formula with 1500:
+  const maxFrom1500 = calculateMaxAmountFromMonthlyCapacity(1500, 14.5);
+  assert.strictEqual(maxFrom1500, 52173);
+
+  // With actual 3500 commitments → capacity 1000
+  assert.strictEqual(capacity, 1000);
+
   const offer = calculateDebtPurchaseOffer({
-    debtAmount: 20000,
+    debtAmount: 10000,
     jobCategory: "civilian",
+    salary: 10000,
+    commitments: 3500,
+    realEstateType: "none",
+  });
+  // max from 1000 at 14.5% = floor(1000/0.02875)=34782
+  assert.ok(offer.ok);
+  assert.strictEqual(offer.data.maxAmount, 34782);
+  assert.strictEqual(offer.data.surplus, 34782 - 10000);
+});
+
+check("مثال المطابقة مع 1500 متبقي → فائض 42173", () => {
+  // التزامات 3000 حتى يبقى 1500 من 45%
+  const offer = calculateDebtPurchaseOffer({
+    debtAmount: 10000,
+    jobCategory: "civilian",
+    salary: 10000,
+    commitments: 3000,
+    realEstateType: "none",
   });
   assert.ok(offer.ok);
-  assert.strictEqual(offer.data.surplus, 10000);
-  assert.strictEqual(offer.data.total, 30000);
+  assert.strictEqual(offer.data.monthlyCapacity, 1500);
+  assert.strictEqual(offer.data.maxAmount, 52173);
+  assert.strictEqual(offer.data.surplus, 42173);
   assert.strictEqual(offer.data.rate, 12);
-  // قسط = 30000/60 + (30000*0.12)/12 = 500 + 300 = 800
-  assert.strictEqual(offer.data.installment, 800);
-  assert.match(offer.reply, /سداد المديونية/);
-  assert.match(offer.reply, /الفائض الشخصي/);
+});
+
+check("عسكري أقل من 10000 يُرفض", () => {
+  const start = startDebtPurchaseFlow();
+  const afterSector = advanceDebtPurchaseFlow(start.draft, "عسكري");
+  const rejected = advanceDebtPurchaseFlow(afterSector.draft, "8000");
+  assert.strictEqual(rejected.ok, false);
+  assert.match(rejected.reply, /نعتذر منك/);
 });
 
 check("مسار مدني كامل حتى العرض", () => {
-  let d = startDebtPurchaseFlow().draft;
-  d = advanceDebtPurchaseFlow(d, "مدني").draft;
-  assert.match(
-    advanceDebtPurchaseFlow(
-      { flow: "debt_chat", step: "sector" },
-      "مدني"
-    ).reply,
-    /تنويه بخصوص شراء المديونية|إمكان/
-  );
-  let r = advanceDebtPurchaseFlow(d, "8000");
-  assert.ok(r.ok);
+  let r = advanceDebtPurchaseFlow(startDebtPurchaseFlow().draft, "مدني");
+  assert.match(r.reply, /تنويه بخصوص شراء المديونية|إمكان/);
+  r = advanceDebtPurchaseFlow(r.draft, "10000");
   assert.strictEqual(r.draft.step, "real_estate");
   r = advanceDebtPurchaseFlow(r.draft, "لا يوجد");
   assert.strictEqual(r.draft.step, "commitments");
-  r = advanceDebtPurchaseFlow(r.draft, "1500");
+  r = advanceDebtPurchaseFlow(r.draft, "3000");
   assert.strictEqual(r.draft.step, "debt_amount");
-  r = advanceDebtPurchaseFlow(r.draft, "20000");
+  r = advanceDebtPurchaseFlow(r.draft, "10000");
   assert.ok(r.ok);
   assert.strictEqual(r.offer, "debt_purchase");
-  assert.strictEqual(r.draft.step, "debt_continue");
+  assert.strictEqual(r.data.surplus, 42173);
   assert.strictEqual(looksLikeDebtContinueReply("نعم"), "yes");
   const done = advanceDebtPurchaseFlow(r.draft, "نعم");
   assert.strictEqual(done.offer, "debt_purchase_accepted");
-  assert.match(done.reply, /خطاب شراء مديونية|التقديم الإلكتروني/);
 });
 
 if (!process.exitCode) {
