@@ -121,13 +121,14 @@ check("سيناريو الزر الفاشل سابقًا", () => {
   assert.strictEqual(next.draft.jobCategory, "civilian");
 });
 
-check("تمويل أثناء خطوة القطاع يعيد البدء بدون رد مكرر", () => {
+check("تمويل أثناء خطوة القطاع يعيد سؤال القطاع بالأزرار", () => {
   const stuck = {
     flow: "personal_chat",
     step: "sector",
   };
   const next = advancePersonalFinanceFlow(stuck, "تمويل");
-  assert.strictEqual(next.reply, null);
+  assert.strictEqual(next.reply, "أي قطاع؟");
+  assert.ok(next.interactive);
   assert.strictEqual(next.draft.step, "sector");
   assert.ok(!next.draft.jobCategory);
 });
