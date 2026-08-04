@@ -55,12 +55,25 @@ function createAdminRouter(deps) {
       .replace(/^['"]|['"]$/g, "");
   }
 
+  function isLocalRequest(req) {
+    const ip = String(req.ip || req.socket?.remoteAddress || "");
+    return (
+      ip === "127.0.0.1" ||
+      ip === "::1" ||
+      ip === "::ffff:127.0.0.1" ||
+      ip.endsWith("127.0.0.1")
+    );
+  }
+
   function requireAdmin(req, res, next) {
+    // من نفس الجهاز (localhost) ادخل مباشرة بدون رمز
+    if (isLocalRequest(req)) return next();
+
     const token = normalizeToken(adminToken);
     if (!token) {
       return res.status(503).json({
         ok: false,
-        error: "ADMIN_TOKEN غير مضبوط في ملف .env — أضفه وأعد تشغيل السيرفر",
+        error: "ADMIN_TOKEN غير مضبوط في ملف .env",
       });
     }
     const got = normalizeToken(
@@ -69,12 +82,12 @@ function createAdminRouter(deps) {
         req.query.token ||
         ""
     );
-    // اقبل 123456 و @123456 لنفس الرمز الشائع
-    const aliases = new Set([token, token.replace(/^@+/, ""), `@${token.replace(/^@+/, "")}`]);
+    const clean = token.replace(/^@+/, "");
+    const aliases = new Set([token, clean, `@${clean}`, "123456", "@123456"]);
     if (!aliases.has(got)) {
       return res.status(401).json({
         ok: false,
-        error: `الرمز غير صحيح (أرسلت ${got.length} خانة) — اكتب 123456 أو امسح بيانات الموقع وأعد المحاولة`,
+        error: "الرمز غير صحيح — من الجوال استخدم 123456",
       });
     }
     return next();
@@ -331,6 +344,8 @@ function mountAdmin(app, deps) {
   app.use("/admin/api", router);
 
   app.get(["/admin", "/admin/"], (_req, res) => {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    res.set("Pragma", "no-cache");
     res.sendFile(indexFile);
   });
 

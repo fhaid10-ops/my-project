@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Cache-Control" content="no-store" />
 <title>لوحة تحكم رائد الحربي</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet" />
-<style>
-:root {
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>:root {
   --bg: #eef2ef;
   --bg-deep: #dfe7e2;
   --ink: #14201b;
@@ -387,7 +387,6 @@ th {
     flex-direction: column;
   }
 }
-
 </style>
 </head>
 <body>
@@ -395,14 +394,14 @@ th {
   <div class="login-card">
     <p class="brand-mark">رائد الحربي</p>
     <h1>لوحة التحكم</h1>
-    <p class="login-sub">أدخل رمز الإدارة للدخول إلى لوحة الكوبري</p>
+    <p class="login-sub">جاري فتح اللوحة...</p>
     <label class="field">
-      <span>رمز الإدارة (ADMIN_TOKEN)</span>
+      <span>رمز الإدارة (للجوال عبر Cloudflare)</span>
       <input id="token-input" type="password" autocomplete="off" placeholder="123456" />
     </label>
     <button id="login-btn" class="btn primary" type="button">دخول</button>
     <p id="login-error" class="error" hidden></p>
-    <p class="muted" style="margin-top:12px">الرمز: <b dir="ltr">123456</b></p>
+    <p class="muted" style="margin-top:12px">من الكمبيوتر تدخل تلقائيًا. من الجوال الرمز: <b dir="ltr">123456</b></p>
   </div>
 </div>
 <div id="app-view" class="app" hidden>
@@ -450,7 +449,7 @@ th {
     <section id="panel-compose" class="panel" hidden>
       <div class="card form-card">
         <h3>إرسال رسالة للعميل</h3>
-        <label class="field"><span>رقم الجوال</span><input id="compose-phone" type="text" placeholder="05xxxxxxxx" /></label>
+        <label class="field"><span>رقم الجوال</span><input id="compose-phone" type="text" /></label>
         <label class="field"><span>نص الرسالة</span><textarea id="compose-message" rows="6"></textarea></label>
         <div class="btn-row">
           <button id="compose-send" class="btn primary" type="button">إرسال</button>
@@ -462,19 +461,17 @@ th {
     <section id="panel-followup" class="panel" hidden>
       <div class="card form-card">
         <h3>متابعة التقديم الإلكتروني</h3>
-        <p class="muted">يمكنك تعديل الرسالة قبل الإرسال</p>
-        <label class="field"><span>أرقام الجوال (كل رقم في سطر)</span><textarea id="followup-phones" rows="5"></textarea></label>
+        <label class="field"><span>أرقام الجوال</span><textarea id="followup-phones" rows="5"></textarea></label>
         <label class="field"><span>نص المتابعة</span><textarea id="followup-message" rows="6"></textarea></label>
-        <label class="field inline"><span>تأخير بين الرسائل (مللي ثانية)</span><input id="followup-delay" type="number" min="0" step="500" value="3500" /></label>
+        <label class="field inline"><span>تأخير (مللي ثانية)</span><input id="followup-delay" type="number" value="3500" /></label>
         <button id="followup-send" class="btn primary" type="button">بدء الإرسال</button>
         <p id="followup-status" class="status" hidden></p>
       </div>
     </section>
   </main>
 </div>
-<script>
-(() => {
-  const TOKEN_KEY = "raed_admin_token";
+<script>(() => {
+  const TOKEN_KEY = "raed_admin_token_v3";
 
   const loginView = document.getElementById("login-view");
   const appView = document.getElementById("app-view");
@@ -520,9 +517,10 @@ th {
   async function api(path, options = {}) {
     const headers = {
       "Content-Type": "application/json",
-      "x-admin-token": getToken(),
       ...(options.headers || {}),
     };
+    const token = getToken();
+    if (token) headers["x-admin-token"] = token;
     const res = await fetch(`/admin/api${path}`, {
       ...options,
       headers,
@@ -815,22 +813,25 @@ th {
     }
   });
 
-  if (getToken()) {
-    tryEnter();
+  // من الكمبيوتر: ادخل مباشرة بدون رمز
+  // من الجوال عبر Cloudflare: استخدم 123456
+  clearToken();
+  const fromUrl = tokenFromUrl();
+  if (fromUrl) {
+    tokenInput.value = fromUrl;
+    setToken(fromUrl);
   } else {
-    const fromUrl = tokenFromUrl();
-    if (fromUrl) {
-      tokenInput.value = fromUrl;
-      setToken(fromUrl);
-      tryEnter();
-    } else {
-      // تلميح افتراضي لتسهيل التجربة
-      tokenInput.placeholder = "123456";
-      showLogin();
-    }
+    tokenInput.value = "123456";
+    tokenInput.placeholder = "123456";
   }
+  tryEnter().then(() => {
+    // إذا نجح الدخول من localhost بدون رمز، لا بأس
+  }).catch(() => {
+    setToken("123456");
+    tokenInput.value = "123456";
+    tryEnter();
+  });
 })();
-
 </script>
 </body>
 </html>

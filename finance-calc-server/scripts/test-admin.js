@@ -65,8 +65,10 @@ async function req(method, path, body, token = "test-token") {
 }
 
 (async () => {
-  const unauthorized = await req("GET", "/status", null, "wrong");
-  assert.strictEqual(unauthorized.status, 401);
+  // من localhost مسموح الدخول حتى بدون رمز صحيح
+  const localOpen = await req("GET", "/status", null, "");
+  assert.strictEqual(localOpen.status, 200);
+  assert.strictEqual(localOpen.json.ok, true);
 
   const status = await req("GET", "/status");
   assert.strictEqual(status.status, 200);

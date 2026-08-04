@@ -1,5 +1,5 @@
 (() => {
-  const TOKEN_KEY = "raed_admin_token";
+  const TOKEN_KEY = "raed_admin_token_v3";
 
   const loginView = document.getElementById("login-view");
   const appView = document.getElementById("app-view");
@@ -45,9 +45,10 @@
   async function api(path, options = {}) {
     const headers = {
       "Content-Type": "application/json",
-      "x-admin-token": getToken(),
       ...(options.headers || {}),
     };
+    const token = getToken();
+    if (token) headers["x-admin-token"] = token;
     const res = await fetch(`/admin/api${path}`, {
       ...options,
       headers,
@@ -340,11 +341,22 @@
     }
   });
 
-  // عند فتح الصفحة: امسح أي رمز قديم، وخُذ الرمز من الرابط أولًا
+  // من الكمبيوتر: ادخل مباشرة بدون رمز
+  // من الجوال عبر Cloudflare: استخدم 123456
   clearToken();
-  const fromUrl = tokenFromUrl() || "123456";
-  tokenInput.value = fromUrl;
-  tokenInput.placeholder = "123456";
-  setToken(fromUrl);
-  tryEnter();
+  const fromUrl = tokenFromUrl();
+  if (fromUrl) {
+    tokenInput.value = fromUrl;
+    setToken(fromUrl);
+  } else {
+    tokenInput.value = "123456";
+    tokenInput.placeholder = "123456";
+  }
+  tryEnter().then(() => {
+    // إذا نجح الدخول من localhost بدون رمز، لا بأس
+  }).catch(() => {
+    setToken("123456");
+    tokenInput.value = "123456";
+    tryEnter();
+  });
 })();
