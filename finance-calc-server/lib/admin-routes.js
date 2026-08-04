@@ -47,17 +47,20 @@ function createAdminRouter(deps) {
     if (activityLog.length > 100) activityLog.length = 100;
   }
 
-  // اللوحة على جهاز الكوبري — بدون رمز المستخدمين
+  // اللوحة على جهاز الكوبري — بدون رمز
   // لا تشارك رابط Cloudflare علنًا
-  function requireAdmin(_req, res, next) {
+  function requireAdmin(req, _res, next) {
+    console.log(`[admin] ${req.method} ${req.path}`);
     return next();
   }
 
   // فحص سريع — لمعرفة إن السيرفر يرد
   router.get("/ping", (req, res) => {
+    console.log(`[admin] ping host=${req.get("host") || ""}`);
     res.json({
       ok: true,
       open: true,
+      version: "2026-08-04-force",
       host: req.get("host") || "",
       ip: req.ip || req.socket?.remoteAddress || "",
       tokenConfigured: Boolean(adminToken),
