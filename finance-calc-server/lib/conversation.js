@@ -25,8 +25,9 @@ function looksLikeStartPersonalFinance(text) {
 }
 
 function startPersonalFinanceFlow(options = {}) {
-  // الكوبري يرسل أزرار القطاع مباشرة (لا نعتمد على Interakt Auto Reply)
-  const askSector = options.askSector !== false;
+  // افتراضيًا صامت: Interakt Auto Reply يعرض أزرار القطاع بعد «تمويل شخصي».
+  // لو الكوبري سأل أيضًا يظهر السؤال مرتين. مرّر askSector:true فقط عند الحاجة.
+  const askSector = options.askSector === true;
   const sectorBody = "أي قطاع؟";
   return {
     ok: true,
@@ -203,7 +204,18 @@ function advancePersonalFinanceFlow(draft, text) {
 
   // إعادة بدء من داخل المحادثة (لا تفسّر "تمويل" كقطاع)
   if (looksLikeStartPersonalFinance(raw)) {
-    return startPersonalFinanceFlow();
+    // أصلاً ننتظر القطاع — لا نعيد السؤال (يمنع التكرار مع Interakt / ويب هوك مكرر)
+    if (step === "sector") {
+      return {
+        ok: true,
+        flow: "personal_chat",
+        reply: null,
+        interactive: null,
+        draft: state,
+      };
+    }
+    // من منتصف المسار: أعد البدء مع سؤال القطاع من الكوبري
+    return startPersonalFinanceFlow({ askSector: true });
   }
 
   if (step === "sector") {

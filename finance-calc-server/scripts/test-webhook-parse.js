@@ -83,8 +83,9 @@ check("mapSector يفهم مدني مع رمز السهم", () => {
 
 check("ضغط مدني يكمل لسؤال الراتب", () => {
   const start = startPersonalFinanceFlow();
-  assert.strictEqual(start.reply, "أي قطاع؟");
-  assert.ok(start.interactive);
+  assert.strictEqual(start.reply, null);
+  assert.ok(!start.interactive);
+  assert.strictEqual(start.draft.step, "sector");
   const next = advancePersonalFinanceFlow(start.draft, "مدني");
   assert.ok(next.ok);
   assert.match(next.reply, /راتبك/);
@@ -121,16 +122,35 @@ check("سيناريو الزر الفاشل سابقًا", () => {
   assert.strictEqual(next.draft.jobCategory, "civilian");
 });
 
-check("تمويل أثناء خطوة القطاع يعيد سؤال القطاع بالأزرار", () => {
+check("تمويل أثناء خطوة القطاع لا يعيد سؤال القطاع", () => {
   const stuck = {
     flow: "personal_chat",
     step: "sector",
   };
   const next = advancePersonalFinanceFlow(stuck, "تمويل");
+  assert.strictEqual(next.reply, null);
+  assert.ok(!next.interactive);
+  assert.strictEqual(next.draft.step, "sector");
+  assert.ok(!next.draft.jobCategory);
+});
+
+check("askSector:true يرسل أزرار القطاع عند الحاجة", () => {
+  const start = startPersonalFinanceFlow({ askSector: true });
+  assert.strictEqual(start.reply, "أي قطاع؟");
+  assert.ok(start.interactive);
+  assert.strictEqual(start.draft.step, "sector");
+});
+
+check("إعادة بدء من منتصف المسار تعيد سؤال القطاع", () => {
+  const mid = {
+    flow: "personal_chat",
+    step: "salary",
+    jobCategory: "civilian",
+  };
+  const next = advancePersonalFinanceFlow(mid, "تمويل");
   assert.strictEqual(next.reply, "أي قطاع؟");
   assert.ok(next.interactive);
   assert.strictEqual(next.draft.step, "sector");
-  assert.ok(!next.draft.jobCategory);
 });
 
 check("مدني راتبه أقل من 4000 يرفض فورًا", () => {
