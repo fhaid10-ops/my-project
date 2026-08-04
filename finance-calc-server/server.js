@@ -591,13 +591,14 @@ mountAdmin(app, {
   interaktApiKey: INTERAKT_API_KEY,
 });
 
-app.listen(PORT, () => {
-  console.log(`finance-calc-server على المنفذ ${PORT}`);
-  console.log(`Health: http://127.0.0.1:${PORT}/health`);
-  console.log(`Webhook: http://127.0.0.1:${PORT}/webhook/interakt`);
-  console.log(`Admin: http://127.0.0.1:${PORT}/admin`);
+const HOST = process.env.HOST || "0.0.0.0";
+app.listen(PORT, HOST, () => {
+  console.log(`finance-calc-server على ${HOST}:${PORT}`);
+  console.log(`Health: /health`);
+  console.log(`Webhook: /webhook/interakt`);
+  console.log(`Admin: /admin`);
   if (!ADMIN_TOKEN) {
-    console.log("تنبيه: ضع ADMIN_TOKEN في ملف .env لتفعيل لوحة التحكم");
+    console.log("تنبيه: ضع ADMIN_TOKEN في البيئة لتفعيل لوحة التحكم");
   } else {
     console.log(`Admin token length: ${ADMIN_TOKEN.length} (جاهز)`);
     console.log(`رمز دخول اللوحة: ${ADMIN_TOKEN}`);

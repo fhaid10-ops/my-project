@@ -129,8 +129,36 @@ ADMIN_TOKEN=رمز-قوي-عندك
 
 > لا تشارك `ADMIN_TOKEN` ولا تترك اللوحة مفتوحة بدون رمز قوي.
 
+## الرفع على استضافة سحابية (بدل جهاز البيت)
+
+إذا تبي الكوبري يشتغل 24 ساعة **بدون** جهاز عبدالرحمن وCloudflare:
+
+### الأسهل: Render
+1. اعمل حساب على https://render.com واربط GitHub
+2. New → Web Service → اختر ريبو `my-project`
+3. الإعدادات:
+   - **Root Directory:** `finance-calc-server`
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+4. Environment Variables:
+   - `INTERAKT_API_KEY` = مفتاح Interakt (Secret Key)
+   - `ADMIN_TOKEN` = رمز قوي للوحة
+5. Deploy → انسخ رابط الخدمة مثل:  
+   `https://raed-kobri.onrender.com`
+6. في Interakt Webhook ضع:  
+   `https://raed-kobri.onrender.com/webhook/interakt`
+7. لوحة التحكم:  
+   `https://raed-kobri.onrender.com/admin`
+
+### ملاحظات مهمة للاستضافة
+- الخطة المجانية في Render قد **تنام** بعد خمول؛ أول رسالة بعد النوم تتأخر دقائق. للبوت الأفضل خطة مدفوعة أو always-on.
+- بعد الرفع **أوقف** السيرفر على جهاز عبدالرحمن حتى ما يردّان مع بعض.
+- سجل العملاء المحلي (`data/`) على الاستضافة المجانية قد يضيع عند إعادة النشر؛ قائمة العملاء من Interakt تبقى.
+
+يوجد أيضًا `Dockerfile` و`render.yaml` داخل المجلد الجاهزين للنشر.
+
 ## ملاحظات
 
 - لا تشغّل البوت غير الرسمي على رقم `0488` بنفس الوقت مع Interakt.
-- الجهاز لازم يبقى فاتح + النفق شغّال.
+- على جهاز البيت: الجهاز لازم يبقى فاتح + النفق شغّال.
 - مدعوم الآن: **التمويل الشخصي** + **شراء المديونية**.
