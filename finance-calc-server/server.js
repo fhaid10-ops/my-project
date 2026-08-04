@@ -597,6 +597,11 @@ app.listen(PORT, HOST, () => {
   console.log(`Health: /health`);
   console.log(`Webhook: /webhook/interakt`);
   console.log(`Admin: /admin`);
+  if (!INTERAKT_API_KEY) {
+    console.log("تنبيه: INTERAKT_API_KEY فاضي في .env — الكوبري لن يرد على واتساب");
+  } else {
+    console.log(`Interakt API key: موجود (طول ${INTERAKT_API_KEY.length})`);
+  }
   if (!ADMIN_TOKEN) {
     console.log("تنبيه: ضع ADMIN_TOKEN في البيئة لتفعيل لوحة التحكم");
   } else {

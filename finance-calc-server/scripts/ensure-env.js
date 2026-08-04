@@ -33,3 +33,10 @@ if (/^\s*ADMIN_TOKEN\s*=/m.test(content)) {
 fs.writeFileSync(envPath, content, "utf8");
 console.log(`[ensure-env] ADMIN_TOKEN=${DEFAULT_TOKEN}`);
 console.log(`[ensure-env] رمز اللوحة الثابت: ${DEFAULT_TOKEN}`);
+const hasInterakt = /^\s*INTERAKT_API_KEY\s*=\s*\S+/m.test(content);
+console.log(
+  hasInterakt
+    ? "[ensure-env] INTERAKT_API_KEY: موجود"
+    : "[ensure-env] تنبيه: INTERAKT_API_KEY فاضي"
+);
+console.log(`[ensure-env] ملف .env: ${envPath}`);
