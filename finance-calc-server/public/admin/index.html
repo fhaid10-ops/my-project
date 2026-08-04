@@ -4,8 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>لوحة تحكم رائد الحربي</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet" />
 <style>
 :root {
@@ -400,10 +398,11 @@ th {
     <p class="login-sub">أدخل رمز الإدارة للدخول إلى لوحة الكوبري</p>
     <label class="field">
       <span>رمز الإدارة (ADMIN_TOKEN)</span>
-      <input id="token-input" type="password" autocomplete="current-password" placeholder="••••••••" />
+      <input id="token-input" type="password" autocomplete="current-password" placeholder="123456" />
     </label>
     <button id="login-btn" class="btn primary" type="button">دخول</button>
     <p id="login-error" class="error" hidden></p>
+    <p class="muted" style="margin-top:12px">الرمز الافتراضي: <b dir="ltr">123456</b></p>
   </div>
 </div>
 <div id="app-view" class="app" hidden>
@@ -679,6 +678,16 @@ th {
     }
   }
 
+  // دعم الدخول من الرابط: /admin/?token=123456
+  function tokenFromUrl() {
+    try {
+      const u = new URL(window.location.href);
+      return (u.searchParams.get("token") || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
   loginBtn.addEventListener("click", async () => {
     const token = tokenInput.value.trim();
     if (!token) {
@@ -809,7 +818,16 @@ th {
   if (getToken()) {
     tryEnter();
   } else {
-    showLogin();
+    const fromUrl = tokenFromUrl();
+    if (fromUrl) {
+      tokenInput.value = fromUrl;
+      setToken(fromUrl);
+      tryEnter();
+    } else {
+      // تلميح افتراضي لتسهيل التجربة
+      tokenInput.placeholder = "123456";
+      showLogin();
+    }
   }
 })();
 

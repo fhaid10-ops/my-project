@@ -203,6 +203,16 @@
     }
   }
 
+  // دعم الدخول من الرابط: /admin/?token=123456
+  function tokenFromUrl() {
+    try {
+      const u = new URL(window.location.href);
+      return (u.searchParams.get("token") || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
   loginBtn.addEventListener("click", async () => {
     const token = tokenInput.value.trim();
     if (!token) {
@@ -333,6 +343,15 @@
   if (getToken()) {
     tryEnter();
   } else {
-    showLogin();
+    const fromUrl = tokenFromUrl();
+    if (fromUrl) {
+      tokenInput.value = fromUrl;
+      setToken(fromUrl);
+      tryEnter();
+    } else {
+      // تلميح افتراضي لتسهيل التجربة
+      tokenInput.placeholder = "123456";
+      showLogin();
+    }
   }
 })();
