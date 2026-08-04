@@ -47,61 +47,20 @@ function createAdminRouter(deps) {
     if (activityLog.length > 100) activityLog.length = 100;
   }
 
-  function normalizeToken(value) {
-    return String(value || "")
-      .replace(/^\uFEFF/, "")
-      .replace(/[\r\n]/g, "")
-      .trim()
-      .replace(/^['"]|['"]$/g, "");
-  }
-
-  function isLocalRequest(req) {
-    const host = String(req.get("host") || "").toLowerCase();
-    if (
-      host.startsWith("127.0.0.1") ||
-      host.startsWith("localhost") ||
-      host.startsWith("[::1]")
-    ) {
-      return true;
-    }
-    const ip = String(req.ip || req.socket?.remoteAddress || "");
-    return (
-      ip === "127.0.0.1" ||
-      ip === "::1" ||
-      ip === "::ffff:127.0.0.1" ||
-      ip.endsWith("127.0.0.1")
-    );
-  }
-
-  function requireAdmin(req, res, next) {
-    // من الكمبيوتر على 127.0.0.1 / localhost: دخول مباشر
-    if (isLocalRequest(req)) return next();
-
-    const token = normalizeToken(adminToken) || "123456";
-    const got = normalizeToken(
-      req.get("x-admin-token") ||
-        (req.get("authorization") || "").replace(/^Bearer\s+/i, "") ||
-        req.query.token ||
-        ""
-    );
-    const clean = token.replace(/^@+/, "");
-    const aliases = new Set([token, clean, `@${clean}`, "123456", "@123456"]);
-    if (!aliases.has(got)) {
-      return res.status(401).json({
-        ok: false,
-        error: "الرمز غير صحيح — من الجوال اكتب 123456",
-      });
-    }
+  // اللوحة على جهاز الكوبري — بدون رمز المستخدمين
+  // لا تشارك رابط Cloudflare علنًا
+  function requireAdmin(_req, res, next) {
     return next();
   }
 
-  // فحص سريع بدون حماية — لمعرفة إن السيرفر يرد
+  // فحص سريع — لمعرفة إن السيرفر يرد
   router.get("/ping", (req, res) => {
     res.json({
       ok: true,
-      local: isLocalRequest(req),
+      open: true,
       host: req.get("host") || "",
       ip: req.ip || req.socket?.remoteAddress || "",
+      tokenConfigured: Boolean(adminToken),
     });
   });
 

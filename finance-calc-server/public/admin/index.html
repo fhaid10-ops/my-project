@@ -6,7 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-store" />
 <title>لوحة تحكم رائد الحربي</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
-<style>:root {
+<style>
+:root {
   --bg: #eef2ef;
   --bg-deep: #dfe7e2;
   --ink: #14201b;
@@ -387,6 +388,7 @@ th {
     flex-direction: column;
   }
 }
+
 </style>
 </head>
 <body>
@@ -396,12 +398,12 @@ th {
     <h1>لوحة التحكم</h1>
     <p class="login-sub">جاري فتح اللوحة...</p>
     <label class="field">
-      <span>رمز الإدارة</span>
+      <span>رمز الإدارة (اختياري)</span>
       <input id="token-input" type="text" autocomplete="off" value="123456" />
     </label>
     <button id="login-btn" class="btn primary" type="button">دخول</button>
     <p id="login-error" class="error" hidden></p>
-    <p class="muted" style="margin-top:12px">إذا ما فتحت تلقائي اضغط دخول — الرمز 123456</p>
+    <p class="muted" style="margin-top:12px">من الكمبيوتر تفتح مباشرة. إذا توقفت اضغط دخول.</p>
   </div>
 </div>
 <div id="app-view" class="app" hidden>
@@ -462,9 +464,8 @@ th {
     </section>
   </main>
 </div>
-<script>(() => {
-  const TOKEN_KEY = "raed_admin_token_v3";
-
+<script>
+(() => {
   const loginView = document.getElementById("login-view");
   const appView = document.getElementById("app-view");
   const tokenInput = document.getElementById("token-input");
@@ -482,41 +483,29 @@ th {
     followup: ["متابعة التقديم", "أرسل رسالة المتابعة لرقم أو أكثر"],
   };
 
-  function getToken() {
-    try {
-      return localStorage.getItem(TOKEN_KEY) || "";
-    } catch {
-      return window.__adminToken || "";
-    }
-  }
-
-  function setToken(token) {
-    try {
-      localStorage.setItem(TOKEN_KEY, token);
-    } catch {
-      window.__adminToken = token;
-    }
-  }
-
-  function clearToken() {
-    try {
-      localStorage.removeItem(TOKEN_KEY);
-    } catch {
-      window.__adminToken = "";
-    }
-  }
-
   async function api(path, options = {}) {
     const headers = {
       "Content-Type": "application/json",
       ...(options.headers || {}),
     };
-    const token = getToken();
-    if (token) headers["x-admin-token"] = token;
-    const res = await fetch(`/admin/api${path}`, {
-      ...options,
-      headers,
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    let res;
+    try {
+      res = await fetch(`/admin/api${path}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+        cache: "no-store",
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      if (err.name === "AbortError") {
+        throw new Error("السيرفر لا يرد — تأكد أن start-calc.bat شغّال");
+      }
+      throw new Error("تعذر الاتصال بالسيرفر — شغّل start-calc.bat");
+    }
+    clearTimeout(timer);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const err = new Error(data.error || `HTTP ${res.status}`);
@@ -541,6 +530,11 @@ th {
   function showApp() {
     loginView.hidden = true;
     appView.hidden = false;
+  }
+
+  function setBootMessage(msg) {
+    const sub = document.querySelector(".login-sub");
+    if (sub) sub.textContent = msg;
   }
 
   function formatMoney(n) {
@@ -657,40 +651,38 @@ th {
     panelSub.textContent = sub;
   }
 
-  async function tryEnter() {
+  async function openPanel() {
+    setBootMessage("جاري فتح اللوحة...");
+    // أولًا تأكد السيرفر يرد
+    try {
+      const ping = await api("/ping");
+      if (!ping.ok) throw new Error("السيرفر لا يستجيب");
+    } catch (err) {
+      showLogin(err.message || "السيرفر غير متصل — شغّل start-calc.bat");
+      return false;
+    }
+
     try {
       await api("/status");
       showApp();
-      await refreshAll();
+      try {
+        await refreshAll();
+      } catch (refreshErr) {
+        console.warn("refresh failed", refreshErr);
+        panelSub.textContent = refreshErr.message || "تعذر تحديث البيانات";
+      }
+      return true;
     } catch (err) {
-      clearToken();
-      showLogin(err.message || "فشل الدخول");
-    }
-  }
-
-  // دعم الدخول من الرابط: /admin/?token=123456
-  function tokenFromUrl() {
-    try {
-      const u = new URL(window.location.href);
-      return (u.searchParams.get("token") || "").trim();
-    } catch {
-      return "";
+      showLogin(err.message || "فشل فتح اللوحة");
+      return false;
     }
   }
 
   loginBtn.addEventListener("click", async () => {
-    const token = tokenInput.value.trim();
-    if (!token) {
-      showLogin("أدخل رمز الإدارة");
-      return;
-    }
     loginBtn.disabled = true;
     loginBtn.textContent = "جاري الدخول...";
     try {
-      setToken(token);
-      await tryEnter();
-    } catch (err) {
-      showLogin(err.message || "فشل الدخول");
+      await openPanel();
     } finally {
       loginBtn.disabled = false;
       loginBtn.textContent = "دخول";
@@ -702,8 +694,7 @@ th {
   });
 
   logoutBtn.addEventListener("click", () => {
-    clearToken();
-    showLogin();
+    showLogin("اضغط دخول للعودة");
   });
 
   refreshBtn.addEventListener("click", () => {
@@ -805,25 +796,10 @@ th {
     }
   });
 
-  // من الكمبيوتر: ادخل مباشرة بدون رمز
-  // من الجوال عبر Cloudflare: استخدم 123456
-  clearToken();
-  const fromUrl = tokenFromUrl();
-  if (fromUrl) {
-    tokenInput.value = fromUrl;
-    setToken(fromUrl);
-  } else {
-    tokenInput.value = "123456";
-    tokenInput.placeholder = "123456";
-  }
-  tryEnter().then(() => {
-    // إذا نجح الدخول من localhost بدون رمز، لا بأس
-  }).catch(() => {
-    setToken("123456");
-    tokenInput.value = "123456";
-    tryEnter();
-  });
+  tokenInput.value = "123456";
+  openPanel();
 })();
+
 </script>
 </body>
 </html>
