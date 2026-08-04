@@ -4,39 +4,46 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { readEnvFile, rewriteEnvUtf8 } = require("../lib/load-env");
 
 const root = path.join(__dirname, "..");
 const envPath = path.join(root, ".env");
 const examplePath = path.join(root, ".env.example");
 const DEFAULT_TOKEN = "123456";
 
-function readEnv(filePath) {
-  if (!fs.existsSync(filePath)) return "";
-  return fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "");
+function readExample() {
+  if (!fs.existsSync(examplePath)) {
+    return `PORT=5055\nHOST=0.0.0.0\nINTERAKT_API_KEY=\nWEBHOOK_SECRET=\n`;
+  }
+  return readEnvFile(examplePath).text;
 }
 
-let content = readEnv(envPath);
-if (!content) {
-  content = fs.existsSync(examplePath)
-    ? readEnv(examplePath)
-    : `PORT=5055\nINTERAKT_API_KEY=\nWEBHOOK_SECRET=\n`;
+let { text: content, values } = readEnvFile(envPath);
+if (!content || !Object.keys(values).length) {
+  content = readExample();
+  values = {};
 }
 
-// ثبّت الرمز دائمًا على 123456 حتى لا يحصل لبس (@123456 وغيره)
-if (/^\s*ADMIN_TOKEN\s*=/m.test(content)) {
-  content = content.replace(/^\s*ADMIN_TOKEN\s*=.*$/m, `ADMIN_TOKEN=${DEFAULT_TOKEN}`);
-} else {
-  if (!content.endsWith("\n")) content += "\n";
-  content += `ADMIN_TOKEN=${DEFAULT_TOKEN}\n`;
-}
+// أعِد بناء الملف بشكل نظيف UTF-8 حتى لا يبقى UTF-16 من Notepad
+const port = values.PORT || "5055";
+const host = values.HOST || "0.0.0.0";
+const interakt = values.INTERAKT_API_KEY || "";
+const webhookSecret = values.WEBHOOK_SECRET || "";
+content = [
+  `PORT=${port}`,
+  `HOST=${host}`,
+  `INTERAKT_API_KEY=${interakt}`,
+  `WEBHOOK_SECRET=${webhookSecret}`,
+  `ADMIN_TOKEN=${DEFAULT_TOKEN}`,
+  "",
+].join("\n");
 
-fs.writeFileSync(envPath, content, "utf8");
+rewriteEnvUtf8(envPath, content);
 console.log(`[ensure-env] ADMIN_TOKEN=${DEFAULT_TOKEN}`);
 console.log(`[ensure-env] رمز اللوحة الثابت: ${DEFAULT_TOKEN}`);
-const hasInterakt = /^\s*INTERAKT_API_KEY\s*=\s*\S+/m.test(content);
 console.log(
-  hasInterakt
-    ? "[ensure-env] INTERAKT_API_KEY: موجود"
+  interakt.trim()
+    ? `[ensure-env] INTERAKT_API_KEY: موجود (طول ${interakt.trim().length})`
     : "[ensure-env] تنبيه: INTERAKT_API_KEY فاضي"
 );
 console.log(`[ensure-env] ملف .env: ${envPath}`);

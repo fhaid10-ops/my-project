@@ -13,7 +13,7 @@ node scripts\ensure-env.js
 echo Starting finance-calc-server...
 echo.
 echo Admin panel: http://127.0.0.1:5055/admin
-echo UI version: 2026-08-04-customers
+echo UI version: 2026-08-04-envfix
 echo.
 node server.js
 pause

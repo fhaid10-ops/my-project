@@ -6,7 +6,13 @@
  * 1) العميل يرسل بيانات التمويل → نحسب أعلى مبلغ + قائمة أقل
  * 2) إذا أرسل مبلغ من القائمة → نحسب قسط المبلغ المختار
  */
-require("dotenv").config();
+const path = require("path");
+const { loadEnvIntoProcess } = require("./lib/load-env");
+const envInfo = loadEnvIntoProcess(path.join(__dirname));
+console.log(
+  `[env] ${envInfo.envPath} | interakt=${envInfo.hasInterakt ? `yes(${envInfo.interaktLength})` : "NO"}`
+);
+
 const express = require("express");
 const {
   parsePersonalFinanceMessage,
