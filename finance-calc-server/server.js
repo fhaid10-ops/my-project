@@ -143,6 +143,7 @@ app.get("/health", (_req, res) => {
     ok: true,
     service: "finance-calc-server",
     interaktConfigured: Boolean(INTERAKT_API_KEY),
+    interaktKeyLength: INTERAKT_API_KEY ? INTERAKT_API_KEY.length : 0,
     adminConfigured: Boolean(ADMIN_TOKEN),
     activeSessions: sessions.size,
     drafts: drafts.size,

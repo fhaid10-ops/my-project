@@ -69,7 +69,7 @@ function createAdminRouter(deps) {
     res.json({
       ok: true,
       open: true,
-      version: "2026-08-04-customers",
+      version: "2026-08-04-envfix2",
       host: req.get("host") || "",
       ip: req.ip || req.socket?.remoteAddress || "",
       tokenConfigured: Boolean(adminToken),
