@@ -69,10 +69,12 @@ function createAdminRouter(deps) {
         req.query.token ||
         ""
     );
-    if (got !== token) {
+    // اقبل 123456 و @123456 لنفس الرمز الشائع
+    const aliases = new Set([token, token.replace(/^@+/, ""), `@${token.replace(/^@+/, "")}`]);
+    if (!aliases.has(got)) {
       return res.status(401).json({
         ok: false,
-        error: "الرمز غير صحيح — تأكد من ADMIN_TOKEN في .env وأعد تشغيل السيرفر",
+        error: `الرمز غير صحيح (أرسلت ${got.length} خانة) — اكتب 123456 أو امسح بيانات الموقع وأعد المحاولة`,
       });
     }
     return next();

@@ -340,18 +340,11 @@
     }
   });
 
-  if (getToken()) {
-    tryEnter();
-  } else {
-    const fromUrl = tokenFromUrl();
-    if (fromUrl) {
-      tokenInput.value = fromUrl;
-      setToken(fromUrl);
-      tryEnter();
-    } else {
-      // تلميح افتراضي لتسهيل التجربة
-      tokenInput.placeholder = "123456";
-      showLogin();
-    }
-  }
+  // عند فتح الصفحة: امسح أي رمز قديم، وخُذ الرمز من الرابط أولًا
+  clearToken();
+  const fromUrl = tokenFromUrl() || "123456";
+  tokenInput.value = fromUrl;
+  tokenInput.placeholder = "123456";
+  setToken(fromUrl);
+  tryEnter();
 })();
