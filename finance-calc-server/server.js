@@ -179,6 +179,8 @@ async function postInteraktPayload(payload) {
     throw new Error("INTERAKT_API_KEY غير موجود في ملف .env");
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   let response;
   try {
     response = await fetch("https://api.interakt.ai/v1/public/message/", {
@@ -188,8 +190,15 @@ async function postInteraktPayload(payload) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
   } catch (netErr) {
+    clearTimeout(timer);
+    if (netErr?.name === "AbortError") {
+      const err = new Error("انتهت مهلة الاتصال بـ Interakt (15 ثانية)");
+      err.details = { hint: "تحقق من الإنترنت على جهاز عبدالرحمن أو أعد المحاولة" };
+      throw err;
+    }
     const cause = netErr?.cause;
     const detail = [
       netErr.message,
@@ -206,6 +215,7 @@ async function postInteraktPayload(payload) {
     };
     throw err;
   }
+  clearTimeout(timer);
 
   const text = await response.text();
   let json = null;
