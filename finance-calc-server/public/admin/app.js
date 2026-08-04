@@ -1,5 +1,5 @@
 (() => {
-  const UI_VERSION = "2026-08-04-ui";
+  const UI_VERSION = "2026-08-04-customers";
 
   try {
     boot();
@@ -28,10 +28,33 @@
 
     const titles = {
       overview: ["نظرة عامة", "حالة السيرفر والجلسات النشطة"],
+      customers: ["العملاء", "من أمس إلى اليوم — من Interakt والسجل المحلي"],
       conversations: ["المحادثات", "الجلسات والمسودات الحالية على الكوبري"],
       compose: ["إرسال رسالة", "أرسل نصًا أو القائمة الرئيسية لعميل"],
       followup: ["متابعة التقديم", "أرسل رسالة المتابعة لرقم أو أكثر"],
     };
+
+    function ymdRiyadh(date = new Date()) {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Riyadh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+    }
+
+    function ensureCustomerDates() {
+      const fromEl = document.getElementById("customers-from");
+      const toEl = document.getElementById("customers-to");
+      if (!fromEl || !toEl) return { from: "", to: "" };
+      if (!toEl.value) toEl.value = ymdRiyadh();
+      if (!fromEl.value) {
+        const d = new Date();
+        d.setTime(d.getTime() - 24 * 60 * 60 * 1000);
+        fromEl.value = ymdRiyadh(d);
+      }
+      return { from: fromEl.value, to: toEl.value };
+    }
 
     function showBanner(msg, isError) {
       if (!bannerEl) return;
@@ -193,9 +216,60 @@
       }
     }
 
+    async function refreshCustomers() {
+      const { from, to } = ensureCustomerDates();
+      const meta = document.getElementById("customers-meta");
+      const body = document.getElementById("customers-body");
+      if (!body) return;
+      body.innerHTML =
+        '<tr><td colspan="5" class="empty">جاري جلب العملاء...</td></tr>';
+      const q = `/customers?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+      const data = await api(q);
+      if (meta) {
+        const parts = [
+          `من ${data.from} إلى ${data.to}`,
+          `${data.count} عميل`,
+          `Interakt: ${data.interaktCount}`,
+          `محلي: ${data.localCount}`,
+        ];
+        if (data.interaktError) parts.push(`تنبيه Interakt: ${data.interaktError}`);
+        meta.textContent = parts.join(" · ");
+      }
+      body.innerHTML = "";
+      if (!data.customers.length) {
+        body.innerHTML =
+          '<tr><td colspan="5" class="empty">لا يوجد عملاء في هذه الفترة. تأكد من مفتاح Interakt أو أن الرسائل وصلت للكوبري.</td></tr>';
+        return;
+      }
+      for (const row of data.customers) {
+        const tr = document.createElement("tr");
+        const sources = (row.sources || []).join(" / ") || "—";
+        tr.innerHTML = `
+          <td dir="ltr">${row.countryCode || ""}${row.phone}</td>
+          <td>${row.name || "—"}</td>
+          <td>${formatTime(row.lastAt)}</td>
+          <td>${sources}</td>
+          <td>
+            <div class="actions">
+              <button class="btn tiny secondary" data-act="menu" data-phone="${row.phone}" data-cc="${row.countryCode || "+966"}" type="button">قائمة</button>
+              <button class="btn tiny secondary" data-act="compose" data-phone="${row.phone}" type="button">رسالة</button>
+            </div>
+          </td>
+        `;
+        body.appendChild(tr);
+      }
+    }
+
     async function refreshAll() {
       await refreshOverview();
       await refreshConversations();
+      try {
+        await refreshCustomers();
+      } catch (err) {
+        console.warn("customers", err);
+        const meta = document.getElementById("customers-meta");
+        if (meta) meta.textContent = err.message || "تعذر جلب العملاء";
+      }
     }
 
     function switchPanel(name) {
@@ -208,6 +282,9 @@
       const [title, sub] = titles[name] || ["لوحة التحكم", ""];
       if (panelTitle) panelTitle.textContent = title;
       if (panelSub) panelSub.textContent = sub;
+      if (name === "customers") {
+        refreshCustomers().catch((err) => alert(err.message));
+      }
     }
 
     async function loadData() {
@@ -270,41 +347,56 @@
       btn.addEventListener("click", () => switchPanel(btn.dataset.panel));
     });
 
-    const convBody = document.getElementById("conversations-body");
-    if (convBody) {
-      convBody.addEventListener("click", async (e) => {
-        const btn = e.target.closest("button[data-act]");
-        if (!btn) return;
-        const act = btn.dataset.act;
-        const phone = btn.dataset.phone;
-        const countryCode = btn.dataset.cc;
-        try {
-          if (act === "pause")
-            await api("/pause", {
-              method: "POST",
-              body: JSON.stringify({ phone, countryCode }),
-            });
-          if (act === "resume")
-            await api("/resume", {
-              method: "POST",
-              body: JSON.stringify({ phone, countryCode }),
-            });
-          if (act === "reset")
-            await api("/reset", {
-              method: "POST",
-              body: JSON.stringify({ phone, countryCode }),
-            });
-          if (act === "menu")
-            await api("/send-menu", {
-              method: "POST",
-              body: JSON.stringify({ phone, countryCode }),
-            });
-          await refreshAll();
-        } catch (err) {
-          alert(err.message);
-        }
+    const customersLoad = document.getElementById("customers-load");
+    if (customersLoad) {
+      customersLoad.addEventListener("click", () => {
+        refreshCustomers().catch((err) => alert(err.message));
       });
     }
+
+    async function handleRowAction(e) {
+      const btn = e.target.closest("button[data-act]");
+      if (!btn) return;
+      const act = btn.dataset.act;
+      const phone = btn.dataset.phone;
+      const countryCode = btn.dataset.cc || "+966";
+      try {
+        if (act === "compose") {
+          switchPanel("compose");
+          const phoneInput = document.getElementById("compose-phone");
+          if (phoneInput) phoneInput.value = phone;
+          return;
+        }
+        if (act === "pause")
+          await api("/pause", {
+            method: "POST",
+            body: JSON.stringify({ phone, countryCode }),
+          });
+        if (act === "resume")
+          await api("/resume", {
+            method: "POST",
+            body: JSON.stringify({ phone, countryCode }),
+          });
+        if (act === "reset")
+          await api("/reset", {
+            method: "POST",
+            body: JSON.stringify({ phone, countryCode }),
+          });
+        if (act === "menu")
+          await api("/send-menu", {
+            method: "POST",
+            body: JSON.stringify({ phone, countryCode }),
+          });
+        await refreshAll();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    const convBody = document.getElementById("conversations-body");
+    if (convBody) convBody.addEventListener("click", handleRowAction);
+    const customersBody = document.getElementById("customers-body");
+    if (customersBody) customersBody.addEventListener("click", handleRowAction);
 
     const composeSend = document.getElementById("compose-send");
     if (composeSend) {

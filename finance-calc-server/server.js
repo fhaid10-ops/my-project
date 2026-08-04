@@ -46,6 +46,7 @@ const { handleAmountExamplesSector } = require("./lib/amount-examples");
 const { extractIncomingMessage } = require("./lib/webhook-parse");
 const { normalizeDigits } = require("./lib/digits");
 const { mountAdmin } = require("./lib/admin-routes");
+const { appendCustomerEvent } = require("./lib/customer-log");
 
 function normalizeEnvValue(value) {
   return String(value || "")
@@ -349,12 +350,24 @@ app.post("/webhook/interakt", async (req, res) => {
       /^(message_api_sent|message_api_delivered|message_api_read|message_api_failed|message_campaign_)/i;
     const staffMenuShortcut =
       isOutboundSent && phone && text && looksLikeMenuShortcut(text);
-    if (
+    const isDeliveryNoise =
       type &&
       ignoredTypes.test(String(type)) &&
       !payload?.data?.message?.button_text &&
-      !staffMenuShortcut
-    ) {
+      !staffMenuShortcut;
+
+    // سجّل العملاء محليًا (ما عدا إشعارات التسليم/القراءة)
+    if (phone && !isDeliveryNoise) {
+      appendCustomerEvent({
+        phone,
+        countryCode,
+        eventType: type || eventType || "",
+        preview: text.slice(0, 160),
+        direction: isOutboundSent ? "out" : "in",
+      });
+    }
+
+    if (isDeliveryNoise) {
       return;
     }
 
@@ -575,6 +588,7 @@ mountAdmin(app, {
   sendResultReply,
   showMainMenu,
   interaktConfigured: Boolean(INTERAKT_API_KEY),
+  interaktApiKey: INTERAKT_API_KEY,
 });
 
 app.listen(PORT, () => {

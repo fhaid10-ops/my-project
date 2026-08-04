@@ -4,6 +4,14 @@
 const path = require("path");
 const express = require("express");
 const CONFIG = require("../config");
+const {
+  listCustomersFromLog,
+  defaultYesterdayToToday,
+  getRiyadhYmd,
+  riyadhRangeToUtc,
+  normalizePhone,
+} = require("./customer-log");
+const { listInteraktCustomersInRange } = require("./interakt-users");
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
@@ -34,6 +42,7 @@ function createAdminRouter(deps) {
     sendResultReply,
     showMainMenu,
     interaktConfigured,
+    interaktApiKey,
   } = deps;
 
   const router = express.Router();
@@ -60,7 +69,7 @@ function createAdminRouter(deps) {
     res.json({
       ok: true,
       open: true,
-      version: "2026-08-04-ui",
+      version: "2026-08-04-customers",
       host: req.get("host") || "",
       ip: req.ip || req.socket?.remoteAddress || "",
       tokenConfigured: Boolean(adminToken),
@@ -138,6 +147,108 @@ function createAdminRouter(deps) {
 
   router.get("/activity", requireAdmin, (_req, res) => {
     res.json({ ok: true, activity: activityLog });
+  });
+
+  /**
+   * عملاء من تاريخ → تاريخ (توقيت الرياض)
+   * افتراضيًا: أمس → اليوم
+   * يجمع: Interakt + السجل المحلي + الجلسات الحية
+   */
+  router.get("/customers", requireAdmin, async (req, res) => {
+    try {
+      const defaults = defaultYesterdayToToday();
+      const fromYmd = String(req.query.from || defaults.from).slice(0, 10);
+      const toYmd = String(req.query.to || defaults.to).slice(0, 10);
+
+      const localRows = listCustomersFromLog(fromYmd, toYmd);
+      const interakt = await listInteraktCustomersInRange({
+        apiKey: interaktApiKey,
+        fromYmd,
+        toYmd,
+      });
+
+      const byPhone = new Map();
+      function upsert(row, sourceHint) {
+        if (!row?.phone) return;
+        const phone = normalizePhone(row.phone);
+        if (!phone) return;
+        const prev = byPhone.get(phone) || {
+          phone,
+          countryCode: row.countryCode || "+966",
+          name: "",
+          lastAt: null,
+          lastPreview: "",
+          events: 0,
+          sources: [],
+          live: null,
+        };
+        if (row.name && !prev.name) prev.name = row.name;
+        if (row.countryCode) prev.countryCode = row.countryCode;
+        if (
+          row.lastAt &&
+          (!prev.lastAt || Date.parse(row.lastAt) > Date.parse(prev.lastAt))
+        ) {
+          prev.lastAt = row.lastAt;
+        }
+        if (row.lastPreview) prev.lastPreview = row.lastPreview;
+        if (row.events) prev.events += Number(row.events) || 0;
+        const src = sourceHint || row.source;
+        if (src && !prev.sources.includes(src)) prev.sources.push(src);
+        byPhone.set(phone, prev);
+      }
+
+      for (const row of interakt.customers || []) upsert(row, "interakt");
+      for (const row of localRows) upsert(row, "local");
+
+      // جلسات حية ضمن الفترة (إن وُجدت)
+      const liveRange = riyadhRangeToUtc(fromYmd, toYmd);
+      for (const live of listConversations()) {
+        const atMs = Math.max(
+          live.session?.savedAt || 0,
+          live.draft?.savedAt || 0
+        );
+        if (!atMs) continue;
+        if (atMs < liveRange.from.getTime() || atMs > liveRange.to.getTime()) {
+          continue;
+        }
+        upsert(
+          {
+            phone: live.phone,
+            countryCode: live.countryCode,
+            lastAt: new Date(atMs).toISOString(),
+            lastPreview: live.draft?.flow || (live.session ? "جلسة حسبة" : ""),
+            events: 1,
+          },
+          "live"
+        );
+        const cur = byPhone.get(normalizePhone(live.phone));
+        if (cur) {
+          cur.live = {
+            paused: live.paused,
+            flow: live.draft?.flow || null,
+            maxAmount: live.session?.maxAmount || null,
+          };
+        }
+      }
+
+      const customers = [...byPhone.values()].sort(
+        (a, b) => Date.parse(b.lastAt || 0) - Date.parse(a.lastAt || 0)
+      );
+
+      res.json({
+        ok: true,
+        from: fromYmd,
+        to: toYmd,
+        today: getRiyadhYmd(),
+        count: customers.length,
+        interaktCount: (interakt.customers || []).length,
+        localCount: localRows.length,
+        interaktError: interakt.error || null,
+        customers,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
   });
 
   router.post("/pause", requireAdmin, (req, res) => {
