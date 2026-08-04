@@ -1,0 +1,17 @@
+# Blueprint لريبو my-project — ينشر مجلد finance-calc-server
+services:
+  - type: web
+    name: raed-kobri
+    runtime: node
+    plan: free
+    rootDir: finance-calc-server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: INTERAKT_API_KEY
+        sync: false
