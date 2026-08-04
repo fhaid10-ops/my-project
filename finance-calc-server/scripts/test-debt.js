@@ -26,8 +26,9 @@ check("بداية شراء المديونية", () => {
   assert.strictEqual(looksLikeStartDebtPurchase("مديونية"), true);
   assert.strictEqual(looksLikeStartDebtPurchase("2"), false);
   const start = startDebtPurchaseFlow();
-  assert.strictEqual(start.reply, null);
-  assert.strictEqual(start.interactive, null);
+  assert.strictEqual(start.reply, "أي قطاع؟");
+  assert.ok(start.interactive);
+  assert.strictEqual(start.interactive.kind, "buttons");
   assert.strictEqual(start.draft.flow, "debt_chat");
 });
 

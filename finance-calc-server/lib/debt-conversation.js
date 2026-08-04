@@ -31,25 +31,27 @@ function looksLikeStartDebtPurchase(text) {
   );
 }
 
+function sectorButtons(body = "أي قطاع؟") {
+  return {
+    kind: "buttons",
+    body,
+    buttons: [
+      { id: "civilian", title: "مدني" },
+      { id: "retired", title: "متقاعد" },
+      { id: "military", title: "عسكري" },
+    ],
+  };
+}
+
 function startDebtPurchaseFlow(options = {}) {
-  // افتراضيًا صامت: Interakt يعرض أزرار القطاع حتى لا تتكرر الرسالة
-  const askSector = options.askSector === true;
+  // الكوبري يرسل أزرار القطاع مباشرة (لا نعتمد على Interakt Auto Reply)
+  const askSector = options.askSector !== false;
   const sectorBody = "أي قطاع؟";
   return {
     ok: true,
     flow: "debt_chat",
     reply: askSector ? sectorBody : null,
-    interactive: askSector
-      ? {
-          kind: "buttons",
-          body: sectorBody,
-          buttons: [
-            { id: "civilian", title: "مدني" },
-            { id: "retired", title: "متقاعد" },
-            { id: "military", title: "عسكري" },
-          ],
-        }
-      : null,
+    interactive: askSector ? sectorButtons(sectorBody) : null,
     draft: {
       flow: "debt_chat",
       step: "sector",
@@ -102,13 +104,11 @@ function advanceDebtPurchaseFlow(draft, text) {
   if (step === "sector") {
     const jobCategory = mapSector(raw);
     if (!jobCategory) {
+      const retry = "ما قدرت أحدد القطاع. اختر من الأزرار:";
       return {
         ok: false,
-        reply: `ما قدرت أحدد القطاع.
-أرسل:
-1- مدني
-2- متقاعد
-3- عسكري`,
+        reply: retry,
+        interactive: sectorButtons(retry),
         draft: state,
       };
     }

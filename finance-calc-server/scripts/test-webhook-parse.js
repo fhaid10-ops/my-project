@@ -83,8 +83,8 @@ check("mapSector يفهم مدني مع رمز السهم", () => {
 
 check("ضغط مدني يكمل لسؤال الراتب", () => {
   const start = startPersonalFinanceFlow();
-  assert.strictEqual(start.reply, null);
-  assert.strictEqual(start.interactive, null);
+  assert.strictEqual(start.reply, "أي قطاع؟");
+  assert.ok(start.interactive);
   const next = advancePersonalFinanceFlow(start.draft, "مدني");
   assert.ok(next.ok);
   assert.match(next.reply, /راتبك/);
