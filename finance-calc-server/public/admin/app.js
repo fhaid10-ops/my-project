@@ -1,4 +1,7 @@
 (() => {
+  // غيّر هذا الرقم مع كل إصلاح — يظهر أسفل شاشة الدخول
+  const UI_VERSION = "2026-08-04-open";
+
   const loginView = document.getElementById("login-view");
   const appView = document.getElementById("app-view");
   const tokenInput = document.getElementById("token-input");
@@ -8,6 +11,8 @@
   const refreshBtn = document.getElementById("refresh-btn");
   const panelTitle = document.getElementById("panel-title");
   const panelSub = document.getElementById("panel-sub");
+  const versionEl = document.getElementById("ui-version");
+  if (versionEl) versionEl.textContent = `الإصدار: ${UI_VERSION}`;
 
   const titles = {
     overview: ["نظرة عامة", "حالة السيرفر والجلسات النشطة"],
