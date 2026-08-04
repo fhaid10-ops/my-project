@@ -194,13 +194,39 @@
   }
 
   async function tryEnter() {
+    // أولًا تأكد السيرفر يرد
+    try {
+      const ping = await fetch("/admin/api/ping").then((r) => r.json());
+      if (!ping.ok) throw new Error("السيرفر لا يستجيب");
+    } catch (err) {
+      showLogin("السيرفر غير متصل — شغّل start-calc.bat");
+      throw err;
+    }
+
+    setToken("123456");
     try {
       await api("/status");
       showApp();
-      await refreshAll();
+      try {
+        await refreshAll();
+      } catch (refreshErr) {
+        console.warn("refresh failed", refreshErr);
+      }
     } catch (err) {
+      // محاولة أخيرة بدون هيدر رمز (localhost)
       clearToken();
-      showLogin(err.message || "فشل الدخول");
+      try {
+        await api("/status");
+        showApp();
+        try {
+          await refreshAll();
+        } catch (_) {
+          /* ignore */
+        }
+      } catch (err2) {
+        showLogin(err2.message || err.message || "فشل الدخول");
+        throw err2;
+      }
     }
   }
 

@@ -56,6 +56,14 @@ function createAdminRouter(deps) {
   }
 
   function isLocalRequest(req) {
+    const host = String(req.get("host") || "").toLowerCase();
+    if (
+      host.startsWith("127.0.0.1") ||
+      host.startsWith("localhost") ||
+      host.startsWith("[::1]")
+    ) {
+      return true;
+    }
     const ip = String(req.ip || req.socket?.remoteAddress || "");
     return (
       ip === "127.0.0.1" ||
@@ -66,16 +74,10 @@ function createAdminRouter(deps) {
   }
 
   function requireAdmin(req, res, next) {
-    // من نفس الجهاز (localhost) ادخل مباشرة بدون رمز
+    // من الكمبيوتر على 127.0.0.1 / localhost: دخول مباشر
     if (isLocalRequest(req)) return next();
 
-    const token = normalizeToken(adminToken);
-    if (!token) {
-      return res.status(503).json({
-        ok: false,
-        error: "ADMIN_TOKEN غير مضبوط في ملف .env",
-      });
-    }
+    const token = normalizeToken(adminToken) || "123456";
     const got = normalizeToken(
       req.get("x-admin-token") ||
         (req.get("authorization") || "").replace(/^Bearer\s+/i, "") ||
@@ -87,11 +89,21 @@ function createAdminRouter(deps) {
     if (!aliases.has(got)) {
       return res.status(401).json({
         ok: false,
-        error: "الرمز غير صحيح — من الجوال استخدم 123456",
+        error: "الرمز غير صحيح — من الجوال اكتب 123456",
       });
     }
     return next();
   }
+
+  // فحص سريع بدون حماية — لمعرفة إن السيرفر يرد
+  router.get("/ping", (req, res) => {
+    res.json({
+      ok: true,
+      local: isLocalRequest(req),
+      host: req.get("host") || "",
+      ip: req.ip || req.socket?.remoteAddress || "",
+    });
+  });
 
   function listConversations() {
     const keys = new Set([
