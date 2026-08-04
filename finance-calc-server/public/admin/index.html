@@ -28,6 +28,11 @@
   box-sizing: border-box;
 }
 
+/* ضروري: display:grid على .login-shell/.app كان يلغي صفة hidden */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -470,7 +475,7 @@ th {
 </div>
 <script>
 (() => {
-  const UI_VERSION = "2026-08-04-force";
+  const UI_VERSION = "2026-08-04-ui";
 
   try {
     boot();

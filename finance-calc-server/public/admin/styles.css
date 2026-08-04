@@ -19,6 +19,11 @@
   box-sizing: border-box;
 }
 
+/* ضروري: display:grid على .login-shell/.app كان يلغي صفة hidden */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;

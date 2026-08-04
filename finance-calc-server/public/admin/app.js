@@ -1,5 +1,5 @@
 (() => {
-  const UI_VERSION = "2026-08-04-force";
+  const UI_VERSION = "2026-08-04-ui";
 
   try {
     boot();
