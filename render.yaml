@@ -1,0 +1,20 @@
+# رفع الكوبري على Render — بدل جهاز البيت + Cloudflare
+# New → Blueprint → ربط GitHub → اختر هذا المستودع
+services:
+  - type: web
+    name: finance-calc-kobri
+    runtime: node
+    rootDir: finance-calc-server
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: INTERAKT_API_KEY
+        sync: false
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: WEBHOOK_SECRET
+        generateValue: true

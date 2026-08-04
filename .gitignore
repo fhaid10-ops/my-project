@@ -2,3 +2,8 @@ apk-work/
 patches/*/build/
 patches/*/debug.keystore
 patches/*/*.idsig
+
+finance-calc-server/.env
+finance-calc-server/node_modules/
+*.zip
+
