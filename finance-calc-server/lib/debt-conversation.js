@@ -26,8 +26,11 @@ function looksLikeStartDebtPurchase(text) {
   if (!t) return false;
   if (t.length > 80) return false;
   // لا نستخدم "2" وحده — يتعارض مع خيارات العقاري/نعم-لا
-  return /^(شراء مديونية|شراء المديونية|ابي شراء مديونية|أبي شراء مديونية|مديونية)$/i.test(
-    t
+  // نقبل ة/ه: مديونية / مديونيه
+  return (
+    /^(شراء\s*(?:ال)?مديوني[ةه]|ابي شراء\s*(?:ال)?مديوني[ةه]|أبي شراء\s*(?:ال)?مديوني[ةه]|مديوني[ةه])$/i.test(
+      t
+    ) || /^menu_2$/i.test(t)
   );
 }
 
@@ -46,11 +49,16 @@ function sectorButtons(body = "أي قطاع؟") {
 function startDebtPurchaseFlow(options = {}) {
   // الكوبري يرسل أزرار القطاع مباشرة (لا نعتمد على Interakt Auto Reply)
   const askSector = options.askSector !== false;
-  const sectorBody = "أي قطاع؟";
+  const sectorBody = "شراء المديونية — أي قطاع؟";
+  const replyText = askSector
+    ? `${debtRulesText()}
+
+${sectorBody}`
+    : null;
   return {
     ok: true,
     flow: "debt_chat",
-    reply: askSector ? sectorBody : null,
+    reply: replyText,
     interactive: askSector ? sectorButtons(sectorBody) : null,
     draft: {
       flow: "debt_chat",
