@@ -25,9 +25,8 @@ function looksLikeStartPersonalFinance(text) {
 }
 
 function startPersonalFinanceFlow(options = {}) {
-  // افتراضيًا صامت: Interakt يعرض أزرار القطاع (مدني/متقاعد/عسكري)
-  // حتى لا تتكرر الرسالة مرتين
-  const askSector = options.askSector === true;
+  // الكوبري يرسل أزرار القطاع مباشرة (لا نعتمد على Interakt Auto Reply)
+  const askSector = options.askSector !== false;
   const sectorBody = "أي قطاع؟";
   return {
     ok: true,
