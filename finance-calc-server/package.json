@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "dev": "node scripts/ensure-env.js && nodemon --watch server.js --watch config.js --watch lib --watch public --ext js,json,html,css server.js",
     "test:calc": "node scripts/test-calc.js",
     "test:webhook": "node scripts/test-webhook-parse.js",
     "test:debt": "node scripts/test-debt.js",
@@ -17,5 +18,8 @@
   "dependencies": {
     "dotenv": "^16.4.7",
     "express": "^4.22.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }
