@@ -16,6 +16,7 @@
   const gasOdometerEl = document.getElementById('gasOdometer');
   const distributionFields = document.getElementById('distributionFields');
   const distributionNameEl = document.getElementById('distributionName');
+  const distributionHaifaFields = document.getElementById('distributionHaifaFields');
   const pharmacyFields = document.getElementById('pharmacyFields');
   const pharmacyItemEl = document.getElementById('pharmacyItem');
   const roasteryFields = document.getElementById('roasteryFields');
@@ -272,7 +273,7 @@
     }
   }
 
-  const SW_VERSION = '29';
+  const SW_VERSION = '30';
 
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
@@ -417,9 +418,17 @@
     if (cancelEditBtn) cancelEditBtn.hidden = !editing;
   }
 
+  function isDistributionHaifaType(type) {
+    return type === 'توزيعات هيفاء';
+  }
+
   function fillFormFromExpense(e) {
     amountEl.value = e.amount ?? '';
-    typeEl.value = e.type || '';
+    if (e.type === 'توزيعات' && e.distributionName === 'هيفاء') {
+      typeEl.value = 'توزيعات هيفاء';
+    } else {
+      typeEl.value = e.type || '';
+    }
     dateEl.value = e.date || '';
     timeEl.value = e.time || '';
     gasCarTypeEl.value = e.type === 'بنزين' ? (e.carType || '') : '';
@@ -463,6 +472,7 @@
     const isOil = typeEl.value === 'زيت السيارة';
     const isGas = typeEl.value === 'بنزين';
     const isDistribution = typeEl.value === 'توزيعات';
+    const isDistributionHaifa = isDistributionHaifaType(typeEl.value);
     const isPharmacy = typeEl.value === 'صيدلية';
     const isRoastery = typeEl.value === 'محمصة';
     const isOther = typeEl.value === 'أخرى';
@@ -476,7 +486,7 @@
       carType: isOil ? carTypeEl.value.trim() : (isGas ? gasCarTypeEl.value : ''),
       odometer: isOil ? Number(odometerEl.value) : null,
       gasOdometer: isGas && gasOdometerEl.value !== '' ? Number(gasOdometerEl.value) : null,
-      distributionName: isDistribution ? distributionNameEl.value : '',
+      distributionName: isDistributionHaifa ? 'هيفاء' : (isDistribution ? distributionNameEl.value : ''),
       pharmacyItem: isPharmacy ? pharmacyItemEl.value : '',
       roasteryItem: isRoastery ? roasteryItemEl.value : '',
       notes: isOther ? otherNoteEl.value.trim() : '',
@@ -489,12 +499,14 @@
     const isGas = typeEl.value === 'بنزين';
     const isOil = typeEl.value === 'زيت السيارة';
     const isDistribution = typeEl.value === 'توزيعات';
+    const isDistributionHaifa = isDistributionHaifaType(typeEl.value);
     const isPharmacy = typeEl.value === 'صيدلية';
     const isRoastery = typeEl.value === 'محمصة';
     const isOther = typeEl.value === 'أخرى';
     gasFields.hidden = !isGas;
     oilFields.hidden = !isOil;
     distributionFields.hidden = !isDistribution;
+    distributionHaifaFields.hidden = !isDistributionHaifa;
     pharmacyFields.hidden = !isPharmacy;
     roasteryFields.hidden = !isRoastery;
     otherFields.hidden = !isOther;
@@ -511,6 +523,7 @@
     const activePanel = isGas ? gasFields
       : isOil ? oilFields
       : isDistribution ? distributionFields
+      : isDistributionHaifa ? distributionHaifaFields
       : isPharmacy ? pharmacyFields
       : isRoastery ? roasteryFields
       : isOther ? otherFields
@@ -609,7 +622,7 @@
           parts.push(`<small>${Number(e.gasOdometer).toLocaleString('ar-EG')} كم</small>`);
         }
         if (parts.length) detailsCell = parts.join('<br>');
-      } else if (e.type === 'توزيعات' && e.distributionName) {
+      } else if ((e.type === 'توزيعات' || isDistributionHaifaType(e.type)) && e.distributionName) {
         detailsCell = escapeHtml(e.distributionName);
       } else if (e.type === 'صيدلية' && e.pharmacyItem) {
         detailsCell = escapeHtml(e.pharmacyItem);
@@ -663,6 +676,7 @@
     const isOil = typeEl.value === 'زيت السيارة';
     const isGas = typeEl.value === 'بنزين';
     const isDistribution = typeEl.value === 'توزيعات';
+    const isDistributionHaifa = isDistributionHaifaType(typeEl.value);
     const isPharmacy = typeEl.value === 'صيدلية';
     const isRoastery = typeEl.value === 'محمصة';
     const isOther = typeEl.value === 'أخرى';
