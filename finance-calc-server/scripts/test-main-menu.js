@@ -64,4 +64,33 @@ assert.ok(assistant.reply.includes("ماجد"));
 assert.ok(assistant.reply.includes("0507009290"));
 assert.ok(!assistant.reply.includes("0501812339"));
 
+const {
+  startServiceStopFlow,
+  advanceServiceStopFlow,
+} = require("../lib/main-menu");
+const stopStart = handleMainMenuChoice("4");
+assert.strictEqual(stopStart.draft.step, "awaiting_service_stop_qualify");
+assert.strictEqual(stopStart.interactive.kind, "buttons");
+assert.match(stopStart.interactive.body, /7000/);
+
+const stopYes = advanceServiceStopFlow(stopStart.draft, "نعم");
+assert.strictEqual(stopYes.draft.step, "awaiting_service_stop_agent");
+assert.match(stopYes.interactive.body, /تبي ارسلك رقم المندوب/);
+assert.match(stopYes.interactive.body, /مليون|400/);
+
+const stopAgentNo = advanceServiceStopFlow(stopYes.draft, "لا");
+assert.match(stopAgentNo.reply, /بالتوفيق وحياك الله/);
+assert.strictEqual(stopAgentNo.draft, null);
+
+const stopAgentYes = advanceServiceStopFlow(
+  { flow: "main_menu", step: "awaiting_service_stop_agent" },
+  "نعم"
+);
+assert.strictEqual(stopAgentYes.silent, true);
+assert.ok(!stopAgentYes.reply);
+assert.ok(!stopAgentYes.interactive);
+
+const stopQualifyNo = advanceServiceStopFlow(stopStart.draft, "لا");
+assert.match(stopQualifyNo.reply, /بالتوفيق وحياك الله/);
+
 console.log("test-main-menu: OK");

@@ -415,6 +415,13 @@ module.exports = {
 
     propertyComboInterest: `هل ترغب بحلول تمويلية أخرى؟`,
 
+    serviceStopQualify: `هل راتبك لا يقل عن 7000 ريال
+وما عليك عقاري؟`,
+
+    serviceStopNotQualified: `بالتوفيق وحياك الله`,
+
+    serviceStopAgentDeclined: `بالتوفيق وحياك الله`,
+
     realEstate: `هل لديك تمويل عقاري؟
 
 اكتب رقم الخيار أو نص الإجابة:
@@ -650,6 +657,28 @@ ${personalFormatted} ريال شخصي
 كل عميل حسب راتبه وحسب حسبة البنك له يعني 60% كاش
 
 سنرسل لك رقم المندوب المختص الآن.`,
+
+    serviceStopQualify: () =>
+      `هل راتبك لا يقل عن 7000 ريال
+وما عليك عقاري؟`,
+
+    serviceStopOffer: (
+      totalFormatted,
+      propertyFormatted,
+      personalFormatted
+    ) =>
+      `• شركة تسددلك جميع التزاماتك
+• و تستخرج لك مثال
+مليون
+${propertyFormatted} ريال عقاري
+${personalFormatted} ريال شخصي
+كل عميل حسب راتبه وحسب حسب البنك له يعني 60% كاش
+
+تبي ارسلك رقم المندوب؟`,
+
+    serviceStopNotQualified: () => `بالتوفيق وحياك الله`,
+
+    serviceStopAgentDeclined: () => `بالتوفيق وحياك الله`,
 
     personalAmountOffer: (amountFormatted, installmentFormatted) =>
       `قيمة التمويل:

@@ -171,6 +171,149 @@ function parseMainMenuChoice(text) {
   return null;
 }
 
+function serviceStopYesNoButtons(body) {
+  return {
+    kind: "buttons",
+    body: String(body || "").slice(0, 1024),
+    buttons: [
+      { id: "ss_yes", title: "نعم" },
+      { id: "ss_no", title: "لا" },
+    ],
+  };
+}
+
+function parseServiceStopYesNo(text) {
+  const t = String(text || "").trim();
+  if (!t || t.length > 40) return null;
+  if (/^(1|نعم|اي|أي|أجل|موافق|ss_yes|yes)$/i.test(t)) return "yes";
+  if (/^(2|لا|لأ|لاء|ما ابي|ماأبي|رفض|ss_no|no)$/i.test(t)) return "no";
+  return null;
+}
+
+function startServiceStopFlow() {
+  const tpl =
+    CONFIG.messages?.serviceStopQualify ||
+    CONFIG.templates?.serviceStopQualify;
+  const body =
+    typeof tpl === "function"
+      ? tpl()
+      : tpl ||
+        `هل راتبك لا يقل عن 7000 ريال
+وما عليك عقاري؟`;
+  return {
+    ok: true,
+    flow: "main_menu",
+    interactive: serviceStopYesNoButtons(body),
+    draft: { flow: "main_menu", step: "awaiting_service_stop_qualify" },
+  };
+}
+
+function serviceStopOfferBody() {
+  const combo = CONFIG.comboPackage || {};
+  const fmt = (n) => Number(n || 0).toLocaleString("en-US");
+  const tpl = CONFIG.templates?.serviceStopOffer;
+  if (typeof tpl === "function") {
+    return tpl(
+      fmt(combo.totalExample || 1000000),
+      fmt(combo.propertyAmount || 400000),
+      fmt(combo.personalAmount || 600000)
+    );
+  }
+  return `• شركة تسددلك جميع التزاماتك
+• و تستخرج لك مثال
+مليون
+${fmt(combo.propertyAmount || 400000)} ريال عقاري
+${fmt(combo.personalAmount || 600000)} ريال شخصي
+كل عميل حسب راتبه وحسب حسب البنك له يعني 60% كاش
+
+تبي ارسلك رقم المندوب؟`;
+}
+
+/**
+ * خطوات إيقاف الخدمات بعد اختيار القائمة
+ */
+function advanceServiceStopFlow(draft, text, yesNoHint) {
+  const step = draft?.step;
+  const choice = yesNoHint || parseServiceStopYesNo(text);
+
+  if (step === "awaiting_service_stop_qualify") {
+    if (choice === "yes") {
+      return {
+        ok: true,
+        flow: "main_menu",
+        interactive: serviceStopYesNoButtons(serviceStopOfferBody()),
+        draft: { flow: "main_menu", step: "awaiting_service_stop_agent" },
+      };
+    }
+    if (choice === "no") {
+      const declined =
+        CONFIG.messages?.serviceStopNotQualified ||
+        CONFIG.templates?.serviceStopNotQualified;
+      return {
+        ok: true,
+        flow: "main_menu",
+        reply:
+          typeof declined === "function"
+            ? declined()
+            : declined || "بالتوفيق وحياك الله",
+        clearDraft: true,
+        draft: null,
+      };
+    }
+    const reask =
+      CONFIG.messages?.serviceStopQualify ||
+      CONFIG.templates?.serviceStopQualify;
+    return {
+      ok: false,
+      flow: "main_menu",
+      interactive: serviceStopYesNoButtons(
+        typeof reask === "function"
+          ? reask()
+          : reask ||
+              `هل راتبك لا يقل عن 7000 ريال
+وما عليك عقاري؟`
+      ),
+      draft: { flow: "main_menu", step: "awaiting_service_stop_qualify" },
+    };
+  }
+
+  if (step === "awaiting_service_stop_agent") {
+    if (choice === "yes") {
+      // طلب صريح: إذا نعم لا ترسل أي شيء
+      return {
+        ok: true,
+        flow: "main_menu",
+        silent: true,
+        clearDraft: true,
+        draft: null,
+      };
+    }
+    if (choice === "no") {
+      const declined =
+        CONFIG.messages?.serviceStopAgentDeclined ||
+        CONFIG.templates?.serviceStopAgentDeclined;
+      return {
+        ok: true,
+        flow: "main_menu",
+        reply:
+          typeof declined === "function"
+            ? declined()
+            : declined || "بالتوفيق وحياك الله",
+        clearDraft: true,
+        draft: null,
+      };
+    }
+    return {
+      ok: false,
+      flow: "main_menu",
+      interactive: serviceStopYesNoButtons(serviceStopOfferBody()),
+      draft: { flow: "main_menu", step: "awaiting_service_stop_agent" },
+    };
+  }
+
+  return startServiceStopFlow();
+}
+
 function serviceStopInfoReply() {
   const combo = CONFIG.comboPackage || {};
   const fmt = (n) => Number(n || 0).toLocaleString("en-US");
@@ -239,12 +382,7 @@ function handleMainMenuChoice(choice) {
     case "3":
       return askAmountExamplesSector();
     case "4":
-      return {
-        ok: true,
-        flow: "main_menu",
-        reply: serviceStopInfoReply(),
-        draft: { flow: "main_menu", step: "awaiting_choice" },
-      };
+      return startServiceStopFlow();
     case "5":
       return {
         ok: true,
@@ -298,6 +436,9 @@ module.exports = {
   showMainMenu,
   parseMainMenuChoice,
   handleMainMenuChoice,
+  startServiceStopFlow,
+  advanceServiceStopFlow,
+  parseServiceStopYesNo,
   sectorButtonsInteractive,
   mainMenuInteractive,
 };

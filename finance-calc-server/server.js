@@ -42,6 +42,7 @@ const {
   showMainMenu,
   parseMainMenuChoice,
   handleMainMenuChoice,
+  advanceServiceStopFlow,
 } = require("./lib/main-menu");
 const { handleAmountExamplesSector } = require("./lib/amount-examples");
 const { extractIncomingMessage } = require("./lib/webhook-parse");
@@ -381,7 +382,9 @@ app.post("/webhook/interakt", async (req, res) => {
     const inActiveChoice =
       (draft?.flow === "main_menu" &&
         (draft.step === "awaiting_choice" ||
-          draft.step === "awaiting_amount_examples_sector")) ||
+          draft.step === "awaiting_amount_examples_sector" ||
+          draft.step === "awaiting_service_stop_qualify" ||
+          draft.step === "awaiting_service_stop_agent")) ||
       (draft?.flow === "personal_chat" &&
         draft.step &&
         draft.step !== "done") ||
@@ -414,6 +417,20 @@ app.post("/webhook/interakt", async (req, res) => {
       result = handleAmountExamplesSector(text);
       if (result.draft) saveDraft(countryCode, phone, result.draft);
       else clearDraft(countryCode, phone);
+    } else if (
+      draft?.flow === "main_menu" &&
+      (draft.step === "awaiting_service_stop_qualify" ||
+        draft.step === "awaiting_service_stop_agent")
+    ) {
+      result = advanceServiceStopFlow(draft, text, yesNo);
+      if (result.clearDraft || result.draft == null) {
+        clearDraft(countryCode, phone);
+      } else if (result.draft) {
+        saveDraft(countryCode, phone, result.draft);
+      }
+      if (result.silent) {
+        return;
+      }
     } else if (
       draft?.flow === "main_menu" &&
       draft.step === "awaiting_choice" &&
