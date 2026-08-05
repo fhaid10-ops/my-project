@@ -484,6 +484,11 @@ app.post("/webhook/interakt", async (req, res) => {
       } else if (!parsed.jobCategory) {
         saveDraft(countryCode, phone, parsed);
       }
+    } else if (looksLikeStartDebtPurchase(text)) {
+      // شراء مديونية / «شراء مديونية الشركات» حتى لو كانت مسودة تمويل شخصي عالقة
+      result = startDebtPurchaseFlow();
+      clearSession(countryCode, phone);
+      saveDraft(countryCode, phone, result.draft);
     } else if (draft?.flow === "personal_chat" && draft.step && draft.step !== "done") {
       // قبل looksLikeStartPersonalFinance حتى لا يُعاد سؤال القطاع مرتين
       result = advancePersonalFinanceFlow(draft, text);
@@ -502,9 +507,6 @@ app.post("/webhook/interakt", async (req, res) => {
     } else if (looksLikeStartPersonalFinance(text)) {
       // صامت: Interakt يعرض أزرار القطاع (تجنّب التكرار)
       result = startPersonalFinanceFlow();
-      saveDraft(countryCode, phone, result.draft);
-    } else if (looksLikeStartDebtPurchase(text)) {
-      result = startDebtPurchaseFlow();
       saveDraft(countryCode, phone, result.draft);
     } else if (draft?.flow === "debt_chat" && draft.step && draft.step !== "done") {
       result = advanceDebtPurchaseFlow(draft, text);

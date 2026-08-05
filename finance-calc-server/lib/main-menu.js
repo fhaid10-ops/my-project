@@ -131,8 +131,8 @@ function parseMainMenuChoice(text) {
   }
   if (
     /^[2]$/.test(t) ||
-    /^شراء\s*(?:ال)?مديوني[ةه]/i.test(t) ||
-    /^مديوني[ةه]$/i.test(t) ||
+    /^شراء\s*(?:ال)?مديوني[ةه](?:\s*الشركات)?$/i.test(t) ||
+    /^(?:ال)?مديوني[ةه](?:\s*الشركات)?$/i.test(t) ||
     /^menu_2$/i.test(t)
   ) {
     return "2";

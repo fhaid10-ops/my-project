@@ -25,12 +25,15 @@ check("بداية شراء المديونية", () => {
   assert.strictEqual(looksLikeStartDebtPurchase("شراء مديونية"), true);
   assert.strictEqual(looksLikeStartDebtPurchase("شراء المديونيه"), true);
   assert.strictEqual(looksLikeStartDebtPurchase("مديونية"), true);
+  assert.strictEqual(looksLikeStartDebtPurchase("شراء مديونية الشركات"), true);
+  assert.strictEqual(looksLikeStartDebtPurchase("مديونية الشركات"), true);
   assert.strictEqual(looksLikeStartDebtPurchase("2"), false);
   const start = startDebtPurchaseFlow();
   assert.match(start.reply, /شراء المديونية|أي قطاع/);
   assert.match(start.reply, /إمكان|النايفات/);
   assert.ok(start.interactive);
   assert.strictEqual(start.interactive.kind, "buttons");
+  assert.strictEqual(start.sendTextThenInteractive, true);
   assert.strictEqual(start.draft.flow, "debt_chat");
 });
 

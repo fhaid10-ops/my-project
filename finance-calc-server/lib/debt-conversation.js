@@ -26,11 +26,11 @@ function looksLikeStartDebtPurchase(text) {
   if (!t) return false;
   if (t.length > 80) return false;
   // لا نستخدم "2" وحده — يتعارض مع خيارات العقاري/نعم-لا
-  // نقبل ة/ه: مديونية / مديونيه
+  // نقبل ة/ه + وصف القائمة «شراء مديونية الشركات»
   return (
-    /^(شراء\s*(?:ال)?مديوني[ةه]|ابي شراء\s*(?:ال)?مديوني[ةه]|أبي شراء\s*(?:ال)?مديوني[ةه]|مديوني[ةه])$/i.test(
-      t
-    ) || /^menu_2$/i.test(t)
+    /^(?:ابي|أبي)?\s*شراء\s*(?:ال)?مديوني[ةه](?:\s*الشركات)?$/i.test(t) ||
+    /^(?:ال)?مديوني[ةه](?:\s*الشركات)?$/i.test(t) ||
+    /^menu_2$/i.test(t)
   );
 }
 
@@ -47,9 +47,9 @@ function sectorButtons(body = "أي قطاع؟") {
 }
 
 function startDebtPurchaseFlow(options = {}) {
-  // الكوبري يرسل أزرار القطاع مباشرة (لا نعتمد على Interakt Auto Reply)
+  // الكوبري يرسل التنويه + أزرار القطاع مباشرة (لا نعتمد على Interakt Auto Reply)
   const askSector = options.askSector !== false;
-  const sectorBody = "شراء المديونية — أي قطاع؟";
+  const sectorBody = "شراء المديونية - أي قطاع؟";
   const replyText = askSector
     ? `${debtRulesText()}
 
@@ -59,6 +59,8 @@ ${sectorBody}`
     ok: true,
     flow: "debt_chat",
     reply: replyText,
+    // أرسل النص أولًا ثم الأزرار — حتى لو فشلت الأزرار يبقى التنويه ظاهر
+    sendTextThenInteractive: Boolean(askSector && replyText),
     interactive: askSector ? sectorButtons(sectorBody) : null,
     draft: {
       flow: "debt_chat",

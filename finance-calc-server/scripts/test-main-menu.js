@@ -43,6 +43,8 @@ assert.strictEqual(welcome.draft.flow, "main_menu");
 assert.strictEqual(parseMainMenuChoice("1"), "1");
 assert.strictEqual(parseMainMenuChoice("تمويل شخصي"), "1");
 assert.strictEqual(parseMainMenuChoice("شراء مديونية"), "2");
+assert.strictEqual(parseMainMenuChoice("شراء مديونية الشركات"), "2");
+assert.strictEqual(parseMainMenuChoice("مديونية الشركات"), "2");
 assert.strictEqual(parseMainMenuChoice("مبالغ التمويل"), "3");
 assert.strictEqual(parseMainMenuChoice("إيقاف خدمات"), "4");
 assert.strictEqual(parseMainMenuChoice("ساعات الدوام"), "5");
