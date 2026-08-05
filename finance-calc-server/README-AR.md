@@ -43,18 +43,48 @@ https://YOUR-SERVICE.onrender.com/admin
 
 ---
 
-## التشغيل المحلي (اختبار فقط)
+## التشغيل المحلي (تعديل مباشر بدون سحابة)
+
+تقدر تشتغل على جهازك: تعدّل الكود والكوبري يعيد التشغيل لوحده — **بدون Render**.
 
 1. تثبيت [Node.js LTS](https://nodejs.org/)
-2. نسخ مجلد `finance-calc-server`
-3. إنشاء ملف `.env` من `.env.example`
-4. وضع مفتاح Interakt في `INTERAKT_API_KEY=`
-5. تشغيل: `npm install` ثم `npm start` أو `start-calc.bat`
+2. ادخل مجلد `finance-calc-server`
+3. أنشئ `.env` من `.env.example` (أو خلّ `start-calc-dev.bat` يسويه)
+4. ضع مفتاح Interakt في `INTERAKT_API_KEY=` (لازم فقط لو تبي رد واتساب)
+5. شغّل وضع التطوير:
 
-### نفق مؤقت للتجربة المحلية
+```bat
+npm install
+npm run dev
+```
+
+أو من ويندوز: انقر `start-calc-dev.bat`
+
+- لوحة التحكم المحلية: http://127.0.0.1:5055/admin  
+- أي تعديل في `server.js` / `lib/` / `config.js` / `public/` = إعادة تشغيل تلقائية  
+- للتشغيل الثابت بدون مراقبة ملفات: `npm start` أو `start-calc.bat`
+
+### اختبار الحاسبة محليًا (بدون واتساب)
+من اللوحة `/admin` أو عبر API مثل:
+
+```bat
+curl -X POST http://127.0.0.1:5055/calculate/personal -H "Content-Type: application/json" -d "{\"message\":\"الراتب: 8000\\nالالتزامات: 1500\\nالقطاع: مدني\\nالعقاري: لا يوجد\\nالدعم: 0\"}"
+```
+
+### نفق مؤقت لواتساب (بدون رفع على Render)
+لو تبي الرسائل من Interakt توصل لجهازك أثناء التطوير:
+
 ```bat
 cloudflared tunnel --url http://127.0.0.1:5055
 ```
+
+انسخ الرابط اللي يطلع (مثل `https://xxxx.trycloudflare.com`) وحطه في Interakt كـ Webhook:
+
+```
+https://XXXX.trycloudflare.com/webhook/interakt
+```
+
+> هذا نفق مؤقت للجهاز — مو استضافة سحابية. لما تقفل النفق أو الجهاز، الواتساب يوقف لين تشغّله مرة ثانية.
 
 ## ربط Webhook في Interakt
 
