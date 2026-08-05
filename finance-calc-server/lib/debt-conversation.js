@@ -158,6 +158,7 @@ ${salaryPrompt(jobCategory)}`,
 3- عقاري غير مدعوم
 4- عقاري قديم الي قسطه 1667`,
         interactive: realEstateInteractive(),
+        sendTextThenInteractive: true,
         draft: state,
       };
     }

@@ -157,6 +157,8 @@ function realEstateStepReply(state) {
     ok: true,
     reply: realEstatePrompt(),
     interactive: realEstateInteractive(),
+    // نص العقاري أولًا ثم القائمة — حتى لو فشلت القائمة يوصل السؤال
+    sendTextThenInteractive: true,
     draft: state,
   };
 }
@@ -312,6 +314,7 @@ ${restartHint()}`,
 3- عقاري غير مدعوم
 4- عقاري قديم الي قسطه 1667`,
         interactive: realEstateInteractive(),
+        sendTextThenInteractive: true,
         draft: state,
       };
     }
