@@ -32,8 +32,8 @@ function looksLikeStartDebtPurchase(text) {
 }
 
 function startDebtPurchaseFlow(options = {}) {
-  // افتراضيًا صامت: Interakt يعرض أزرار القطاع حتى لا تتكرر الرسالة
-  const askSector = options.askSector === true;
+  // الكوبري يسأل القطاع مباشرة (ما نعتمد على Auto Reply في Interakt)
+  const askSector = options.askSector !== false;
   const sectorBody = "أي قطاع؟";
   return {
     ok: true,
