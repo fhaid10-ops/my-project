@@ -179,7 +179,9 @@ function offerMilitaryPropertyCombo(state) {
   });
   return {
     ...result,
-    interactive: comboYesNoInteractive(result.reply),
+    // 1) سبب الرفض  2) نص العرض  3) أزرار نعم/لا
+    interactive: comboYesNoInteractive("هل ترغب بهذا العرض؟"),
+    sendTextThenInteractive: true,
     draft: {
       flow: state.flow || "personal_chat",
       step: "done",

@@ -292,19 +292,30 @@ async function sendInteraktInteractive(countryCode, phoneNumber, interactive) {
 }
 
 async function sendResultReply(countryCode, phone, result) {
-  // نتيجة الحسبة: نص أعلى مبلغ ثم قائمة المبالغ الأقل
+  // نص أولًا ثم تفاعل (مثل: سبب الرفض ثم أزرار الباقة / أعلى مبلغ ثم قائمة أقل)
   if (result?.sendTextThenInteractive && result?.reply && result?.interactive) {
     await sendInteraktText(countryCode, phone, result.reply);
+    if (result.followUpReply) {
+      await sendInteraktText(countryCode, phone, result.followUpReply);
+    }
     await sendInteraktInteractive(countryCode, phone, result.interactive);
-    return "text+interactive";
+    return result.followUpReply
+      ? "text+followup+interactive"
+      : "text+interactive";
   }
   if (result?.interactive) {
     await sendInteraktInteractive(countryCode, phone, result.interactive);
-    return "interactive";
+    if (result.followUpReply) {
+      await sendInteraktText(countryCode, phone, result.followUpReply);
+    }
+    return result.followUpReply ? "interactive+followup" : "interactive";
   }
   if (result?.reply) {
     await sendInteraktText(countryCode, phone, result.reply);
-    return "text";
+    if (result.followUpReply) {
+      await sendInteraktText(countryCode, phone, result.followUpReply);
+    }
+    return result.followUpReply ? "text+followup" : "text";
   }
   return null;
 }

@@ -289,8 +289,18 @@ function buildPropertyComboOffer(base = {}) {
   const total = pkg.totalExample || 1000000;
   const propertyAmount = pkg.propertyAmount || 400000;
   const personalAmount = pkg.personalAmount || 600000;
-  const offerFn = CONFIG.messages?.propertyComboOffer;
-  const reply =
+  const reasonKey = base.reason || "low_amount";
+  const reasonFn =
+    CONFIG.templates?.personalRejectReason ||
+    CONFIG.messages?.personalRejectReason;
+  const rejectReply =
+    (typeof reasonFn === "function" ? reasonFn(reasonKey) : "") ||
+    "نعتذر منك المبلغ التقديري أقل من المطلوب";
+
+  const offerFn =
+    CONFIG.templates?.propertyComboOffer ||
+    CONFIG.messages?.propertyComboOffer;
+  const offerBody =
     typeof offerFn === "function"
       ? offerFn(
           formatMoney(total),
@@ -310,13 +320,17 @@ ${formatMoney(personalAmount)} ريال شخصي
   return {
     ok: true,
     offer: "property_combo",
-    reply,
+    // رسالة 1 منفصلة: سبب الرفض
+    reply: rejectReply,
+    // رسالة 2: عرض الباقة
+    followUpReply: offerBody,
     data: {
       ...base,
       awaitingCombo: true,
       comboTotal: total,
       comboProperty: propertyAmount,
       comboPersonal: personalAmount,
+      comboRejectReason: reasonKey,
     },
   };
 }

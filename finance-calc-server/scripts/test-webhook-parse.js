@@ -164,7 +164,11 @@ check("عسكري أقل من 10000 يُسأل عن العقاري ثم باقة
   const combo = advancePersonalFinanceFlow(afterSalary.draft, "لا يوجد");
   assert.ok(combo.ok);
   assert.strictEqual(combo.offer, "property_combo");
-  assert.match(combo.reply, /عقاري \+ الشخصي|العقاري \+ الشخصي/);
+  assert.match(combo.reply, /نعتذر منك|الراتب أقل/);
+  assert.match(
+    combo.followUpReply || "",
+    /عقاري \+ الشخصي|العقاري \+ الشخصي|هل ترغب بهذا العرض/
+  );
   assert.strictEqual(combo.data.awaitingCombo, true);
 });
 
@@ -188,7 +192,8 @@ check("اختيار 1 للعقاري لا يُفسّر كبداية تمويل",
   const combo = advancePersonalFinanceFlow(afterSalary.draft, "1");
   assert.ok(combo.ok);
   assert.strictEqual(combo.offer, "property_combo");
-  assert.match(combo.reply, /هل ترغب بهذا العرض/);
+  assert.match(combo.reply, /نعتذر منك|الراتب أقل/);
+  assert.match(combo.followUpReply || "", /هل ترغب بهذا العرض/);
 });
 
 check("الراتب بالأرقام العربية يُقبل", () => {
