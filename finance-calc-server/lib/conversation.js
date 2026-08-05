@@ -124,7 +124,12 @@ function realEstatePrompt() {
 function realEstateInteractive() {
   return {
     kind: "list",
-    body: "هل عليك تمويل عقاري؟\nاختر النوع من القائمة:",
+    body: `هل عليك تمويل عقاري؟
+اختر النوع من القائمة، أو أرسل الرقم:
+1- لا يوجد عقاري
+2- عقاري مدعوم
+3- عقاري غير مدعوم
+4- عقاري قديم الي قسطه 1667`,
     button: "اختر النوع",
     sectionTitle: "التمويل العقاري",
     rows: [
@@ -155,10 +160,9 @@ function realEstateInteractive() {
 function realEstateStepReply(state) {
   return {
     ok: true,
+    // نص احتياطي فقط إذا فشلت القائمة التفاعلية
     reply: realEstatePrompt(),
     interactive: realEstateInteractive(),
-    // نص العقاري أولًا ثم القائمة — حتى لو فشلت القائمة يوصل السؤال
-    sendTextThenInteractive: true,
     draft: state,
   };
 }
@@ -314,7 +318,6 @@ ${restartHint()}`,
 3- عقاري غير مدعوم
 4- عقاري قديم الي قسطه 1667`,
         interactive: realEstateInteractive(),
-        sendTextThenInteractive: true,
         draft: state,
       };
     }
