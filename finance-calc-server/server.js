@@ -45,7 +45,10 @@ const {
   handleMainMenuChoice,
   advanceServiceStopFlow,
 } = require("./lib/main-menu");
-const { handleAmountExamplesSector } = require("./lib/amount-examples");
+const {
+  handleAmountExamplesSector,
+  looksLikeAmountExamplesCta,
+} = require("./lib/amount-examples");
 const { extractIncomingMessage } = require("./lib/webhook-parse");
 const { normalizeDigits } = require("./lib/digits");
 const { mountAdmin } = require("./lib/admin-routes");
@@ -384,6 +387,7 @@ app.post("/webhook/interakt", async (req, res) => {
       (draft?.flow === "main_menu" &&
         (draft.step === "awaiting_choice" ||
           draft.step === "awaiting_amount_examples_sector" ||
+          draft.step === "awaiting_amount_examples_cta" ||
           draft.step === "awaiting_service_stop_qualify" ||
           draft.step === "awaiting_service_stop_agent")) ||
       (draft?.flow === "personal_chat" &&
@@ -457,6 +461,14 @@ app.post("/webhook/interakt", async (req, res) => {
       result = handleAmountExamplesSector(text);
       if (result.draft) saveDraft(countryCode, phone, result.draft);
       else clearDraft(countryCode, phone);
+    } else if (
+      draft?.flow === "main_menu" &&
+      draft.step === "awaiting_amount_examples_cta" &&
+      looksLikeAmountExamplesCta(text)
+    ) {
+      clearSession(countryCode, phone);
+      result = startPersonalFinanceFlow();
+      saveDraft(countryCode, phone, result.draft);
     } else if (
       draft?.flow === "main_menu" &&
       (draft.step === "awaiting_service_stop_qualify" ||

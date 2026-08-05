@@ -4,6 +4,7 @@ const {
   askAmountExamplesSector,
   parseAmountExamplesSector,
   handleAmountExamplesSector,
+  looksLikeAmountExamplesCta,
 } = require("../lib/amount-examples");
 const {
   parseMainMenuChoice,
@@ -31,6 +32,18 @@ assert.ok(military.reply.includes("عسكري"));
 assert.ok(military.reply.includes("10,000 ريال"));
 assert.ok(military.reply.includes("150,000 ريال"));
 assert.ok(military.reply.includes("القسط:"));
+assert.strictEqual(military.sendTextThenInteractive, true);
+assert.strictEqual(military.interactive?.kind, "buttons");
+assert.strictEqual(
+  military.interactive.buttons[0].title,
+  "تقدم بتمويلك الآن"
+);
+assert.strictEqual(military.draft.step, "awaiting_amount_examples_cta");
+assert.strictEqual(
+  looksLikeAmountExamplesCta("start_personal_from_examples"),
+  true
+);
+assert.strictEqual(looksLikeAmountExamplesCta("تقدم بتمويلك الآن"), true);
 
 const civilian = buildAmountList("civilian");
 assert.ok(civilian.includes("مدني"));

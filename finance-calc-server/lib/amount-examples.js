@@ -43,9 +43,31 @@ function buildAmountList(jobCategory) {
 
 ${lines.join("\n")}
 
-ملاحظة: هذه أمثلة توضيحية فقط وليست عرضًا ملزمًا.
-للحسبة الدقيقة اختر: تمويل شخصي
-للقائمة الرئيسية اكتب: مرحبا`;
+ملاحظة: هذه أمثلة توضيحية فقط وليست عرضًا ملزمًا.`;
+}
+
+/** زر تحت الأمثلة لبدء التمويل الشخصي */
+function amountExamplesCtaInteractive() {
+  return {
+    kind: "buttons",
+    body: "تبي تقدم بتمويلك الآن؟",
+    buttons: [
+      {
+        id: "start_personal_from_examples",
+        title: "تقدم بتمويلك الآن",
+      },
+    ],
+  };
+}
+
+function looksLikeAmountExamplesCta(text) {
+  const t = String(text || "").trim();
+  if (!t) return false;
+  return (
+    /^start_personal_from_examples$/i.test(t) ||
+    /^تقدم\s*بتمويلك\s*الان$/i.test(t) ||
+    /^تقدم\s*بتمويلك\s*الآن$/i.test(t)
+  );
 }
 
 function askAmountExamplesSector() {
@@ -99,7 +121,12 @@ function handleAmountExamplesSector(text) {
     ok: true,
     flow: "main_menu",
     reply: buildAmountList(sector),
-    draft: { flow: "main_menu", step: "awaiting_choice" },
+    interactive: amountExamplesCtaInteractive(),
+    sendTextThenInteractive: true,
+    draft: {
+      flow: "main_menu",
+      step: "awaiting_amount_examples_cta",
+    },
   };
 }
 
@@ -108,5 +135,7 @@ module.exports = {
   askAmountExamplesSector,
   parseAmountExamplesSector,
   handleAmountExamplesSector,
+  amountExamplesCtaInteractive,
+  looksLikeAmountExamplesCta,
   amountExamplesConfig,
 };
