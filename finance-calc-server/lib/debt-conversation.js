@@ -26,14 +26,14 @@ function looksLikeStartDebtPurchase(text) {
   if (!t) return false;
   if (t.length > 80) return false;
   // لا نستخدم "2" وحده — يتعارض مع خيارات العقاري/نعم-لا
-  return /^(شراء مديونية|شراء المديونية|ابي شراء مديونية|أبي شراء مديونية|مديونية)$/i.test(
+  return /^(شراء مديونية|شراء المديونية|شراء مديونية الشركات|مديونية الشركات|ابي شراء مديونية|أبي شراء مديونية|مديونية)$/i.test(
     t
   );
 }
 
 function startDebtPurchaseFlow(options = {}) {
-  // افتراضيًا صامت: Interakt يعرض أزرار القطاع حتى لا تتكرر الرسالة
-  const askSector = options.askSector === true;
+  // الكوبري يسأل القطاع مباشرة (ما نعتمد على Auto Reply في Interakt)
+  const askSector = options.askSector !== false;
   const sectorBody = "أي قطاع؟";
   return {
     ok: true,

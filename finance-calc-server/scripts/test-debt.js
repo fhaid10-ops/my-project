@@ -24,10 +24,16 @@ function check(name, fn) {
 check("بداية شراء المديونية", () => {
   assert.strictEqual(looksLikeStartDebtPurchase("شراء مديونية"), true);
   assert.strictEqual(looksLikeStartDebtPurchase("مديونية"), true);
+  assert.strictEqual(looksLikeStartDebtPurchase("شراء مديونية الشركات"), true);
   assert.strictEqual(looksLikeStartDebtPurchase("2"), false);
   const start = startDebtPurchaseFlow();
-  assert.strictEqual(start.reply, null);
-  assert.strictEqual(start.interactive, null);
+  assert.strictEqual(start.draft.step, "sector");
+  assert.ok(start.interactive);
+  assert.strictEqual(start.interactive.kind, "buttons");
+  assert.strictEqual(start.reply, "أي قطاع؟");
+  const silent = startDebtPurchaseFlow({ askSector: false });
+  assert.strictEqual(silent.reply, null);
+  assert.strictEqual(silent.interactive, null);
   assert.strictEqual(start.draft.flow, "debt_chat");
 });
 
