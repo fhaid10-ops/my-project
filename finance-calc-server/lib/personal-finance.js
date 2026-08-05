@@ -240,6 +240,16 @@ function calculatePersonalFinance(input) {
     );
   }
 
+  // حماية نهائية لكل القطاعات: لا نعرض عرضًا قسطه أعلى من المتاح
+  if (rounded > 0 && installment > monthlyCapacity) {
+    return {
+      ok: false,
+      reply:
+        "نعتذر منك المبلغ التقديري أقل من المطلوب حسب بياناتك الحالية.",
+      data: { estimated, rounded, monthlyCapacity, installment, rate },
+    };
+  }
+
   if (!meetsMinimumEstimatedAmount(rounded)) {
     // مستنفد حد الشخصي / المبلغ قليل → عرض عقاري + شخصي إن انطبق
     const comboReason = resolveComboRejectReason(
@@ -605,6 +615,13 @@ function calculateSelectedAmount(sessionData, selectedAmount) {
     undefined,
     jobCategory
   );
+  const capacity = Number(sessionData?.monthlyCapacity);
+  if (Number.isFinite(capacity) && capacity > 0 && installment > capacity) {
+    return {
+      ok: false,
+      reply: `هذا المبلغ قسطه أعلى من المتاح الشهري لديك (${formatMoney(Math.floor(capacity))} ريال).\nاختر مبلغًا أقل من القائمة.`,
+    };
+  }
   const total = calculateTotalRepayment(amount, rate);
 
   const reply = `تم اختيار المبلغ:

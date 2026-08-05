@@ -76,32 +76,65 @@ if (fromListId !== result.data.lowerTiers[0]) {
   process.exitCode = 1;
 }
 
-// رجوع: عسكري متاحه 2845.5 — القسط لازم ما يتجاوز المتاح
-const militaryCase = calculatePersonalFinance({
-  jobCategory: "military",
-  realEstateType: "supported",
-  salary: 11000,
-  commitments: 5000,
-  supportAmount: 1070,
-});
-if (!militaryCase.ok) {
-  console.error("FAIL: حسبة العسكري المفروض تنجح", militaryCase.reply);
-  process.exitCode = 1;
-} else if (militaryCase.data.installment > militaryCase.data.monthlyCapacity) {
-  console.error(
-    "FAIL: القسط تجاوز المتاح",
-    militaryCase.data.installment,
-    ">",
-    militaryCase.data.monthlyCapacity
-  );
-  process.exitCode = 1;
-} else {
-  console.log(
-    "OK: قسط العسكري ضمن المتاح",
-    militaryCase.data.installment,
-    "<=",
-    militaryCase.data.monthlyCapacity,
-    "| مبلغ",
-    militaryCase.data.maxAmount
-  );
+// رجوع: القسط ما يتجاوز المتاح — عسكري / مدني / متقاعد
+const capacityCases = [
+  {
+    name: "عسكري",
+    input: {
+      jobCategory: "military",
+      realEstateType: "supported",
+      salary: 11000,
+      commitments: 5000,
+      supportAmount: 1070,
+    },
+  },
+  {
+    name: "مدني",
+    input: {
+      jobCategory: "civilian",
+      realEstateType: "none",
+      salary: 8000,
+      commitments: 1500,
+      supportAmount: 0,
+    },
+  },
+  {
+    name: "متقاعد",
+    input: {
+      jobCategory: "retired",
+      realEstateType: "unsupported",
+      salary: 9000,
+      commitments: 2000,
+      supportAmount: 0,
+    },
+  },
+];
+
+for (const c of capacityCases) {
+  const got = calculatePersonalFinance(c.input);
+  if (!got.ok) {
+    console.error(`FAIL: حسبة ${c.name} المفروض تنجح`, got.reply);
+    process.exitCode = 1;
+    continue;
+  }
+  if (got.data.installment > got.data.monthlyCapacity) {
+    console.error(
+      `FAIL: قسط ${c.name} تجاوز المتاح`,
+      got.data.installment,
+      ">",
+      got.data.monthlyCapacity
+    );
+    process.exitCode = 1;
+  } else {
+    console.log(
+      `OK: قسط ${c.name} ضمن المتاح`,
+      got.data.installment,
+      "<=",
+      got.data.monthlyCapacity,
+      "| مبلغ",
+      got.data.maxAmount,
+      "| فائدة",
+      got.data.rate
+    );
+  }
 }
