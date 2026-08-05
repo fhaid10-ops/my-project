@@ -6,13 +6,20 @@ const { normalizeDigits } = require("./digits");
 const { askAmountExamplesSector } = require("./amount-examples");
 
 function looksLikeGreeting(text) {
-  const t = String(text || "").trim();
+  const t = String(text || "")
+    .trim()
+    .replace(/[.!?…]+$/g, "")
+    .trim();
   if (!t || t.length > 80) return false;
-  if (/^(السلام عليكم|سلام عليكم|السلام عليكم ورحمة الله|السلام عليكم ورحمة الله وبركاته|سلام|مرحبا|مرحباً|اهلا|أهلا|أهلاً|هلا|هاي|hi|hello)$/i.test(t)) {
+  if (
+    /^(السلام عليكم|سلام عليكم|السلام عليكم ورحمة الله|السلام عليكم ورحمة الله وبركاته|السلام|سلام|مرحبا|مرحباً|اهلا|أهلا|أهلاً|هلا|هاي|hi|hello)$/i.test(
+      t
+    )
+  ) {
     return true;
   }
-  // صيغ شائعة قصيرة فيها «السلام عليكم»
-  return /السلام\s*عليكم/.test(t) && t.length <= 60;
+  // صيغ شائعة قصيرة فيها «السلام» أو «السلام عليكم»
+  return /(?:^|\s)السلام(?:\s*عليكم)?(?:\s|$)/.test(t) && t.length <= 60;
 }
 
 function looksLikeMainMenuTrigger(text) {

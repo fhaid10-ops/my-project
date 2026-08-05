@@ -16,6 +16,9 @@ assert.strictEqual(looksLikeRestartFlow("مرحبا"), false);
 
 assert.strictEqual(looksLikeGreeting("السلام عليكم"), true);
 assert.strictEqual(looksLikeGreeting("السلام عليكم ورحمة الله وبركاته"), true);
+assert.strictEqual(looksLikeGreeting("السلام"), true);
+assert.strictEqual(looksLikeGreeting("السلام."), true);
+assert.strictEqual(looksLikeGreeting("سلام"), true);
 assert.strictEqual(looksLikeGreeting("مرحبا"), true);
 assert.strictEqual(looksLikeGreeting("تمويل شخصي"), false);
 
