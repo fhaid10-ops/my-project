@@ -1,68 +1,39 @@
-# حاسبة التمويل + Interakt
+# حاسبة التمويل + Interakt (جهاز البيت)
 
 هذه الخدمة تستخدم **نفس حسبة البوت القديم** وترد على العميل عبر Interakt تلقائيًا.
 
-## رفع الكوبري على السحابة (مستحسن — بدون جهاز عبدالرحمن)
-
-بدل تشغيل الجهاز 24 ساعة + Cloudflare، ارفع السيرفر على **Render** (أو أي استضافة Node):
-
-### 1) ارفع الكود على GitHub
-تأكد أن مجلد المشروع (وفيه `finance-calc-server` + `render.yaml`) موجود في المستودع.
-
-### 2) أنشئ الخدمة على Render
-1. افتح: https://dashboard.render.com
-2. **New → Blueprint** (أو Web Service)
-3. اربط مستودع GitHub واختر المشروع
-4. إن استخدمت Blueprint: يعتمد ملف `render.yaml` تلقائيًا
-5. في Environment ضع على الأقل:
-   - `INTERAKT_API_KEY` = مفتاح Interakt (Secret Key)
-   - `ADMIN_TOKEN` = رمز قوي للوحة `/admin`
-   - `WEBHOOK_SECRET` = (اختياري) سر حماية الـ Webhook
-6. Deploy وانتظر الرابط الثابت، مثال:
-   `https://finance-calc-kobri.onrender.com`
-
-### 3) اربط Webhook في Interakt
-Settings → Developer Settings → Webhook URL:
-```
-https://YOUR-SERVICE.onrender.com/webhook/interakt
-```
-إذا حطيت `WEBHOOK_SECRET`، أضفه في إعدادات الـ Webhook عند Interakt.
-
-### 4) لوحة التحكم
-```
-https://YOUR-SERVICE.onrender.com/admin
-```
-
-### 5) أوقف جهاز البيت
-بعد ما تتأكد أن الردود تمشي من السحابة:
-- أوقف `start-calc.bat` على جهاز عبدالرحمن
-- أوقف Cloudflare Tunnel
-- لا تشغّل نسختين مع بعض (بيت + سحابة) على نفس رقم واتساب
-
-> ملاحظة: الخطة المجانية في Render قد «تنام» بعد خمول فتتأخر أول رسالة. للبوت 24 ساعة استخدم خطة مدفوعة (Starter) أو Railway / Fly.io.
-
----
-
-## التشغيل المحلي (اختبار فقط)
+## المطلوب على جهاز عبدالرحمن (ويندوز)
 
 1. تثبيت [Node.js LTS](https://nodejs.org/)
-2. نسخ مجلد `finance-calc-server`
+2. نسخ مجلد `finance-calc-server` للجهاز
 3. إنشاء ملف `.env` من `.env.example`
-4. وضع مفتاح Interakt في `INTERAKT_API_KEY=`
-5. تشغيل: `npm install` ثم `npm start` أو `start-calc.bat`
+4. وضع مفتاح Interakt:
+   - افتح: https://app.interakt.ai/settings/developer-setting
+   - انسخ **Secret Key**
+   - ضعه في `.env` عند `INTERAKT_API_KEY=`
+5. تشغيل:
+   - دبل كليك على `start-calc.bat`
+   - أو: `npm install` ثم `npm start`
 
-### نفق مؤقت للتجربة المحلية
+## فتح الجهاز على الإنترنت (مهم)
+
+لأن الجهاز في البيت، Interakt ما يوصل له مباشرة إلا عبر نفق:
+
+### الأسهل: Cloudflare Tunnel
+1. ثبت `cloudflared` على الجهاز
+2. شغّل:
 ```bat
 cloudflared tunnel --url http://127.0.0.1:5055
 ```
+3. انسخ الرابط اللي يطلع (مثل `https://xxxx.trycloudflare.com`)
 
 ## ربط Webhook في Interakt
 
 1. Settings → Developer Settings
 2. فعّل Webhook لرسائل العملاء الواردة
-3. Webhook URL (سحابة):
+3. Webhook URL:
 ```
-https://YOUR-SERVICE.onrender.com/webhook/interakt
+https://XXXX.trycloudflare.com/webhook/interakt
 ```
 4. احفظ
 
@@ -70,8 +41,8 @@ https://YOUR-SERVICE.onrender.com/webhook/interakt
 
 0. القائمة الرئيسية تظهر عند:
    - العميل يكتب **السلام عليكم** / **مرحبا** / **قائمة**
+   - أو أنت (من المحادثة) تكتب الاختصار **`1`** → تظهر القائمة للعميل
    - أو العميل يكتب **`1`** وهو مو داخل مسار
-   - أو من لوحة `/admin` → إرسال القائمة
 
    بعد ذلك القائمة:
    - تمويل شخصي

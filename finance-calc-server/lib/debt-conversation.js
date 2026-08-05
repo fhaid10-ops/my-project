@@ -32,8 +32,8 @@ function looksLikeStartDebtPurchase(text) {
 }
 
 function startDebtPurchaseFlow(options = {}) {
-  // الكوبري يسأل القطاع مباشرة (ما نعتمد على Auto Reply في Interakt)
-  const askSector = options.askSector !== false;
+  // افتراضيًا صامت: Interakt يعرض أزرار القطاع حتى لا تتكرر الرسالة
+  const askSector = options.askSector === true;
   const sectorBody = "أي قطاع؟";
   return {
     ok: true,
@@ -151,9 +151,8 @@ ${salaryPrompt(jobCategory)}`,
     if (!realEstateType) {
       return {
         ok: false,
-        replyFallback: `هل عليك تمويل عقاري؟
-
-اختر من الأزرار، أو أرسل:
+        reply: `ما قدرت أحدد حالة العقاري.
+اختر من القائمة أو أرسل:
 1- لا يوجد عقاري
 2- عقاري مدعوم
 3- عقاري غير مدعوم

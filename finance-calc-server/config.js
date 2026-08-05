@@ -102,7 +102,7 @@ module.exports = {
       minEntrySalary: 4000,
       flow: "standard",
       comboFallback:
-        "no_property + salary >= 7000 + amount < min → سبب الرفض ثم property_combo",
+        "no_property + salary >= 7000 + amount < 19900 + commitments >= 25% of salary",
     },
     retired: {
       sameAs: "civilian",
@@ -219,8 +219,6 @@ module.exports = {
     portalUrl: "https://portal.sfco.com.sa/?DSA=SF1888",
     /** التمويل الشخصي — رابط التقديم الإلكتروني */
     personalPortalUrl: "https://portal.sfco.com.sa/?DSA=SF1695",
-    /** كود الموظف للمتابعة في التقديم الإلكتروني */
-    personalSalesCode: "SF1695",
     employeeName: "عبدالرحمن",
     employeePhone: "0507009290",
     /** التمويل الشخصي — تقديم إلكتروني واستفسارات المسار الشخصي */
@@ -233,7 +231,7 @@ module.exports = {
     branchEmployeeName: "ماجد",
     branchEmployeePhone: "0507009290",
     /** باقة عقاري + شخصي — عند قبول العرض والتواصل */
-    propertyComboAgentName: "أبو شايع",
+    propertyComboAgentName: "أبو صالح",
     propertyComboAgentPhone: "0501812339",
     propertyComboContactFooter: "من طرف رائد الحربي\nربي يسر أمرك",
     /** إيقاف الخدمات — المندوب عند رغبة العميل بالتواصل */
@@ -679,10 +677,9 @@ ${installmentFormatted} ريال`,
       const lines = {
         military_low_salary: `نعتذر منك الراتب أقل من المطلوب، الراتب المطلوب للعسكري من ${fmt(militaryMin)} ريال`,
         civilian_low_salary: `نعتذر منك الراتب أقل من المطلوب، راتب المدني من ${fmt(civilianMin)} ريال`,
-        high_commitments: "نعتذر منك التزاماتك عاليه",
+        high_commitments: "نعتذر منك التزامك عالي",
         low_amount: "نعتذر منك المبلغ التقديري أقل من المطلوب",
-        exhausted_limit: "نعتذر منك التزاماتك عاليه",
-        low_amount_and_commitments: "نعتذر منك التزاماتك عاليه",
+        low_amount_and_commitments: "نعتذر منك التزامك عالي",
       };
       return lines[reasonKey] || "";
     },
@@ -692,7 +689,8 @@ ${installmentFormatted} ريال`,
       propertyFormatted,
       personalFormatted
     ) =>
-      `في حال رغبتك بسداد جميع التزاماتك واستخراج
+      `حلول تمويل أخرى
+في حال رغبتك بسداد جميع التزاماتك واستخراج
 عرض التمويل العقاري + الشخصي
 
 في شركة تستخرج لك بعد ماتسددلك

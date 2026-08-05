@@ -203,7 +203,7 @@ function calculatePersonalFinance(input) {
   const rounded = roundDownToStep(estimated);
 
   if (!meetsMinimumEstimatedAmount(rounded)) {
-    // مستنفد حد + لا عقاري → سبب الرفض ثم الباقة
+    // مستنفد حد الشخصي / المبلغ قليل → عرض عقاري + شخصي إن انطبق
     const comboReason = resolveComboRejectReason(
       sessionLike,
       rounded,
@@ -221,7 +221,6 @@ function calculatePersonalFinance(input) {
         reason: comboReason,
       });
     }
-    // عليه عقاري أو راتب تحت حد الباقة → اعتذار فقط
     return {
       ok: false,
       reply:
@@ -258,8 +257,6 @@ function calculatePersonalFinance(input) {
     interactive,
     // نص النتيجة أولًا، ثم قائمة المبالغ الأقل
     sendTextThenInteractive: Boolean(interactive),
-    // إذا ما فيه قائمة (مثل أعلى مبلغ = 10,000) أرسل تلميح الملاحظات بعدها
-    followUpReply: interactive ? undefined : applicationNotesFollowUp(),
     data: {
       jobCategory,
       realEstateType,
@@ -282,103 +279,44 @@ function contactFooter() {
   const portalUrl =
     CONFIG.financing?.personalPortalUrl ||
     "https://portal.sfco.com.sa/?DSA=SF1695";
-  const salesCode =
-    CONFIG.financing?.personalSalesCode ||
-    (String(portalUrl).match(/DSA=([^&#]+)/i) || [])[1] ||
-    "SF1695";
   return `للتقديم الإلكتروني:
 قدم وارسلي رقم الطلب
-(${salesCode}) للمتابعه سجل كود الموظف
 ${portalUrl}`;
 }
 
-function applicationNotesFollowUp() {
-  return (
-    CONFIG.messages?.applicationNotesHint ||
-    CONFIG.templates?.applicationNotesHint ||
-    "عند التقديم سجل بالملاحظات مبلغ التمويل المطلوب"
-  );
-}
-
-function buildComboOfferBody() {
-  const pkg = CONFIG.comboPackage || {};
-  const total = pkg.totalExample || 1000000;
-  const propertyAmount = pkg.propertyAmount || 400000;
-  const personalAmount = pkg.personalAmount || 600000;
-  const offerFn =
-    CONFIG.messages?.propertyComboOffer || CONFIG.templates?.propertyComboOffer;
-  if (typeof offerFn === "function") {
-    return offerFn(
-      formatMoney(total),
-      formatMoney(propertyAmount),
-      formatMoney(personalAmount)
-    );
-  }
-  return `في حال رغبتك بسداد جميع التزاماتك واستخراج
-عرض التمويل العقاري + الشخصي
-
-في شركة تستخرج لك بعد ماتسددلك
-مثال ${formatMoney(total)} ريال
-${formatMoney(propertyAmount)} ريال عقاري
-${formatMoney(personalAmount)} ريال شخصي
-
-يعني 60% كاش حسب حسبتك بالبنك
-
-هل ترغب بهذا العرض؟`;
-}
-
-function comboYesNoButtons(body) {
-  return {
-    kind: "buttons",
-    body,
-    buttons: [
-      { id: "combo_yes", title: "نعم" },
-      { id: "combo_no", title: "لا" },
-    ],
-  };
-}
-
-/**
- * مرحلة 1: سبب الرفض (نص) ثم «يوجد حلول تمويلية» بأزرار نعم/لا
- * مرحلة 2 بعد نعم: نص العرض الكامل بأزرار نعم/لا
- */
 function buildPropertyComboOffer(base = {}) {
   const pkg = CONFIG.comboPackage || {};
   const total = pkg.totalExample || 1000000;
   const propertyAmount = pkg.propertyAmount || 400000;
   const personalAmount = pkg.personalAmount || 600000;
-  const offerBody = buildComboOfferBody();
+  const offerFn = CONFIG.messages?.propertyComboOffer;
+  const reply =
+    typeof offerFn === "function"
+      ? offerFn(
+          formatMoney(total),
+          formatMoney(propertyAmount),
+          formatMoney(personalAmount)
+        )
+      : `حلول تمويل أخرى
+في حال رغبتك بسداد جميع التزاماتك واستخراج
+عرض التمويل العقاري + الشخصي
 
-  const reasonKey = base.reason || "exhausted_limit";
-  const reasonFn =
-    CONFIG.templates?.personalRejectReason ||
-    CONFIG.messages?.personalRejectReason;
-  const reasonText =
-    (typeof reasonFn === "function" ? reasonFn(reasonKey) : "") ||
-    "نعتذر منك التزاماتك عاليه";
+مثال ${formatMoney(total)} ريال
+${formatMoney(propertyAmount)} ريال عقاري
+${formatMoney(personalAmount)} ريال شخصي
 
-  const interestBody =
-    CONFIG.messages?.propertyComboInterest ||
-    CONFIG.templates?.propertyComboInterest ||
-    "يوجد حلول تمويلية";
+هل ترغب بهذا العرض؟`;
 
   return {
     ok: true,
-    offer: "property_combo_interest",
-    // رسالة 1: سبب الرفض — رسالة 2: يوجد حلول تمويلية + نعم/لا
-    reply: reasonText,
-    interactive: comboYesNoButtons(interestBody),
-    sendTextThenInteractive: true,
+    offer: "property_combo",
+    reply,
     data: {
       ...base,
-      awaitingComboInterest: true,
-      awaitingCombo: false,
+      awaitingCombo: true,
       comboTotal: total,
       comboProperty: propertyAmount,
       comboPersonal: personalAmount,
-      comboOfferBody: offerBody,
-      rejectReasonText: reasonText,
-      comboInterestBody: interestBody,
     },
   };
 }
@@ -386,48 +324,23 @@ function buildPropertyComboOffer(base = {}) {
 function looksLikeYesNoReply(text) {
   const t = String(text || "").trim();
   if (!t || t.length > 40) return null;
-  if (
-    /^(1|نعم|اي|أي|أجل|موافق|ابي|أبي|أرغب|ارغب|combo_yes|yes)$/i.test(t)
-  ) {
+  if (/^(1|نعم|اي|أي|أجل|موافق|ابي|أبي|أرغب|ارغب|combo_yes|yes)$/i.test(t)) {
     return "yes";
   }
   if (/^(2|لا|لأ|لاء|ما ابي|ماأبي|رفض|combo_no|no)$/i.test(t)) return "no";
   return null;
 }
 
-/** بعد «يوجد حلول تمويلية»: نعم → عرض الباقة | لا → إغلاق */
-function replyPropertyComboInterestDecision(choice, session = {}) {
-  if (choice !== "yes") {
-    return replyPropertyComboDecision("no");
-  }
-
-  const offerBody = session.comboOfferBody || buildComboOfferBody();
-  return {
-    ok: true,
-    offer: "property_combo",
-    reply: null,
-    interactive: comboYesNoButtons(offerBody),
-    data: {
-      ...session,
-      awaitingComboInterest: false,
-      awaitingCombo: true,
-      comboOfferBody: offerBody,
-    },
-  };
-}
-
 function replyPropertyComboDecision(choice) {
   if (choice === "yes") {
     const agentName =
-      CONFIG.financing?.propertyComboAgentName || "أبو شايع";
+      CONFIG.financing?.propertyComboAgentName || "أبو صالح";
     const agentPhone =
       CONFIG.financing?.propertyComboAgentPhone || "0501812339";
     const footer =
       CONFIG.financing?.propertyComboContactFooter ||
       "من طرف رائد الحربي\nربي يسر أمرك";
-    const direct =
-      CONFIG.messages?.propertyComboAgentDirect ||
-      CONFIG.templates?.propertyComboAgentDirect;
+    const direct = CONFIG.messages?.propertyComboAgentDirect;
     const reply =
       typeof direct === "function"
         ? direct(agentName, agentPhone, footer)
@@ -611,7 +524,6 @@ ${contactFooter()}`;
   return {
     ok: true,
     reply,
-    followUpReply: applicationNotesFollowUp(),
     data: {
       ...sessionData,
       selectedAmount: amount,
@@ -631,7 +543,6 @@ module.exports = {
   looksLikeAmountChoice,
   calculateSelectedAmount,
   replyPropertyComboDecision,
-  replyPropertyComboInterestDecision,
   buildMaxAmountReply,
   buildAmountChoiceInteractive,
   buildLowerAmountInteractive,

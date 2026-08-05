@@ -156,25 +156,16 @@ check("عسكري أقل من 10000 يُسأل عن العقاري ثم باقة
   const start = startPersonalFinanceFlow();
   const afterSector = advancePersonalFinanceFlow(start.draft, "عسكري");
   const afterSalary = advancePersonalFinanceFlow(afterSector.draft, "8000");
-  assert.ok(afterSalary.interactive || afterSalary.ok);
-  const askText =
-    afterSalary.interactive?.body ||
-    afterSalary.replyFallback ||
-    afterSalary.reply ||
-    "";
-  assert.match(askText, /عقاري/);
-  assert.strictEqual(afterSalary.interactive?.kind, "buttons");
+  assert.ok(afterSalary.ok);
+  assert.match(afterSalary.reply, /عقاري/);
   assert.strictEqual(afterSalary.draft.step, "real_estate");
   assert.strictEqual(afterSalary.draft.militaryLowSalaryPath, true);
 
   const combo = advancePersonalFinanceFlow(afterSalary.draft, "لا يوجد");
   assert.ok(combo.ok);
-  assert.strictEqual(combo.offer, "property_combo_interest");
-  assert.match(combo.reply, /نعتذر منك/);
-  assert.match(combo.interactive?.body || "", /يوجد حلول تمويلية/);
-  assert.strictEqual(combo.sendTextThenInteractive, true);
-  assert.strictEqual(combo.data.awaitingComboInterest, true);
-  assert.strictEqual(combo.data.awaitingCombo, false);
+  assert.strictEqual(combo.offer, "property_combo");
+  assert.match(combo.reply, /عقاري \+ الشخصي|العقاري \+ الشخصي/);
+  assert.strictEqual(combo.data.awaitingCombo, true);
 });
 
 check("عسكري أقل من 10000 مع عقاري يُرفض", () => {
@@ -196,17 +187,8 @@ check("اختيار 1 للعقاري لا يُفسّر كبداية تمويل",
   const afterSalary = advancePersonalFinanceFlow(afterSector.draft, "8000");
   const combo = advancePersonalFinanceFlow(afterSalary.draft, "1");
   assert.ok(combo.ok);
-  assert.strictEqual(combo.offer, "property_combo_interest");
-  assert.match(combo.reply, /نعتذر منك/);
-  assert.match(combo.interactive?.body || "", /يوجد حلول تمويلية/);
-
-  const {
-    replyPropertyComboInterestDecision,
-  } = require("../lib/personal-finance");
-  const details = replyPropertyComboInterestDecision("yes", combo.data);
-  assert.strictEqual(details.offer, "property_combo");
-  assert.match(details.interactive?.body || "", /هل ترغب بهذا العرض/);
-  assert.strictEqual(details.data.awaitingCombo, true);
+  assert.strictEqual(combo.offer, "property_combo");
+  assert.match(combo.reply, /هل ترغب بهذا العرض/);
 });
 
 check("الراتب بالأرقام العربية يُقبل", () => {
@@ -218,7 +200,7 @@ check("الراتب بالأرقام العربية يُقبل", () => {
   assert.match(next.reply, /التزامات/);
 });
 
-check("سؤال العقاري يرسل أزرار تفاعلية", () => {
+check("سؤال العقاري يرسل قائمة تفاعلية", () => {
   const {
     parseRealEstateChoice,
     realEstateInteractive,
@@ -229,12 +211,11 @@ check("سؤال العقاري يرسل أزرار تفاعلية", () => {
   const afterCommitments = advancePersonalFinanceFlow(afterSalary.draft, "0");
   assert.strictEqual(afterCommitments.draft.step, "real_estate");
   assert.ok(afterCommitments.interactive);
-  assert.strictEqual(afterCommitments.interactive.kind, "buttons");
-  assert.strictEqual(afterCommitments.interactive.buttons.length, 3);
+  assert.strictEqual(afterCommitments.interactive.kind, "list");
+  assert.strictEqual(afterCommitments.interactive.rows.length, 4);
   assert.strictEqual(parseRealEstateChoice("re_none"), "none");
   assert.strictEqual(parseRealEstateChoice("لا يوجد عقاري"), "none");
-  assert.strictEqual(parseRealEstateChoice("عقاري قديم"), "old");
-  assert.ok(realEstateInteractive().body.includes("عقاري قديم"));
+  assert.strictEqual(realEstateInteractive().button, "اختر النوع");
 });
 
 if (!process.exitCode) {

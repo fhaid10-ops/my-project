@@ -96,27 +96,41 @@ function lowSalaryApology(jobCategory) {
 function realEstatePrompt() {
   return `هل عليك تمويل عقاري؟
 
-اختر من الأزرار، أو أرسل:
+اختر من القائمة، أو أرسل الرقم:
 1- لا يوجد عقاري
 2- عقاري مدعوم
 3- عقاري غير مدعوم
 4- عقاري قديم الي قسطه 1667`;
 }
 
-/**
- * أزرار تفاعلية (حد واتساب 3 أزرار).
- * الخيار الرابع «عقاري قديم» يُكتب نصًا أو بالرقم 4.
- */
+/** قائمة تفاعلية (Interakt InteractiveList) — أفضل من أزرار لأن الخيارات 4 */
 function realEstateInteractive() {
   return {
-    kind: "buttons",
-    body: `هل عليك تمويل عقاري؟
-
-أو اكتب: عقاري قديم`,
-    buttons: [
-      { id: "re_none", title: "لا يوجد عقاري" },
-      { id: "re_supported", title: "عقاري مدعوم" },
-      { id: "re_unsupported", title: "غير مدعوم" },
+    kind: "list",
+    body: "هل عليك تمويل عقاري؟\nاختر النوع من القائمة:",
+    button: "اختر النوع",
+    sectionTitle: "التمويل العقاري",
+    rows: [
+      {
+        id: "re_none",
+        title: "لا يوجد عقاري",
+        description: "ما علي تمويل عقاري",
+      },
+      {
+        id: "re_supported",
+        title: "عقاري مدعوم",
+        description: "تمويل عقاري مدعوم",
+      },
+      {
+        id: "re_unsupported",
+        title: "عقاري غير مدعوم",
+        description: "تمويل عقاري غير مدعوم",
+      },
+      {
+        id: "re_old",
+        title: "عقاري قديم",
+        description: "الي قسطه 1667 ريال",
+      },
     ],
   };
 }
@@ -124,8 +138,7 @@ function realEstateInteractive() {
 function realEstateStepReply(state) {
   return {
     ok: true,
-    // الأزرار هي الرسالة الأساسية — النص فقط احتياط إذا فشل الإرسال
-    replyFallback: realEstatePrompt(),
+    reply: realEstatePrompt(),
     interactive: realEstateInteractive(),
     draft: state,
   };
@@ -166,9 +179,11 @@ function offerMilitaryPropertyCombo(state) {
   });
   return {
     ...result,
+    interactive: comboYesNoInteractive(result.reply),
     draft: {
       flow: state.flow || "personal_chat",
       step: "done",
+      awaitingCombo: true,
       ...result.data,
     },
     sessionData: result.data,
@@ -274,7 +289,12 @@ function advancePersonalFinanceFlow(draft, text) {
     if (!realEstateType) {
       return {
         ok: false,
-        replyFallback: realEstatePrompt(),
+        reply: `ما قدرت أحدد حالة العقاري.
+اختر من القائمة أو أرسل:
+1- لا يوجد عقاري
+2- عقاري مدعوم
+3- عقاري غير مدعوم
+4- عقاري قديم الي قسطه 1667`,
         interactive: realEstateInteractive(),
         draft: state,
       };
@@ -337,26 +357,18 @@ function finishPersonalFlow(state) {
     supportAmount: state.supportAmount || 0,
   });
 
-  const onComboPath = Boolean(
-    result.data?.awaitingComboInterest || result.data?.awaitingCombo
-  );
+  const awaitingCombo = Boolean(result.data?.awaitingCombo);
   return {
     ...result,
-    interactive: onComboPath
-      ? result.interactive ||
-        comboYesNoInteractive(
-          result.data?.comboInterestBody ||
-            result.data?.comboOfferBody ||
-            result.reply
-        )
+    // باقة: أزرار نعم/لا — أو قائمة اختيار المبلغ (أعلى + أقل)
+    interactive: awaitingCombo
+      ? comboYesNoInteractive(result.reply)
       : result.interactive,
-    sendTextThenInteractive: onComboPath
-      ? Boolean(result.sendTextThenInteractive && result.reply)
-      : result.sendTextThenInteractive,
-    draft: onComboPath
+    draft: awaitingCombo
       ? {
           flow: "personal_chat",
           step: "done",
+          awaitingCombo: true,
           ...result.data,
         }
       : null,

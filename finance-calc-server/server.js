@@ -18,7 +18,6 @@ const {
   parseAmountChoice,
   calculateSelectedAmount,
   replyPropertyComboDecision,
-  replyPropertyComboInterestDecision,
   mapSector,
 } = require("./lib/personal-finance");
 const {
@@ -70,33 +69,10 @@ const sessions = new Map();
 const drafts = new Map();
 /** محادثات أوقف العميل فيها الرد الآلي (خيار 6) */
 const pausedChats = new Set();
-/** منع تكرار نفس الرسالة الواردة (Webhook مزدوج / سباق) */
-const recentInbound = new Map();
 const SESSION_TTL_MS = 1000 * 60 * 60 * 6; // 6 ساعات
-const INBOUND_DEDUP_MS = 12000;
 
 function sessionKey(countryCode, phone) {
   return `${countryCode}:${phone}`;
-}
-
-/** true = أول مرة نتعامل مع الرسالة | false = مكررة خلال الثواني */
-function claimInbound(countryCode, phone, text) {
-  const normalized = normalizeDigits(String(text || "").trim())
-    .replace(/\s+/g, " ")
-    .slice(0, 100);
-  const key = `${sessionKey(countryCode, phone)}:${normalized}`;
-  const now = Date.now();
-  const prev = recentInbound.get(key);
-  if (prev && now - prev < INBOUND_DEDUP_MS) {
-    return false;
-  }
-  recentInbound.set(key, now);
-  if (recentInbound.size > 500) {
-    for (const [k, ts] of recentInbound) {
-      if (now - ts > INBOUND_DEDUP_MS) recentInbound.delete(k);
-    }
-  }
-  return true;
 }
 
 function saveSession(countryCode, phone, data) {
@@ -319,25 +295,16 @@ async function sendResultReply(countryCode, phone, result) {
   // نتيجة الحسبة: نص أعلى مبلغ ثم قائمة المبالغ الأقل
   if (result?.sendTextThenInteractive && result?.reply && result?.interactive) {
     await sendInteraktText(countryCode, phone, result.reply);
-    if (result.followUpReply) {
-      await sendInteraktText(countryCode, phone, result.followUpReply);
-    }
     await sendInteraktInteractive(countryCode, phone, result.interactive);
-    return result.followUpReply ? "text+followup+interactive" : "text+interactive";
+    return "text+interactive";
   }
   if (result?.interactive) {
     await sendInteraktInteractive(countryCode, phone, result.interactive);
-    if (result.followUpReply) {
-      await sendInteraktText(countryCode, phone, result.followUpReply);
-    }
-    return result.followUpReply ? "interactive+followup" : "interactive";
+    return "interactive";
   }
   if (result?.reply) {
     await sendInteraktText(countryCode, phone, result.reply);
-    if (result.followUpReply) {
-      await sendInteraktText(countryCode, phone, result.followUpReply);
-    }
-    return result.followUpReply ? "text+followup" : "text";
+    return "text";
   }
   return null;
 }
@@ -393,12 +360,6 @@ app.post("/webhook/interakt", async (req, res) => {
 
     if (!phone || !text) return;
 
-    // منع إرسال القائمة/الرد مرتين لنفس الرسالة (Webhook مكرر أو سباق)
-    if (!claimInbound(countryCode, phone, text)) {
-      console.log("[webhook:dedup]", phone, String(text).slice(0, 40));
-      return;
-    }
-
     let result = null;
     const yesNo = looksLikeYesNoReply(text);
     const currentSession = getSession(countryCode, phone);
@@ -414,22 +375,9 @@ app.post("/webhook/interakt", async (req, res) => {
         draft.step !== "done") ||
       (draft?.flow === "debt_chat" && draft.step && draft.step !== "done") ||
       currentSession?.awaitingCombo ||
-      currentSession?.awaitingComboInterest ||
       currentSession?.awaitingDebtContinue ||
       draft?.awaitingCombo ||
-      draft?.awaitingComboInterest ||
       draft?.awaitingDebtContinue;
-
-    // القائمة ظاهرة أصلًا + العميل سلّم/قائمة مرة ثانية → لا نكرر (اختصار المكتب 1 يعيد الإرسال)
-    if (
-      looksLikeShowMainMenu(text) &&
-      !staffMenuShortcut &&
-      draft?.flow === "main_menu" &&
-      draft?.step === "awaiting_choice"
-    ) {
-      console.log("[webhook:menu-already-open]", phone);
-      return;
-    }
 
     // السلام / قائمة / اختصار المكتب (1) → القائمة الرئيسية
     if (
@@ -442,12 +390,6 @@ app.post("/webhook/interakt", async (req, res) => {
       clearDraft(countryCode, phone);
       clearSession(countryCode, phone);
       saveDraft(countryCode, phone, result.draft);
-      // قائمة تفاعلية فقط — النص الاحتياطي للفشل فقط (حتى لا تظهر القائمة مرتين)
-      result = {
-        ...result,
-        replyFallback: result.reply,
-        reply: undefined,
-      };
     } else if (isChatPaused(countryCode, phone)) {
       // محادثة موقوفة: لا نرد إلا بعد سلام / قائمة / اختصار
       return;
@@ -480,34 +422,11 @@ app.post("/webhook/interakt", async (req, res) => {
         if (result.clearDraft) clearDraft(countryCode, phone);
         else if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
-    } else if (
-      yesNo &&
-      (currentSession?.awaitingComboInterest || draft?.awaitingComboInterest)
-    ) {
-      const sessionBase = { ...(currentSession || {}), ...(draft || {}) };
-      result = replyPropertyComboInterestDecision(yesNo, sessionBase);
-      if (result.data?.awaitingCombo) {
-        saveSession(countryCode, phone, result.data);
-        saveDraft(countryCode, phone, {
-          flow: "personal_chat",
-          step: "done",
-          ...result.data,
-        });
-      } else {
-        clearDraft(countryCode, phone);
-        saveSession(countryCode, phone, {
-          ...sessionBase,
-          awaitingComboInterest: false,
-          awaitingCombo: false,
-          comboDecision: yesNo,
-        });
-      }
     } else if (yesNo && (currentSession?.awaitingCombo || draft?.awaitingCombo)) {
       result = replyPropertyComboDecision(yesNo);
       saveSession(countryCode, phone, {
         ...(currentSession || draft || {}),
         awaitingCombo: false,
-        awaitingComboInterest: false,
         comboDecision: yesNo,
       });
       clearDraft(countryCode, phone);
@@ -549,20 +468,9 @@ app.post("/webhook/interakt", async (req, res) => {
         saveDraft(countryCode, phone, result.draft);
       }
       if (result.sessionData) {
-        const keepComboDraft =
-          result.sessionData.awaitingComboInterest ||
-          result.sessionData.awaitingCombo;
-        if (keepComboDraft) {
-          if (result.draft) saveDraft(countryCode, phone, result.draft);
-          saveSession(countryCode, phone, result.sessionData);
-        } else {
-          clearDraft(countryCode, phone);
-          saveSession(countryCode, phone, result.sessionData);
-        }
-      } else if (
-        result.data?.awaitingCombo ||
-        result.data?.awaitingComboInterest
-      ) {
+        clearDraft(countryCode, phone);
+        saveSession(countryCode, phone, result.sessionData);
+      } else if (result.data?.awaitingCombo) {
         saveSession(countryCode, phone, result.data);
         if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
@@ -576,10 +484,7 @@ app.post("/webhook/interakt", async (req, res) => {
       if (result.sessionData) {
         if (!result.draft || result.clearDraft) clearDraft(countryCode, phone);
         saveSession(countryCode, phone, result.sessionData);
-      } else if (
-        result.data?.awaitingCombo ||
-        result.data?.awaitingComboInterest
-      ) {
+      } else if (result.data?.awaitingCombo) {
         saveSession(countryCode, phone, result.data);
         if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
@@ -597,7 +502,7 @@ app.post("/webhook/interakt", async (req, res) => {
       }
     } else if (looksLikeAmountChoice(text)) {
       const sessionData = getSession(countryCode, phone);
-      if (sessionData?.awaitingCombo || sessionData?.awaitingComboInterest) return;
+      if (sessionData?.awaitingCombo) return;
       if (!sessionData?.maxAmount && !sessionData?.rounded) return;
       const amount = parseAmountChoice(text);
       result = calculateSelectedAmount(sessionData || {}, amount);
@@ -637,10 +542,9 @@ app.post("/webhook/interakt", async (req, res) => {
     } catch (err) {
       console.error("[reply:fail]", err.message, err.details || "");
       // إذا فشلت القائمة/الأزرار، حاول النص الاحتياطي
-      const fallbackText = result?.replyFallback || result?.reply;
-      if (result?.interactive && fallbackText) {
+      if (result?.interactive && result?.reply) {
         try {
-          await sendInteraktText(countryCode, phone, fallbackText);
+          await sendInteraktText(countryCode, phone, result.reply);
           console.log("[reply:fallback-text:ok]", phone);
         } catch (err2) {
           console.error("[reply:fallback-text:fail]", err2.message);
@@ -673,17 +577,15 @@ mountAdmin(app, {
   interaktConfigured: Boolean(INTERAKT_API_KEY),
 });
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, () => {
   console.log(`finance-calc-server على المنفذ ${PORT}`);
-  console.log(`Health: /health`);
-  console.log(`Webhook: /webhook/interakt`);
-  console.log(`Admin: /admin`);
+  console.log(`Health: http://127.0.0.1:${PORT}/health`);
+  console.log(`Webhook: http://127.0.0.1:${PORT}/webhook/interakt`);
+  console.log(`Admin: http://127.0.0.1:${PORT}/admin`);
   if (!ADMIN_TOKEN) {
-    console.log("تنبيه: ضع ADMIN_TOKEN في متغيرات البيئة لتفعيل لوحة التحكم");
+    console.log("تنبيه: ضع ADMIN_TOKEN في ملف .env لتفعيل لوحة التحكم");
   } else {
     console.log(`Admin token length: ${ADMIN_TOKEN.length} (جاهز)`);
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`رمز دخول اللوحة: ${ADMIN_TOKEN}`);
-    }
+    console.log(`رمز دخول اللوحة: ${ADMIN_TOKEN}`);
   }
 });
