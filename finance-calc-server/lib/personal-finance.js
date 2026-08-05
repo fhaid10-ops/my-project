@@ -245,7 +245,7 @@ function calculatePersonalFinance(input) {
     return {
       ok: false,
       reply:
-        "نعتذر منك المبلغ التقديري أقل من المطلوب حسب بياناتك الحالية.",
+        "مستنفذ حد التمويل الشخصي نعتذر منك",
       data: { estimated, rounded, monthlyCapacity, installment, rate },
     };
   }
@@ -273,7 +273,7 @@ function calculatePersonalFinance(input) {
     return {
       ok: false,
       reply:
-        "نعتذر منك المبلغ التقديري أقل من المطلوب حسب بياناتك الحالية.",
+        "مستنفذ حد التمويل الشخصي نعتذر منك",
       data: { estimated, rounded, monthlyCapacity },
     };
   }
@@ -359,7 +359,7 @@ function buildPropertyComboInterestAsk(base = {}) {
     CONFIG.messages?.personalRejectReason;
   const rejectReply =
     (typeof reasonFn === "function" ? reasonFn(reasonKey) : "") ||
-    "نعتذر منك المبلغ التقديري أقل من المطلوب";
+    "مستنفذ حد التمويل الشخصي نعتذر منك";
 
   const interestBody =
     CONFIG.messages?.propertyComboInterest ||

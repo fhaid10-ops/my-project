@@ -740,7 +740,7 @@ ${installmentFormatted} ريال`,
         military_low_salary: `نعتذر منك الراتب أقل من المطلوب، الراتب المطلوب للعسكري من ${fmt(militaryMin)} ريال`,
         civilian_low_salary: `نعتذر منك الراتب أقل من المطلوب، راتب المدني من ${fmt(civilianMin)} ريال`,
         high_commitments: "نعتذر منك التزامك عالي",
-        low_amount: "نعتذر منك المبلغ التقديري أقل من المطلوب",
+        low_amount: "مستنفذ حد التمويل الشخصي نعتذر منك",
         low_amount_and_commitments: "نعتذر منك التزامك عالي",
       };
       return lines[reasonKey] || "";
