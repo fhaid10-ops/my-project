@@ -34,6 +34,29 @@ function looksLikeShowMainMenu(text) {
   return looksLikeGreeting(text) || looksLikeMainMenuTrigger(text);
 }
 
+/**
+ * إعادة من جديد أثناء المسار (راتب/التزامات خطأ…): إعادة | اعادة | reset | من جديد
+ */
+function looksLikeRestartFlow(text) {
+  const t = String(text || "").trim();
+  if (!t || t.length > 40) return false;
+  const keywords = CONFIG.session?.resetKeywords || [
+    "reset",
+    "إعادة",
+    "اعادة",
+    "من جديد",
+  ];
+  const normalized = t.replace(/\s+/g, " ");
+  return keywords.some((keyword) => {
+    const k = String(keyword || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (!k) return false;
+    return normalized.localeCompare(k, "ar", { sensitivity: "accent" }) === 0
+      || normalized.toLowerCase() === k.toLowerCase();
+  });
+}
+
 function welcomeBody(text) {
   if (looksLikeGreeting(text)) {
     return `وعليكم السلام ورحمة الله وبركاته
@@ -433,6 +456,7 @@ module.exports = {
   looksLikeMainMenuTrigger,
   looksLikeMenuShortcut,
   looksLikeShowMainMenu,
+  looksLikeRestartFlow,
   showMainMenu,
   parseMainMenuChoice,
   handleMainMenuChoice,

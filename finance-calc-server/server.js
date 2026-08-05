@@ -39,6 +39,7 @@ const {
 const {
   looksLikeShowMainMenu,
   looksLikeMenuShortcut,
+  looksLikeRestartFlow,
   showMainMenu,
   parseMainMenuChoice,
   handleMainMenuChoice,
@@ -407,6 +408,45 @@ app.post("/webhook/interakt", async (req, res) => {
       clearDraft(countryCode, phone);
       clearSession(countryCode, phone);
       saveDraft(countryCode, phone, result.draft);
+    } else if (looksLikeRestartFlow(text)) {
+      // راتب/التزامات خطأ أو رغبة بالتصفير: نبدأ المسار الحالي من جديد
+      resumeChat(countryCode, phone);
+      const inPersonal =
+        draft?.flow === "personal_chat" ||
+        Boolean(
+          currentSession?.maxAmount ||
+            currentSession?.rounded ||
+            currentSession?.awaitingAmountChoice ||
+            currentSession?.awaitingCombo ||
+            currentSession?.awaitingComboInterest
+        );
+      const inDebt =
+        draft?.flow === "debt_chat" ||
+        Boolean(currentSession?.awaitingDebtContinue);
+
+      clearDraft(countryCode, phone);
+      clearSession(countryCode, phone);
+
+      if (inPersonal && !inDebt) {
+        result = startPersonalFinanceFlow({ askSector: true });
+        result = {
+          ...result,
+          reply: "تم تصفير البيانات. نبدأ من جديد.",
+          sendTextThenInteractive: Boolean(result.interactive),
+        };
+        saveDraft(countryCode, phone, result.draft);
+      } else if (inDebt) {
+        result = startDebtPurchaseFlow({ askSector: true });
+        result = {
+          ...result,
+          reply: "تم تصفير البيانات. نبدأ من جديد.",
+          sendTextThenInteractive: Boolean(result.interactive),
+        };
+        saveDraft(countryCode, phone, result.draft);
+      } else {
+        result = showMainMenu("قائمة");
+        saveDraft(countryCode, phone, result.draft);
+      }
     } else if (isChatPaused(countryCode, phone)) {
       // محادثة موقوفة: لا نرد إلا بعد سلام / قائمة / اختصار
       return;
@@ -509,9 +549,11 @@ app.post("/webhook/interakt", async (req, res) => {
         saveDraft(countryCode, phone, parsed);
       }
     } else if (looksLikeStartPersonalFinance(text)) {
+      clearSession(countryCode, phone);
       result = startPersonalFinanceFlow();
       saveDraft(countryCode, phone, result.draft);
     } else if (looksLikeStartDebtPurchase(text)) {
+      clearSession(countryCode, phone);
       result = startDebtPurchaseFlow();
       saveDraft(countryCode, phone, result.draft);
     } else if (draft?.flow === "personal_chat" && draft.step && draft.step !== "done") {

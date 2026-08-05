@@ -65,17 +65,34 @@ function salaryExampleForSector(jobCategory) {
   return "4000";
 }
 
+function restartHint() {
+  return `إذا حطيت رقم خطأ اكتب: إعادة`;
+}
+
 function salaryPrompt(jobCategory) {
   const example = salaryExampleForSector(jobCategory);
   return `كم راتبك الشهري؟
 أرسل الرقم فقط
-مثال: ${example} ريال`;
+مثال: ${example} ريال
+
+${restartHint()}`;
 }
 
 function invalidSalaryPrompt(jobCategory) {
   const example = salaryExampleForSector(jobCategory);
   return `أرسل الراتب بالأرقام فقط.
-مثال: ${example} ريال`;
+مثال: ${example} ريال
+
+${restartHint()}`;
+}
+
+function commitmentsPrompt() {
+  return `كم إجمالي التزاماتك الشهرية؟
+أرسل الرقم فقط
+مثال: 1500
+إذا ما عليك التزامات أرسل: 0
+
+${restartHint()}`;
 }
 
 function lowSalaryApology(jobCategory) {
@@ -204,7 +221,7 @@ function advancePersonalFinanceFlow(draft, text) {
 
   // إعادة بدء من داخل المحادثة (لا تفسّر "تمويل" كقطاع)
   if (looksLikeStartPersonalFinance(raw)) {
-    return startPersonalFinanceFlow();
+    return startPersonalFinanceFlow({ askSector: true });
   }
 
   if (step === "sector") {
@@ -261,10 +278,7 @@ function advancePersonalFinanceFlow(draft, text) {
     state.step = "commitments";
     return {
       ok: true,
-      reply: `كم إجمالي التزاماتك الشهرية؟
-أرسل الرقم فقط
-مثال: 1500
-إذا ما عليك التزامات أرسل: 0`,
+      reply: commitmentsPrompt(),
       draft: state,
     };
   }
@@ -275,7 +289,9 @@ function advancePersonalFinanceFlow(draft, text) {
       return {
         ok: false,
         reply: `أرسل الالتزامات بالأرقام فقط.
-مثال: 1500`,
+مثال: 1500
+
+${restartHint()}`,
         draft: state,
       };
     }

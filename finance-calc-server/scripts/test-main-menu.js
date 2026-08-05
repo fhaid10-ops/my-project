@@ -8,6 +8,12 @@ const {
   handleMainMenuChoice,
 } = require("../lib/main-menu");
 
+const { looksLikeRestartFlow } = require("../lib/main-menu");
+assert.strictEqual(looksLikeRestartFlow("إعادة"), true);
+assert.strictEqual(looksLikeRestartFlow("اعادة"), true);
+assert.strictEqual(looksLikeRestartFlow("من جديد"), true);
+assert.strictEqual(looksLikeRestartFlow("مرحبا"), false);
+
 assert.strictEqual(looksLikeGreeting("السلام عليكم"), true);
 assert.strictEqual(looksLikeGreeting("السلام عليكم ورحمة الله وبركاته"), true);
 assert.strictEqual(looksLikeGreeting("مرحبا"), true);
