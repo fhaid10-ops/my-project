@@ -420,8 +420,18 @@ app.post("/webhook/interakt", async (req, res) => {
       draft?.awaitingComboInterest ||
       draft?.awaitingDebtContinue;
 
+    // القائمة ظاهرة أصلًا + العميل سلّم/قائمة مرة ثانية → لا نكرر (اختصار المكتب 1 يعيد الإرسال)
+    if (
+      looksLikeShowMainMenu(text) &&
+      !staffMenuShortcut &&
+      draft?.flow === "main_menu" &&
+      draft?.step === "awaiting_choice"
+    ) {
+      console.log("[webhook:menu-already-open]", phone);
+      return;
+    }
+
     // السلام / قائمة / اختصار المكتب (1) → القائمة الرئيسية
-    // (حتى لو القائمة مفتوحة أصلًا نعيد إرسالها — أفضل من صمت يظن العميل إن البوت واقف)
     if (
       looksLikeShowMainMenu(text) ||
       staffMenuShortcut ||
@@ -449,11 +459,9 @@ app.post("/webhook/interakt", async (req, res) => {
       if (result.draft) saveDraft(countryCode, phone, result.draft);
       else clearDraft(countryCode, phone);
     } else if (
-      // خيار قائمة بالاسم (موقعنا / رقم المساعد / …) يقاطع أي مسار عالق
-      // الأرقام 1–7 وحدها تُقبل فقط والقائمة مفتوحة حتى لا تتعارض مع خطوات المسار
-      parseMainMenuChoice(text) &&
-      (!/^[1-7]$/.test(normalizeDigits(text).trim()) ||
-        (draft?.flow === "main_menu" && draft.step === "awaiting_choice"))
+      draft?.flow === "main_menu" &&
+      draft.step === "awaiting_choice" &&
+      parseMainMenuChoice(text)
     ) {
       const menuResult = handleMainMenuChoice(parseMainMenuChoice(text));
       if (menuResult.pauseChat) {
@@ -462,26 +470,15 @@ app.post("/webhook/interakt", async (req, res) => {
         clearSession(countryCode, phone);
         result = menuResult;
       } else if (menuResult.startFlow === "personal") {
-        clearSession(countryCode, phone);
         result = startPersonalFinanceFlow();
         saveDraft(countryCode, phone, result.draft);
       } else if (menuResult.startFlow === "debt") {
-        clearSession(countryCode, phone);
         result = startDebtPurchaseFlow();
         saveDraft(countryCode, phone, result.draft);
       } else {
-        // ردود معلوماتية (موقعنا، الدوام، إيقاف خدمات، رقم المساعد)
-        clearSession(countryCode, phone);
         result = menuResult;
         if (result.clearDraft) clearDraft(countryCode, phone);
         else if (result.draft) saveDraft(countryCode, phone, result.draft);
-        else {
-          // أبقِ القائمة جاهزة لاختيار لاحق
-          saveDraft(countryCode, phone, {
-            flow: "main_menu",
-            step: "awaiting_choice",
-          });
-        }
       }
     } else if (
       yesNo &&
@@ -604,18 +601,26 @@ app.post("/webhook/interakt", async (req, res) => {
       if (!sessionData?.maxAmount && !sessionData?.rounded) return;
       const amount = parseAmountChoice(text);
       result = calculateSelectedAmount(sessionData || {}, amount);
+    } else if (!draft && parseMainMenuChoice(text)) {
+      // عناوين القائمة بدون مسودة — نتجاهل الأرقام وحدها لتجنب التضارب
+      const choice = parseMainMenuChoice(text);
+      if (/^[1-7]$/.test(normalizeDigits(text).trim())) return;
+      const menuResult = handleMainMenuChoice(choice);
+      if (menuResult.pauseChat) {
+        pauseChat(countryCode, phone);
+        result = menuResult;
+      } else if (menuResult.startFlow === "personal") {
+        result = startPersonalFinanceFlow();
+        saveDraft(countryCode, phone, result.draft);
+      } else if (menuResult.startFlow === "debt") {
+        result = startDebtPurchaseFlow();
+        saveDraft(countryCode, phone, result.draft);
+      } else {
+        result = menuResult;
+        if (result.draft) saveDraft(countryCode, phone, result.draft);
+      }
     } else {
-      // رسالة ما انفهمت — أعد القائمة بدل الصمت
-      result = showMainMenu(text);
-      resumeChat(countryCode, phone);
-      clearDraft(countryCode, phone);
-      clearSession(countryCode, phone);
-      saveDraft(countryCode, phone, result.draft);
-      result = {
-        ...result,
-        replyFallback: result.reply,
-        reply: undefined,
-      };
+      return;
     }
 
     if (!result?.reply && !result?.interactive) return;
