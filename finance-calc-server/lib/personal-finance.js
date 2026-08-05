@@ -3,10 +3,11 @@
  */
 const {
   calculateEstimatedAmount,
-  roundDownToStep,
-  buildLowerAmountTiers,
+  calculateMonthlyCapacity,
   calculateMonthlyInstallment,
   calculateTotalRepayment,
+  roundDownToStep,
+  buildLowerAmountTiers,
   meetsMinimumSalary,
   meetsMinimumEstimatedAmount,
   formatMoney,
@@ -194,13 +195,50 @@ function calculatePersonalFinance(input) {
     };
   }
 
+  const session = { jobCategory };
+  const rate = resolveInterestRate(session);
+  const supportForCalc =
+    realEstateType === "supported" ? supportAmount : 0;
+  const monthlyCapacity = calculateMonthlyCapacity(
+    realEstateType,
+    salary,
+    commitments,
+    supportForCalc
+  );
+  if (!Number.isFinite(monthlyCapacity) || monthlyCapacity <= 0) {
+    return {
+      ok: false,
+      reply: "نعتذر منك التزامك عالي حسب نسبة الاستقطاع المتاحة.",
+      data: { monthlyCapacity },
+    };
+  }
+
+  // أعلى مبلغ بحيث القسط لا يتجاوز المتاح الشهري (حسب فائدة القطاع)
   const estimated = calculateEstimatedAmount(
     realEstateType,
     salary,
     commitments,
-    realEstateType === "supported" ? supportAmount : 0
+    supportForCalc,
+    rate
   );
-  const rounded = roundDownToStep(estimated);
+  let rounded = roundDownToStep(estimated);
+  let installment = calculateMonthlyInstallment(
+    rounded,
+    rate,
+    undefined,
+    jobCategory
+  );
+
+  // بعد التقريب: إن تجاوز القسط المتاح، ننزل بالمبلغ حتى يدخل ضمن القدرة
+  while (rounded > 0 && installment > monthlyCapacity) {
+    rounded = Math.max(0, rounded - 100);
+    installment = calculateMonthlyInstallment(
+      rounded,
+      rate,
+      undefined,
+      jobCategory
+    );
+  }
 
   if (!meetsMinimumEstimatedAmount(rounded)) {
     // مستنفد حد الشخصي / المبلغ قليل → عرض عقاري + شخصي إن انطبق
@@ -218,6 +256,7 @@ function calculatePersonalFinance(input) {
         supportAmount,
         estimated,
         rounded,
+        monthlyCapacity,
         reason: comboReason,
       });
     }
@@ -225,18 +264,10 @@ function calculatePersonalFinance(input) {
       ok: false,
       reply:
         "نعتذر منك المبلغ التقديري أقل من المطلوب حسب بياناتك الحالية.",
-      data: { estimated, rounded },
+      data: { estimated, rounded, monthlyCapacity },
     };
   }
 
-  const session = { jobCategory };
-  const rate = resolveInterestRate(session);
-  const installment = calculateMonthlyInstallment(
-    rounded,
-    rate,
-    undefined,
-    jobCategory
-  );
   const total = calculateTotalRepayment(rounded, rate);
   const lowerTiers = buildLowerAmountTiers(
     rounded,
@@ -263,6 +294,7 @@ function calculatePersonalFinance(input) {
       salary,
       commitments,
       supportAmount,
+      monthlyCapacity,
       estimated,
       rounded,
       maxAmount: rounded,

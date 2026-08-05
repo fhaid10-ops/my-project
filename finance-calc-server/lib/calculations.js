@@ -4,35 +4,85 @@
  * ملاحظة مهمة (سلوك محفوظ):
  * - فحص الحد الأدنى للراتب حسب القطاع (minSalaryByCategory) على الراتب بعد خصم بدل النائية.
  * - الدعم الشهري يُضاف إلى الدخل فقط عند realEstateType === "supported".
+ * - أعلى مبلغ يُحسب من المتاح الشهري بمعادلة القسط حسب فائدة القطاع
+ *   حتى لا يتجاوز القسط قدرة العميل.
  */
 const CONFIG = require("../config");
 
 const { ratios, multiplier, divisor } = CONFIG.calculation;
+
+function getDeductionRatio(realEstateType) {
+  if (realEstateType === "supported") return ratios.supported;
+  if (realEstateType === "unsupported" || realEstateType === "old") {
+    return ratios.unsupported;
+  }
+  return ratios.none;
+}
+
+/**
+ * المتاح الشهري للأقساط = (الدخل × نسبة الاستقطاع) − الالتزامات
+ */
+function calculateMonthlyCapacity(
+  realEstateType,
+  salary,
+  commitments,
+  supportAmount = 0
+) {
+  const ratio = getDeductionRatio(realEstateType);
+  let income = Number(salary) || 0;
+  if (realEstateType === "supported") {
+    income += Number(supportAmount) || 0;
+  }
+  return income * ratio - Number(commitments || 0);
+}
+
+/**
+ * عكس معادلة القسط:
+ * قسط = مبلغ/60 + مبلغ×نسبة/12
+ * ⇒ مبلغ = قسط / (1/60 + نسبة/12)
+ */
+function calculateMaxAmountFromMonthlyCapacity(
+  monthlyCapacity,
+  annualRatePercent,
+  months = CONFIG.financing?.loanTermMonths || 60
+) {
+  const cap = Number(monthlyCapacity);
+  const annual = Number(annualRatePercent) / 100;
+  if (!Number.isFinite(cap) || cap <= 0) return 0;
+  const denom = 1 / months + annual / 12;
+  if (!denom || denom <= 0) return 0;
+  return Math.floor(cap / denom);
+}
 
 /**
  * @param {"supported"|"unsupported"|"none"|"old"} realEstateType
  * @param {number} salary الراتب الأساسي
  * @param {number} commitments
  * @param {number} [supportAmount=0]
- * @returns {number} المبلغ التقديري مقرباً
+ * @param {number|null} [annualRatePercent] فائدة القطاع — إن وُجدت تُستخدم بدل divisor الثابت
+ * @returns {number} المبلغ التقديري
  */
 function calculateEstimatedAmount(
   realEstateType,
   salary,
   commitments,
-  supportAmount = 0
+  supportAmount = 0,
+  annualRatePercent = null
 ) {
-  let ratio = ratios.none;
-  let income = salary;
+  const capacity = calculateMonthlyCapacity(
+    realEstateType,
+    salary,
+    commitments,
+    supportAmount
+  );
+  if (!Number.isFinite(capacity) || capacity <= 0) return 0;
 
-  if (realEstateType === "supported") {
-    ratio = ratios.supported;
-    income = salary + supportAmount;
-  } else if (realEstateType === "unsupported" || realEstateType === "old") {
-    ratio = ratios.unsupported;
+  if (annualRatePercent != null && Number(annualRatePercent) > 0) {
+    return calculateMaxAmountFromMonthlyCapacity(capacity, annualRatePercent);
   }
 
-  return Math.round((((income * ratio) - commitments) * multiplier) / divisor);
+  // احتياط قديم إن ما توفرت نسبة الفائدة
+  return Math.round((capacity * multiplier) / divisor);
 }
 
 /**
@@ -380,6 +430,9 @@ function resolveFinalRejectReason(
 
 module.exports = {
   calculateEstimatedAmount,
+  calculateMonthlyCapacity,
+  calculateMaxAmountFromMonthlyCapacity,
+  getDeductionRatio,
   meetsMinimumEstimatedAmount,
   meetsMinimumSalary,
   roundDownToStep,

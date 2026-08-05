@@ -75,3 +75,33 @@ if (fromListId !== result.data.lowerTiers[0]) {
   console.error("FAIL: parseAmountChoice من amt_");
   process.exitCode = 1;
 }
+
+// رجوع: عسكري متاحه 2845.5 — القسط لازم ما يتجاوز المتاح
+const militaryCase = calculatePersonalFinance({
+  jobCategory: "military",
+  realEstateType: "supported",
+  salary: 11000,
+  commitments: 5000,
+  supportAmount: 1070,
+});
+if (!militaryCase.ok) {
+  console.error("FAIL: حسبة العسكري المفروض تنجح", militaryCase.reply);
+  process.exitCode = 1;
+} else if (militaryCase.data.installment > militaryCase.data.monthlyCapacity) {
+  console.error(
+    "FAIL: القسط تجاوز المتاح",
+    militaryCase.data.installment,
+    ">",
+    militaryCase.data.monthlyCapacity
+  );
+  process.exitCode = 1;
+} else {
+  console.log(
+    "OK: قسط العسكري ضمن المتاح",
+    militaryCase.data.installment,
+    "<=",
+    militaryCase.data.monthlyCapacity,
+    "| مبلغ",
+    militaryCase.data.maxAmount
+  );
+}
