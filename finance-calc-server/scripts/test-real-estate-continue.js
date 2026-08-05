@@ -15,7 +15,9 @@ const re = realEstateStepReply({
 assert.notStrictEqual(re.sendTextThenInteractive, true);
 assert.ok(re.reply.includes("تمويل عقاري"));
 assert.strictEqual(re.interactive?.kind, "list");
-assert.ok(re.interactive.body.includes("1- لا يوجد عقاري"));
+assert.ok(re.interactive.body.includes("هل عليك تمويل عقاري"));
+assert.strictEqual(re.interactive.button, "اختر النوع");
+assert.ok(!re.interactive.body.includes("1- لا يوجد عقاري"));
 
 let draft = startPersonalFinanceFlow({ askSector: true }).draft;
 draft = advancePersonalFinanceFlow(draft, "مدني").draft;
