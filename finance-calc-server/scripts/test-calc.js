@@ -17,10 +17,22 @@ const parsed = parsePersonalFinanceMessage(sample);
 const result = calculatePersonalFinance(parsed);
 console.log("--- الحسبة الأولى (أعلى مبلغ + قائمة أقل) ---");
 console.log(result.reply);
+console.log("\n--- رسالة التقديم المنفصلة ---");
+console.log(result.followUpReply);
 console.log("\ninteractive:", JSON.stringify(result.interactive, null, 2));
 
-if (!String(result.reply).includes("قدم وارسلي رقم الطلب")) {
-  console.error("FAIL: لازم جملة قدم وارسلي رقم الطلب");
+if (String(result.reply).includes("سجل مبلغ التمويل المرغوب فيه")) {
+  console.error("FAIL: رسالة التقديم لازم تكون منفصلة عن نتيجة الحساب");
+  process.exitCode = 1;
+}
+
+if (
+  !result.followUpReply ||
+  !String(result.followUpReply).includes("سجل مبلغ التمويل المرغوب فيه") ||
+  !String(result.followUpReply).includes("SF1695") ||
+  !String(result.followUpReply).includes("وارسلي رقم الطلب")
+) {
+  console.error("FAIL: لازم followUpReply برمز الموظف SF1695");
   process.exitCode = 1;
 }
 
@@ -68,6 +80,15 @@ if (result.ok && result.data?.lowerTiers?.length) {
   const selected = calculateSelectedAmount(result.data, pick);
   console.log(`\n--- بعد اختيار ${pick} ---`);
   console.log(selected.reply);
+  console.log("\n--- follow-up بعد الاختيار ---");
+  console.log(selected.followUpReply);
+  if (
+    !selected.followUpReply ||
+    !String(selected.followUpReply).includes("SF1695")
+  ) {
+    console.error("FAIL: اختيار المبلغ لازم followUpReply برمز SF1695");
+    process.exitCode = 1;
+  }
 }
 
 const fromListId = parseAmountChoice(`amt_${result.data.lowerTiers[0]}`);

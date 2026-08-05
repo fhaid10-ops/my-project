@@ -291,12 +291,14 @@ function calculatePersonalFinance(input) {
     total,
   });
   const interactive = buildLowerAmountInteractive(lowerTiers);
+  const followUpReply = buildPersonalApplyFollowUp();
 
   return {
     ok: true,
     reply,
+    followUpReply,
     interactive,
-    // نص النتيجة أولًا، ثم قائمة المبالغ الأقل
+    // نص النتيجة أولًا، ثم رسالة التقديم، ثم قائمة المبالغ الأقل
     sendTextThenInteractive: Boolean(interactive),
     data: {
       jobCategory,
@@ -317,13 +319,37 @@ function calculatePersonalFinance(input) {
   };
 }
 
-function contactFooter() {
+function personalEmployeeCode() {
+  const fromConfig = CONFIG.financing?.personalEmployeeCode;
+  if (fromConfig) return String(fromConfig);
   const portalUrl =
     CONFIG.financing?.personalPortalUrl ||
     "https://portal.sfco.com.sa/?DSA=SF1695";
-  return `للتقديم الإلكتروني:
-قدم وارسلي رقم الطلب
+  const match = String(portalUrl).match(/[?&]DSA=([^&#]+)/i);
+  return match ? match[1] : "SF1695";
+}
+
+/** رسالة التقديم الإلكتروني — تُرسل منفصلة بعد نتيجة الحساب */
+function buildPersonalApplyFollowUp() {
+  const custom = CONFIG.messages?.personalApplyFollowUp;
+  if (typeof custom === "function") {
+    return custom(personalEmployeeCode(), CONFIG.financing?.personalPortalUrl);
+  }
+  if (typeof custom === "string" && custom.trim()) return custom;
+
+  const code = personalEmployeeCode();
+  const portalUrl =
+    CONFIG.financing?.personalPortalUrl ||
+    "https://portal.sfco.com.sa/?DSA=SF1695";
+  return `سجل مبلغ التمويل المرغوب فيه
+واكتب رمز الموظف ${code} بالتقديم لمتابعة الطلب
+وارسلي رقم الطلب
+
 ${portalUrl}`;
+}
+
+function contactFooter() {
+  return buildPersonalApplyFollowUp();
 }
 
 function buildPropertyComboInterestAsk(base = {}) {
@@ -476,9 +502,7 @@ ${formatMoney(rounded)} ريال
 ${formatMoney(installment)} ريال
 
 الإجمالي التقريبي:
-${formatMoney(total)} ريال
-
-${contactFooter()}`;
+${formatMoney(total)} ريال`;
 }
 
 /**
@@ -633,13 +657,12 @@ ${formatMoney(amount)} ريال
 ${formatMoney(installment)} ريال
 
 الإجمالي التقريبي:
-${formatMoney(total)} ريال
-
-${contactFooter()}`;
+${formatMoney(total)} ريال`;
 
   return {
     ok: true,
     reply,
+    followUpReply: buildPersonalApplyFollowUp(),
     data: {
       ...sessionData,
       selectedAmount: amount,
@@ -661,6 +684,7 @@ module.exports = {
   replyPropertyComboDecision,
   replyPropertyComboInterestDecision,
   buildMaxAmountReply,
+  buildPersonalApplyFollowUp,
   buildAmountChoiceInteractive,
   buildLowerAmountInteractive,
   selectTiersForWhatsAppList,
