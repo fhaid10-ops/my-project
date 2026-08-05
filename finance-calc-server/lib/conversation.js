@@ -96,41 +96,27 @@ function lowSalaryApology(jobCategory) {
 function realEstatePrompt() {
   return `هل عليك تمويل عقاري؟
 
-اختر من القائمة، أو أرسل الرقم:
+اختر من الأزرار، أو أرسل:
 1- لا يوجد عقاري
 2- عقاري مدعوم
 3- عقاري غير مدعوم
 4- عقاري قديم الي قسطه 1667`;
 }
 
-/** قائمة تفاعلية (Interakt InteractiveList) — أفضل من أزرار لأن الخيارات 4 */
+/**
+ * أزرار تفاعلية (حد واتساب 3 أزرار).
+ * الخيار الرابع «عقاري قديم» يُكتب نصًا أو بالرقم 4.
+ */
 function realEstateInteractive() {
   return {
-    kind: "list",
-    body: "هل عليك تمويل عقاري؟\nاختر النوع من القائمة:",
-    button: "اختر النوع",
-    sectionTitle: "التمويل العقاري",
-    rows: [
-      {
-        id: "re_none",
-        title: "لا يوجد عقاري",
-        description: "ما علي تمويل عقاري",
-      },
-      {
-        id: "re_supported",
-        title: "عقاري مدعوم",
-        description: "تمويل عقاري مدعوم",
-      },
-      {
-        id: "re_unsupported",
-        title: "عقاري غير مدعوم",
-        description: "تمويل عقاري غير مدعوم",
-      },
-      {
-        id: "re_old",
-        title: "عقاري قديم",
-        description: "الي قسطه 1667 ريال",
-      },
+    kind: "buttons",
+    body: `هل عليك تمويل عقاري؟
+
+أو اكتب: عقاري قديم`,
+    buttons: [
+      { id: "re_none", title: "لا يوجد عقاري" },
+      { id: "re_supported", title: "عقاري مدعوم" },
+      { id: "re_unsupported", title: "غير مدعوم" },
     ],
   };
 }
@@ -138,7 +124,8 @@ function realEstateInteractive() {
 function realEstateStepReply(state) {
   return {
     ok: true,
-    reply: realEstatePrompt(),
+    // الأزرار هي الرسالة الأساسية — النص فقط احتياط إذا فشل الإرسال
+    replyFallback: realEstatePrompt(),
     interactive: realEstateInteractive(),
     draft: state,
   };
@@ -287,12 +274,7 @@ function advancePersonalFinanceFlow(draft, text) {
     if (!realEstateType) {
       return {
         ok: false,
-        reply: `ما قدرت أحدد حالة العقاري.
-اختر من القائمة أو أرسل:
-1- لا يوجد عقاري
-2- عقاري مدعوم
-3- عقاري غير مدعوم
-4- عقاري قديم الي قسطه 1667`,
+        replyFallback: realEstatePrompt(),
         interactive: realEstateInteractive(),
         draft: state,
       };

@@ -156,8 +156,14 @@ check("عسكري أقل من 10000 يُسأل عن العقاري ثم باقة
   const start = startPersonalFinanceFlow();
   const afterSector = advancePersonalFinanceFlow(start.draft, "عسكري");
   const afterSalary = advancePersonalFinanceFlow(afterSector.draft, "8000");
-  assert.ok(afterSalary.ok);
-  assert.match(afterSalary.reply, /عقاري/);
+  assert.ok(afterSalary.interactive || afterSalary.ok);
+  const askText =
+    afterSalary.interactive?.body ||
+    afterSalary.replyFallback ||
+    afterSalary.reply ||
+    "";
+  assert.match(askText, /عقاري/);
+  assert.strictEqual(afterSalary.interactive?.kind, "buttons");
   assert.strictEqual(afterSalary.draft.step, "real_estate");
   assert.strictEqual(afterSalary.draft.militaryLowSalaryPath, true);
 
@@ -212,7 +218,7 @@ check("الراتب بالأرقام العربية يُقبل", () => {
   assert.match(next.reply, /التزامات/);
 });
 
-check("سؤال العقاري يرسل قائمة تفاعلية", () => {
+check("سؤال العقاري يرسل أزرار تفاعلية", () => {
   const {
     parseRealEstateChoice,
     realEstateInteractive,
@@ -223,11 +229,12 @@ check("سؤال العقاري يرسل قائمة تفاعلية", () => {
   const afterCommitments = advancePersonalFinanceFlow(afterSalary.draft, "0");
   assert.strictEqual(afterCommitments.draft.step, "real_estate");
   assert.ok(afterCommitments.interactive);
-  assert.strictEqual(afterCommitments.interactive.kind, "list");
-  assert.strictEqual(afterCommitments.interactive.rows.length, 4);
+  assert.strictEqual(afterCommitments.interactive.kind, "buttons");
+  assert.strictEqual(afterCommitments.interactive.buttons.length, 3);
   assert.strictEqual(parseRealEstateChoice("re_none"), "none");
   assert.strictEqual(parseRealEstateChoice("لا يوجد عقاري"), "none");
-  assert.strictEqual(realEstateInteractive().button, "اختر النوع");
+  assert.strictEqual(parseRealEstateChoice("عقاري قديم"), "old");
+  assert.ok(realEstateInteractive().body.includes("عقاري قديم"));
 });
 
 if (!process.exitCode) {

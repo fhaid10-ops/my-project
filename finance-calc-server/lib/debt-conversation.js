@@ -151,8 +151,9 @@ ${salaryPrompt(jobCategory)}`,
     if (!realEstateType) {
       return {
         ok: false,
-        reply: `ما قدرت أحدد حالة العقاري.
-اختر من القائمة أو أرسل:
+        replyFallback: `هل عليك تمويل عقاري؟
+
+اختر من الأزرار، أو أرسل:
 1- لا يوجد عقاري
 2- عقاري مدعوم
 3- عقاري غير مدعوم
