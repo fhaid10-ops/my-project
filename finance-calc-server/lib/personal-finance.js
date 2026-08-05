@@ -178,7 +178,7 @@ function calculatePersonalFinance(input) {
   if (!meetsMinimumSalary(salary, jobCategory)) {
     // عسكري راتبه أقل من حد الشخصي لكن يصلح لباقة عقاري+شخصي
     if (shouldOfferPropertyComboToMilitary(sessionLike)) {
-      return buildPropertyComboOffer({
+      return buildPropertyComboInterestAsk({
         jobCategory,
         salary,
         commitments,
@@ -210,7 +210,7 @@ function calculatePersonalFinance(input) {
       commitments
     );
     if (comboReason) {
-      return buildPropertyComboOffer({
+      return buildPropertyComboInterestAsk({
         jobCategory,
         salary,
         commitments,
@@ -284,11 +284,7 @@ function contactFooter() {
 ${portalUrl}`;
 }
 
-function buildPropertyComboOffer(base = {}) {
-  const pkg = CONFIG.comboPackage || {};
-  const total = pkg.totalExample || 1000000;
-  const propertyAmount = pkg.propertyAmount || 400000;
-  const personalAmount = pkg.personalAmount || 600000;
+function buildPropertyComboInterestAsk(base = {}) {
   const reasonKey = base.reason || "low_amount";
   const reasonFn =
     CONFIG.templates?.personalRejectReason ||
@@ -297,6 +293,40 @@ function buildPropertyComboOffer(base = {}) {
     (typeof reasonFn === "function" ? reasonFn(reasonKey) : "") ||
     "نعتذر منك المبلغ التقديري أقل من المطلوب";
 
+  const interestBody =
+    CONFIG.messages?.propertyComboInterest ||
+    CONFIG.templates?.propertyComboInterest ||
+    `هل ترغب بحلول تمويلية أخرى؟`;
+
+  return {
+    ok: true,
+    offer: "property_combo_interest",
+    // رسالة 1: سبب الرفض
+    reply: rejectReply,
+    // رسالة 2 تفاعلية: سؤال الحلول + أزرار نعم/لا
+    interactive: {
+      kind: "buttons",
+      body: interestBody,
+      buttons: [
+        { id: "combo_yes", title: "نعم" },
+        { id: "combo_no", title: "لا" },
+      ],
+    },
+    sendTextThenInteractive: true,
+    data: {
+      ...base,
+      awaitingComboInterest: true,
+      awaitingCombo: false,
+      comboRejectReason: reasonKey,
+    },
+  };
+}
+
+function buildPropertyComboOffer(base = {}) {
+  const pkg = CONFIG.comboPackage || {};
+  const total = pkg.totalExample || 1000000;
+  const propertyAmount = pkg.propertyAmount || 400000;
+  const personalAmount = pkg.personalAmount || 600000;
   const offerFn =
     CONFIG.templates?.propertyComboOffer ||
     CONFIG.messages?.propertyComboOffer;
@@ -320,17 +350,21 @@ ${formatMoney(personalAmount)} ريال شخصي
   return {
     ok: true,
     offer: "property_combo",
-    // رسالة 1 منفصلة: سبب الرفض
-    reply: rejectReply,
-    // رسالة 2: عرض الباقة
-    followUpReply: offerBody,
+    interactive: {
+      kind: "buttons",
+      body: offerBody,
+      buttons: [
+        { id: "combo_yes", title: "نعم" },
+        { id: "combo_no", title: "لا" },
+      ],
+    },
     data: {
       ...base,
+      awaitingComboInterest: false,
       awaitingCombo: true,
       comboTotal: total,
       comboProperty: propertyAmount,
       comboPersonal: personalAmount,
-      comboRejectReason: reasonKey,
     },
   };
 }
@@ -343,6 +377,25 @@ function looksLikeYesNoReply(text) {
   }
   if (/^(2|لا|لأ|لاء|ما ابي|ماأبي|رفض|combo_no|no)$/i.test(t)) return "no";
   return null;
+}
+
+function replyPropertyComboInterestDecision(choice, sessionBase = {}) {
+  if (choice === "yes") {
+    return buildPropertyComboOffer({
+      ...sessionBase,
+      reason: sessionBase.comboRejectReason || sessionBase.reason,
+    });
+  }
+
+  const apology =
+    CONFIG.messages?.propertyComboDeclinedApology ||
+    CONFIG.templates?.propertyComboDeclinedApology ||
+    "حسناً، نعتذر منك ونأسف على عدم خدمتك.";
+  return {
+    ok: true,
+    offer: "property_combo_interest_declined",
+    reply: apology,
+  };
 }
 
 function replyPropertyComboDecision(choice) {
@@ -557,11 +610,13 @@ module.exports = {
   looksLikeAmountChoice,
   calculateSelectedAmount,
   replyPropertyComboDecision,
+  replyPropertyComboInterestDecision,
   buildMaxAmountReply,
   buildAmountChoiceInteractive,
   buildLowerAmountInteractive,
   selectTiersForWhatsAppList,
   buildPropertyComboOffer,
+  buildPropertyComboInterestAsk,
   mapSector,
   mapRealEstate,
 };

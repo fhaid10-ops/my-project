@@ -413,6 +413,8 @@ module.exports = {
     /** عند رفض عرض عقاري + شخصي (تمويل شخصي) */
     propertyComboDeclinedApology: `حسناً، نعتذر منك ونأسف على عدم خدمتك.`,
 
+    propertyComboInterest: `هل ترغب بحلول تمويلية أخرى؟`,
+
     realEstate: `هل لديك تمويل عقاري؟
 
 اكتب رقم الخيار أو نص الإجابة:

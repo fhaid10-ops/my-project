@@ -18,6 +18,7 @@ const {
   parseAmountChoice,
   calculateSelectedAmount,
   replyPropertyComboDecision,
+  replyPropertyComboInterestDecision,
   mapSector,
 } = require("./lib/personal-finance");
 const {
@@ -386,8 +387,10 @@ app.post("/webhook/interakt", async (req, res) => {
         draft.step !== "done") ||
       (draft?.flow === "debt_chat" && draft.step && draft.step !== "done") ||
       currentSession?.awaitingCombo ||
+      currentSession?.awaitingComboInterest ||
       currentSession?.awaitingDebtContinue ||
       draft?.awaitingCombo ||
+      draft?.awaitingComboInterest ||
       draft?.awaitingDebtContinue;
 
     // السلام / قائمة / اختصار المكتب (1) → القائمة الرئيسية
@@ -433,11 +436,34 @@ app.post("/webhook/interakt", async (req, res) => {
         if (result.clearDraft) clearDraft(countryCode, phone);
         else if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
+    } else if (
+      yesNo &&
+      (currentSession?.awaitingComboInterest || draft?.awaitingComboInterest)
+    ) {
+      const sessionBase = { ...(currentSession || {}), ...(draft || {}) };
+      result = replyPropertyComboInterestDecision(yesNo, sessionBase);
+      if (result.data?.awaitingCombo) {
+        saveSession(countryCode, phone, result.data);
+        saveDraft(countryCode, phone, {
+          flow: "personal_chat",
+          step: "done",
+          ...result.data,
+        });
+      } else {
+        clearDraft(countryCode, phone);
+        saveSession(countryCode, phone, {
+          ...sessionBase,
+          awaitingComboInterest: false,
+          awaitingCombo: false,
+          comboInterestDecision: yesNo,
+        });
+      }
     } else if (yesNo && (currentSession?.awaitingCombo || draft?.awaitingCombo)) {
       result = replyPropertyComboDecision(yesNo);
       saveSession(countryCode, phone, {
         ...(currentSession || draft || {}),
         awaitingCombo: false,
+        awaitingComboInterest: false,
         comboDecision: yesNo,
       });
       clearDraft(countryCode, phone);
@@ -479,9 +505,20 @@ app.post("/webhook/interakt", async (req, res) => {
         saveDraft(countryCode, phone, result.draft);
       }
       if (result.sessionData) {
-        clearDraft(countryCode, phone);
-        saveSession(countryCode, phone, result.sessionData);
-      } else if (result.data?.awaitingCombo) {
+        const keepComboDraft =
+          result.sessionData.awaitingComboInterest ||
+          result.sessionData.awaitingCombo;
+        if (keepComboDraft) {
+          if (result.draft) saveDraft(countryCode, phone, result.draft);
+          saveSession(countryCode, phone, result.sessionData);
+        } else {
+          clearDraft(countryCode, phone);
+          saveSession(countryCode, phone, result.sessionData);
+        }
+      } else if (
+        result.data?.awaitingCombo ||
+        result.data?.awaitingComboInterest
+      ) {
         saveSession(countryCode, phone, result.data);
         if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
@@ -495,7 +532,10 @@ app.post("/webhook/interakt", async (req, res) => {
       if (result.sessionData) {
         if (!result.draft || result.clearDraft) clearDraft(countryCode, phone);
         saveSession(countryCode, phone, result.sessionData);
-      } else if (result.data?.awaitingCombo) {
+      } else if (
+        result.data?.awaitingCombo ||
+        result.data?.awaitingComboInterest
+      ) {
         saveSession(countryCode, phone, result.data);
         if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
@@ -513,7 +553,7 @@ app.post("/webhook/interakt", async (req, res) => {
       }
     } else if (looksLikeAmountChoice(text)) {
       const sessionData = getSession(countryCode, phone);
-      if (sessionData?.awaitingCombo) return;
+      if (sessionData?.awaitingCombo || sessionData?.awaitingComboInterest) return;
       if (!sessionData?.maxAmount && !sessionData?.rounded) return;
       const amount = parseAmountChoice(text);
       result = calculateSelectedAmount(sessionData || {}, amount);

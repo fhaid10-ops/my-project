@@ -5,7 +5,7 @@ const {
   mapSector,
   mapRealEstate,
   calculatePersonalFinance,
-  buildPropertyComboOffer,
+  buildPropertyComboInterestAsk,
 } = require("./personal-finance");
 const {
   getMinSalaryForEntry,
@@ -167,9 +167,9 @@ function comboYesNoInteractive(bodyText) {
   };
 }
 
-/** عسكري راتبه تحت 10,000 + لا عقاري → باقة عقاري+شخصي */
+/** عسكري راتبه تحت 10,000 + لا عقاري → سؤال حلول أخرى ثم الباقة */
 function offerMilitaryPropertyCombo(state) {
-  const result = buildPropertyComboOffer({
+  const result = buildPropertyComboInterestAsk({
     jobCategory: "military",
     salary: state.salary,
     commitments: state.commitments || 0,
@@ -179,13 +179,11 @@ function offerMilitaryPropertyCombo(state) {
   });
   return {
     ...result,
-    // 1) سبب الرفض  2) نص العرض  3) أزرار نعم/لا
-    interactive: comboYesNoInteractive("هل ترغب بهذا العرض؟"),
-    sendTextThenInteractive: true,
     draft: {
       flow: state.flow || "personal_chat",
       step: "done",
-      awaitingCombo: true,
+      awaitingComboInterest: true,
+      awaitingCombo: false,
       ...result.data,
     },
     sessionData: result.data,
@@ -359,18 +357,25 @@ function finishPersonalFlow(state) {
     supportAmount: state.supportAmount || 0,
   });
 
+  const awaitingInterest = Boolean(result.data?.awaitingComboInterest);
   const awaitingCombo = Boolean(result.data?.awaitingCombo);
+  const keepDraft = awaitingInterest || awaitingCombo;
   return {
     ...result,
-    // باقة: أزرار نعم/لا — أو قائمة اختيار المبلغ (أعلى + أقل)
-    interactive: awaitingCombo
-      ? comboYesNoInteractive(result.reply)
-      : result.interactive,
-    draft: awaitingCombo
+    // إن ما فيه interactive جاهز (باقة قديمة) نضيف أزرار نعم/لا
+    interactive:
+      result.interactive ||
+      (awaitingCombo
+        ? comboYesNoInteractive(result.followUpReply || result.reply)
+        : undefined),
+    sendTextThenInteractive: Boolean(
+      result.sendTextThenInteractive ||
+        (result.reply && (result.interactive || awaitingCombo))
+    ),
+    draft: keepDraft
       ? {
           flow: "personal_chat",
           step: "done",
-          awaitingCombo: true,
           ...result.data,
         }
       : null,

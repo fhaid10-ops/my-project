@@ -163,13 +163,15 @@ check("عسكري أقل من 10000 يُسأل عن العقاري ثم باقة
 
   const combo = advancePersonalFinanceFlow(afterSalary.draft, "لا يوجد");
   assert.ok(combo.ok);
-  assert.strictEqual(combo.offer, "property_combo");
+  assert.strictEqual(combo.offer, "property_combo_interest");
   assert.match(combo.reply, /نعتذر منك|الراتب أقل/);
   assert.match(
-    combo.followUpReply || "",
-    /عقاري \+ الشخصي|العقاري \+ الشخصي|هل ترغب بهذا العرض/
+    combo.interactive?.body || "",
+    /حلول تمويلية أخرى|حلول تمويل/
   );
-  assert.strictEqual(combo.data.awaitingCombo, true);
+  assert.strictEqual(combo.interactive?.kind, "buttons");
+  assert.strictEqual(combo.data.awaitingComboInterest, true);
+  assert.strictEqual(combo.data.awaitingCombo, false);
 });
 
 check("عسكري أقل من 10000 مع عقاري يُرفض", () => {
@@ -191,9 +193,13 @@ check("اختيار 1 للعقاري لا يُفسّر كبداية تمويل",
   const afterSalary = advancePersonalFinanceFlow(afterSector.draft, "8000");
   const combo = advancePersonalFinanceFlow(afterSalary.draft, "1");
   assert.ok(combo.ok);
-  assert.strictEqual(combo.offer, "property_combo");
+  assert.strictEqual(combo.offer, "property_combo_interest");
   assert.match(combo.reply, /نعتذر منك|الراتب أقل/);
-  assert.match(combo.followUpReply || "", /هل ترغب بهذا العرض/);
+  assert.match(combo.interactive?.body || "", /هل ترغب بحلول تمويلية أخرى/);
+  const { replyPropertyComboInterestDecision } = require("../lib/personal-finance");
+  const offer = replyPropertyComboInterestDecision("yes", combo.data);
+  assert.strictEqual(offer.offer, "property_combo");
+  assert.match(offer.interactive?.body || "", /هل ترغب بهذا العرض|عقاري/);
 });
 
 check("الراتب بالأرقام العربية يُقبل", () => {
