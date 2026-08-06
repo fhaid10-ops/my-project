@@ -193,6 +193,7 @@ function createAdminRouter(deps) {
         },
       };
     });
+    const summary = customerLedger.summary();
     res.json({
       ok: true,
       timezone: pack.timezone,
@@ -200,6 +201,7 @@ function createAdminRouter(deps) {
       yesterday: pack.yesterday,
       day: pack.day,
       count: enriched.length,
+      counts: summary.counts,
       customers: enriched,
     });
   });
@@ -288,7 +290,13 @@ function createAdminRouter(deps) {
       const result = await syncInteraktUsersSince({
         apiKey,
         sinceIso: since,
-        onUser: (contact) => customerLedger.upsertContact(contact),
+        onUser: (contact) =>
+          customerLedger.upsertContact({
+            ...contact,
+            // عشان يظهرون فورًا في تبويب اليوم بعد الجلب
+            touchNow: true,
+            source: "interakt",
+          }),
       });
       customerLedger.flush();
       pushLog({
@@ -301,6 +309,8 @@ function createAdminRouter(deps) {
         days,
         since,
         summary: customerLedger.summary(),
+        // touchNow يختمهم بتاريخ اليوم فيظهرون في تبويب اليوم
+        preferDay: result.fetched > 0 ? "today" : "all",
       });
     } catch (err) {
       res.status(500).json({

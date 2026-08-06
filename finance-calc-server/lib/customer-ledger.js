@@ -170,6 +170,7 @@ function createCustomerLedger(options = {}) {
       maxAmount: row.maxAmount ?? null,
       dayKey: row.dayKey || calendarDayKey(new Date(row.lastSeenAt || Date.now())),
       source: row.source || null,
+      syncedAt: row.syncedAt || null,
       events: Array.isArray(row.events) ? row.events.slice(0, MAX_EVENTS_PER_CUSTOMER) : [],
     };
   }
@@ -291,8 +292,13 @@ function createCustomerLedger(options = {}) {
         if (!target) return true;
         const lastDay = calendarDayKey(new Date(row.lastSeenAt));
         const firstDay = calendarDayKey(new Date(row.firstSeenAt));
-        // يظهر في اليوم إذا رأى أو بدأ فيه
-        return lastDay === target || firstDay === target;
+        const syncedDay = row.syncedAt
+          ? calendarDayKey(new Date(row.syncedAt))
+          : null;
+        // يظهر في اليوم إذا رأى أو بدأ فيه أو تم جلبه اليوم
+        return (
+          lastDay === target || firstDay === target || syncedDay === target
+        );
       })
       .sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt));
 
@@ -424,13 +430,15 @@ function createCustomerLedger(options = {}) {
     if (phone.startsWith("0")) phone = phone.slice(1);
     if (!phone) return null;
 
-    const seenAt =
-      contact.lastSeenAt ||
-      contact.modified_at_utc ||
-      contact.modifiedAt ||
-      contact.created_at_utc ||
-      contact.createdAt ||
-      new Date().toISOString();
+    const nowIso = new Date().toISOString();
+    const seenAt = contact.touchNow
+      ? nowIso
+      : contact.lastSeenAt ||
+        contact.modified_at_utc ||
+        contact.modifiedAt ||
+        contact.created_at_utc ||
+        contact.createdAt ||
+        nowIso;
     const key = `${countryCode}:${phone}`;
     const existing = customers.get(key);
     if (!existing) {
@@ -441,7 +449,8 @@ function createCustomerLedger(options = {}) {
         firstSeenAt: contact.firstSeenAt || contact.created_at_utc || seenAt,
         lastSeenAt: seenAt,
         lastInboundText: contact.lastInboundText || contact.name || "من Interakt",
-        source: "interakt",
+        source: contact.source || "interakt",
+        syncedAt: nowIso,
         inboundCount: Number(contact.inboundCount || 0),
         outboundCount: Number(contact.outboundCount || 0),
       });
@@ -449,16 +458,16 @@ function createCustomerLedger(options = {}) {
       scheduleSave();
       return { row, created: true };
     }
-    // حدّث فقط إن كان تاريخ Interakt أحدث أو ما عندنا نشاط
-    if (Date.parse(seenAt) >= Date.parse(existing.lastSeenAt)) {
+    existing.syncedAt = nowIso;
+    if (contact.touchNow || Date.parse(seenAt) >= Date.parse(existing.lastSeenAt)) {
       existing.lastSeenAt = seenAt;
       existing.dayKey = calendarDayKey(new Date(seenAt));
-      if (!existing.lastInboundText) {
-        existing.lastInboundText = contact.name || "من Interakt";
-      }
-      existing.source = existing.source || "interakt";
-      scheduleSave();
     }
+    if (!existing.lastInboundText) {
+      existing.lastInboundText = contact.name || "من Interakt";
+    }
+    existing.source = existing.source || contact.source || "interakt";
+    scheduleSave();
     return { row: existing, created: false };
   }
 

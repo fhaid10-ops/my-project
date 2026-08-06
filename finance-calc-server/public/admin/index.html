@@ -222,7 +222,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         <div class="btn-row">
           <button id="export-customers" class="btn primary" type="button">تنزيل بكب</button>
           <button id="backup-now" class="btn secondary" type="button">حفظ نسخة الآن</button>
-          <button id="sync-interakt" class="btn secondary" type="button">جلب من Interakt (7 أيام)</button>
+          <button id="sync-interakt" class="btn secondary" type="button">جلب من Interakt (30 يوم)</button>
         </div>
         <label class="field" style="margin-top:14px">
           <span>استيراد بكب (الصق محتوى ملف JSON)</span>
@@ -367,7 +367,8 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       throw new Error("unauthorized");
     }
     if (!res.ok || json.ok === false) {
-      throw new Error(json.error || `HTTP ${res.status}`);
+      const base = json.error || `HTTP ${res.status}`;
+      throw new Error(json.hint ? `${base} — ${json.hint}` : base);
     }
     return json;
   }
@@ -469,7 +470,14 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     }
   }
 
-  function renderCustomers(rows) {
+  function setCustomerTab(day) {
+    customerDay = day;
+    document.querySelectorAll("#customer-tabs .tab").forEach((t) => {
+      t.classList.toggle("active", t.dataset.day === customerDay);
+    });
+  }
+
+  function renderCustomers(rows, counts) {
     const body = document.getElementById("customers-body");
     const q = (customerSearch.value || "").trim().toLowerCase();
     const filtered = !q
@@ -487,7 +495,11 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         });
 
     if (!filtered.length) {
-      body.innerHTML = `<tr><td colspan="7" class="empty">لا يوجد عملاء في هذا التبويب</td></tr>`;
+      const all = counts?.all || 0;
+      const tip = all
+        ? " جرّب تبويب «الكل»."
+        : " اضغط «جلب من Interakt» أو انتظر رسائل واتساب، أو استورد بكب.";
+      body.innerHTML = `<tr><td colspan="7" class="empty">لا يوجد عملاء في هذا التبويب.${tip}</td></tr>`;
       return;
     }
 
@@ -525,11 +537,22 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
   }
 
   async function refreshCustomers() {
-    const pack = await api(`/customers?day=${encodeURIComponent(customerDay)}`);
+    let pack = await api(`/customers?day=${encodeURIComponent(customerDay)}`);
+    // إذا تبويب اليوم فاضي وفيه سجل قديم — انقل العرض إلى الكل تلقائياً
+    if (
+      customerDay === "today" &&
+      !(pack.customers || []).length &&
+      (pack.counts?.all || 0) > 0
+    ) {
+      setCustomerTab("all");
+      pack = await api("/customers?day=all");
+    }
     customersCache = pack.customers || [];
+    const counts = pack.counts || {};
     document.getElementById("customers-meta").textContent =
-      `${pack.count || 0} عميل · ${pack.day === "all" ? "كل السجل" : pack.day} · ${pack.timezone || "Asia/Riyadh"}`;
-    renderCustomers(customersCache);
+      `${pack.count || 0} عميل · ${pack.day === "all" ? "كل السجل" : pack.day} · ${pack.timezone || "Asia/Riyadh"}` +
+      ` · الكل ${counts.all ?? "—"}`;
+    renderCustomers(customersCache, counts);
   }
 
   async function refreshConversations() {
@@ -615,10 +638,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
   document.getElementById("customer-tabs").addEventListener("click", async (e) => {
     const tab = e.target.closest(".tab");
     if (!tab) return;
-    customerDay = tab.dataset.day;
-    document.querySelectorAll("#customer-tabs .tab").forEach((t) => {
-      t.classList.toggle("active", t === tab);
-    });
+    setCustomerTab(tab.dataset.day);
     await refreshCustomers();
   });
 
@@ -676,11 +696,15 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       setBackupStatus("جاري الجلب من Interakt...");
       const r = await api("/customers/sync-interakt", {
         method: "POST",
-        body: JSON.stringify({ days: 7 }),
+        body: JSON.stringify({ days: 30 }),
       });
       setBackupStatus(
-        `Interakt: جلب ${r.fetched || 0} · جديد ${r.created || 0} · محدّث ${r.updated || 0}`
+        `Interakt: جلب ${r.fetched || 0} · جديد ${r.created || 0} · محدّث ${r.updated || 0}` +
+          (r.hint ? ` — ${r.hint}` : "") +
+          (r.filterUsed ? ` · فلتر: ${r.filterUsed}` : "")
       );
+      setCustomerTab(r.preferDay || (r.fetched > 0 ? "today" : "all"));
+      switchPanel("customers");
       await refreshAll();
     } catch (err) {
       setBackupStatus(err.message);
