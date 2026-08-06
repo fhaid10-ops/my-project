@@ -63,6 +63,26 @@ function pickInteractiveLabel(messageObj = {}) {
     (typeof buttonPayload === "object" ? buttonPayload : {}) ||
     {};
 
+  // معرفاتنا الداخلية أوضح من العنوان المقطوع (خصوصًا قائمة الشركات co_0)
+  const knownIds = [
+    listReply.id,
+    buttonReply.id,
+    payloadInner.id,
+    messageObj.button_text,
+    messageObj.button,
+  ];
+  for (const c of knownIds) {
+    const s = asTrimmedString(c);
+    if (
+      s &&
+      /^(co_\d+|co_research|amt_\d+|re_|civilian|military|retired|combo_|civ_)/i.test(
+        s
+      )
+    ) {
+      return s;
+    }
+  }
+
   const priority = [
     messageObj.button_text,
     messageObj.button_title,
@@ -74,7 +94,6 @@ function pickInteractiveLabel(messageObj = {}) {
     meta.button_title,
     sourceData.button_text,
     messageObj.button,
-    // بعض الردود تحط id واضح مثل civilian / مدني
     buttonReply.id,
     listReply.id,
     payloadInner.id,

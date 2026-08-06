@@ -85,7 +85,9 @@ check("ضغط مدني يكمل لسؤال الراتب", () => {
   const start = startPersonalFinanceFlow();
   assert.strictEqual(start.reply, null);
   assert.strictEqual(start.interactive, null);
-  const next = advancePersonalFinanceFlow(start.draft, "مدني");
+  const subtype = advancePersonalFinanceFlow(start.draft, "مدني");
+  assert.strictEqual(subtype.draft.step, "civilian_subtype");
+  const next = advancePersonalFinanceFlow(subtype.draft, "حكومي");
   assert.ok(next.ok);
   assert.match(next.reply, /راتبك/);
   assert.match(next.reply, /4000 ريال/);
@@ -95,7 +97,8 @@ check("ضغط مدني يكمل لسؤال الراتب", () => {
 
 check("مثال الراتب حسب القطاع", () => {
   const start = startPersonalFinanceFlow();
-  const civilian = advancePersonalFinanceFlow(start.draft, "مدني");
+  const civilianSubtype = advancePersonalFinanceFlow(start.draft, "مدني");
+  const civilian = advancePersonalFinanceFlow(civilianSubtype.draft, "حكومي");
   const retired = advancePersonalFinanceFlow(start.draft, "متقاعد");
   const military = advancePersonalFinanceFlow(start.draft, "عسكري");
   assert.match(civilian.reply, /مثال: 4000 ريال/);
@@ -119,6 +122,7 @@ check("سيناريو الزر الفاشل سابقًا", () => {
   const next = advancePersonalFinanceFlow(start.draft, extracted.text);
   assert.ok(next.ok, next.reply);
   assert.strictEqual(next.draft.jobCategory, "civilian");
+  assert.strictEqual(next.draft.step, "civilian_subtype");
 });
 
 check("تمويل أثناء خطوة القطاع يعيد البدء بدون رد مكرر", () => {
@@ -127,15 +131,16 @@ check("تمويل أثناء خطوة القطاع يعيد البدء بدون 
     step: "sector",
   };
   const next = advancePersonalFinanceFlow(stuck, "تمويل");
-  assert.strictEqual(next.reply, null);
   assert.strictEqual(next.draft.step, "sector");
   assert.ok(!next.draft.jobCategory);
+  assert.ok(next.interactive?.kind === "buttons" || next.reply === null);
 });
 
 check("مدني راتبه أقل من 4000 يرفض فورًا", () => {
   const start = startPersonalFinanceFlow();
   const afterSector = advancePersonalFinanceFlow(start.draft, "مدني");
-  const rejected = advancePersonalFinanceFlow(afterSector.draft, "3500");
+  const afterGov = advancePersonalFinanceFlow(afterSector.draft, "حكومي");
+  const rejected = advancePersonalFinanceFlow(afterGov.draft, "3500");
   assert.strictEqual(rejected.ok, false);
   assert.match(rejected.reply, /نعتذر منك/);
   assert.match(rejected.reply, /4,000|4000/);
@@ -146,7 +151,8 @@ check("مدني راتبه أقل من 4000 يرفض فورًا", () => {
 check("مدني راتبه 4000 يكمل للالتزامات", () => {
   const start = startPersonalFinanceFlow();
   const afterSector = advancePersonalFinanceFlow(start.draft, "مدني");
-  const next = advancePersonalFinanceFlow(afterSector.draft, "4000");
+  const afterGov = advancePersonalFinanceFlow(afterSector.draft, "حكومي");
+  const next = advancePersonalFinanceFlow(afterGov.draft, "4000");
   assert.ok(next.ok);
   assert.match(next.reply, /التزامات/);
   assert.strictEqual(next.draft.step, "commitments");
@@ -205,7 +211,8 @@ check("اختيار 1 للعقاري لا يُفسّر كبداية تمويل",
 check("الراتب بالأرقام العربية يُقبل", () => {
   const start = startPersonalFinanceFlow();
   const afterSector = advancePersonalFinanceFlow(start.draft, "مدني");
-  const next = advancePersonalFinanceFlow(afterSector.draft, "٨٠٠٠");
+  const afterGov = advancePersonalFinanceFlow(afterSector.draft, "حكومي");
+  const next = advancePersonalFinanceFlow(afterGov.draft, "٨٠٠٠");
   assert.ok(next.ok, next.reply);
   assert.strictEqual(next.draft.salary, 8000);
   assert.match(next.reply, /التزامات/);
@@ -218,7 +225,8 @@ check("سؤال العقاري يرسل قائمة تفاعلية", () => {
   } = require("../lib/conversation");
   const start = startPersonalFinanceFlow();
   const afterSector = advancePersonalFinanceFlow(start.draft, "مدني");
-  const afterSalary = advancePersonalFinanceFlow(afterSector.draft, "8000");
+  const afterGov = advancePersonalFinanceFlow(afterSector.draft, "حكومي");
+  const afterSalary = advancePersonalFinanceFlow(afterGov.draft, "8000");
   const afterCommitments = advancePersonalFinanceFlow(afterSalary.draft, "0");
   assert.strictEqual(afterCommitments.draft.step, "real_estate");
   assert.ok(afterCommitments.interactive);

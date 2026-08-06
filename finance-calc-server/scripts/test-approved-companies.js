@@ -72,4 +72,21 @@ assert.match(research.reply, /من جديد|اكتب اسم/);
 const miss = advancePersonalFinanceFlow(afterPrivate.draft, "شركة وهمية ١٢٣٤٥٦");
 assert.ok(/ما لقينا|نعتذر/.test(miss.reply));
 
+// واتساب يرسل عنوان الصف المقطوع بدل co_0 — لازم يكمل للراتب
+const again = advancePersonalFinanceFlow(afterPrivate.draft, "الجريسي");
+assert.strictEqual(again.draft.step, "company_pick");
+const truncatedTitle = again.draft.companyMatches[0].listTitle;
+assert.ok(truncatedTitle);
+const byTitle = advancePersonalFinanceFlow(again.draft, truncatedTitle);
+assert.strictEqual(byTitle.draft.step, "salary", "اختيار بالعنوان المقطوع");
+assert.ok(byTitle.draft.companyName);
+
+const { pickInteractiveLabel } = require("../lib/webhook-parse");
+assert.strictEqual(
+  pickInteractiveLabel({
+    list_reply: { id: "co_2", title: "الجريسي للانتاج الزرا..." },
+  }),
+  "co_2"
+);
+
 console.log("OK: approved companies + civilian gov/private flow");

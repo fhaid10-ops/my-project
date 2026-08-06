@@ -88,11 +88,23 @@ function looksLikeCompanyResearch(text) {
   return /^(إعادة|اعادة)\s*البحث(\s*عن\s*جهة\s*عملك)?$/i.test(t);
 }
 
+function listTitleForCompany(name) {
+  const full = String(name || "");
+  return full.length <= 24 ? full : `${full.slice(0, 21)}...`;
+}
+
+function stripListEllipsis(text) {
+  return String(text || "")
+    .replace(/\u2026/g, "...")
+    .replace(/\.{2,}$/g, "")
+    .trim();
+}
+
 function companyListInteractive(matches, bodyText) {
   // نترك صف واحد لخيار إعادة البحث (حد واتساب 10)
   const rows = matches.slice(0, 9).map((c, i) => {
     const full = c.name;
-    const title = full.length <= 24 ? full : `${full.slice(0, 21)}...`;
+    const title = listTitleForCompany(full);
     const rest = full.length > 24 ? full.slice(21) : c.nameEn || "شركة معتمدة";
     return {
       id: `co_${i}`,
@@ -116,19 +128,55 @@ function companyListInteractive(matches, bodyText) {
 
 function parseCompanyPick(text, matches = []) {
   const t = String(text || "").trim();
-  if (looksLikeCompanyResearch(t)) return null;
+  if (!t || looksLikeCompanyResearch(t)) return null;
+
   const m = t.match(/^co_(\d+)$/i);
   if (m) {
     const idx = Number(m[1]);
     if (Number.isInteger(idx) && matches[idx]) return matches[idx];
   }
-  // اختيار بالاسم الكامل إن طابق أحد النتائج
-  const hit = matches.find(
+
+  const cleaned = stripListEllipsis(t);
+  const cleanedNorm = normalizeCompanyText(cleaned);
+  if (!cleanedNorm) return null;
+
+  // مطابقة العنوان كما يظهر في واتساب (مقطوع بـ ...)
+  const byListTitle = matches.find(
+    (c) =>
+      c.listTitle === t ||
+      listTitleForCompany(c.name) === t ||
+      normalizeCompanyText(stripListEllipsis(c.listTitle || "")) === cleanedNorm
+  );
+  if (byListTitle) return byListTitle;
+
+  // اسم كامل
+  const exact = matches.find(
     (c) =>
       c.name === t ||
-      normalizeCompanyText(c.name) === normalizeCompanyText(t)
+      c.name === cleaned ||
+      normalizeCompanyText(c.name) === cleanedNorm
   );
-  return hit || null;
+  if (exact) return exact;
+
+  // واتساب غالبًا يرسل العنوان المقطوع بدون id → طابق كبادئة
+  if (cleanedNorm.length >= 6) {
+    const prefixHits = matches.filter((c) => {
+      const n = normalizeCompanyText(c.name);
+      return n.startsWith(cleanedNorm) || cleanedNorm.startsWith(n);
+    });
+    if (prefixHits.length === 1) return prefixHits[0];
+    // إن أكثر من واحدة، خذ الأقرب طولًا للعنوان
+    if (prefixHits.length > 1) {
+      prefixHits.sort(
+        (a, b) =>
+          Math.abs(normalizeCompanyText(a.name).length - cleanedNorm.length) -
+          Math.abs(normalizeCompanyText(b.name).length - cleanedNorm.length)
+      );
+      return prefixHits[0];
+    }
+  }
+
+  return null;
 }
 
 function parseCivilianSubtype(text) {
@@ -169,6 +217,8 @@ module.exports = {
   getApprovedCompanyCount,
   companyListInteractive,
   parseCompanyPick,
+  listTitleForCompany,
+  stripListEllipsis,
   looksLikeCompanyResearch,
   COMPANY_RESEARCH_ID,
   COMPANY_RESEARCH_TITLE,

@@ -17,6 +17,7 @@ const {
   searchApprovedCompanies,
   companyListInteractive,
   parseCompanyPick,
+  listTitleForCompany,
   looksLikeCompanyResearch,
   parseCivilianSubtype,
   civilianSubtypeButtons,
@@ -280,6 +281,7 @@ function advanceCivilianSubtypeFlow(state, raw, salaryMessage) {
       name: c.name,
       nameEn: c.nameEn,
       index: c.index,
+      listTitle: listTitleForCompany(c.name),
     }));
     state.step = "company_pick";
     const body =
@@ -304,41 +306,49 @@ function advanceCivilianSubtypeFlow(state, raw, salaryMessage) {
         draft: state,
       };
     }
-    if (!/^co_\d+$/i.test(raw) && raw.length >= 2) {
-      const maybePick = parseCompanyPick(raw, state.companyMatches || []);
-      if (!maybePick) {
-        state.step = "company_name";
-        return advanceCivilianSubtypeFlow(state, raw, salaryMessage);
-      }
-    }
-    const picked = parseCompanyPick(raw, state.companyMatches || []);
-    if (!picked) {
-      const matches = state.companyMatches || [];
-      if (!matches.length) {
-        state.step = "company_name";
-        return {
-          ok: false,
-          reply: `اكتب اسم شركتك مرة ثانية للبحث.`,
-          draft: state,
-        };
-      }
+
+    const matches = state.companyMatches || [];
+    const picked = parseCompanyPick(raw, matches);
+    if (picked) {
+      state.companyName = picked.name;
+      state.companyApproved = true;
+      state.jobCategory = "private";
+      state.companyMatches = undefined;
+      state.step = "salary";
       return {
-        ok: false,
-        reply: `اختر شركتك من القائمة، أو «إعادة البحث عن جهة عملك».`,
-        interactive: companyListInteractive(matches),
+        ok: true,
+        reply: `تم اختيار: ${picked.name}
+
+${salaryMessage || salaryPrompt("private")}`,
         draft: state,
       };
     }
-    state.companyName = picked.name;
-    state.companyApproved = true;
-    state.jobCategory = "private";
-    state.companyMatches = undefined;
-    state.step = "salary";
-    return {
-      ok: true,
-      reply: `تم اختيار: ${picked.name}
 
-${salaryMessage || salaryPrompt("private")}`,
+    // بحث جديد فقط إذا النص مو عنوان صف من القائمة (واتساب يرسل العنوان المقطوع)
+    const looksLikeStoredListTitle = matches.some(
+      (c) =>
+        c.listTitle === raw ||
+        listTitleForCompany(c.name) === raw ||
+        (c.name &&
+          c.name.startsWith(String(raw).replace(/\.{2,}$/g, "").trim()))
+    );
+    if (raw.length >= 2 && !/^co_/i.test(raw) && !looksLikeStoredListTitle) {
+      state.step = "company_name";
+      return advanceCivilianSubtypeFlow(state, raw, salaryMessage);
+    }
+
+    if (!matches.length) {
+      state.step = "company_name";
+      return {
+        ok: false,
+        reply: `اكتب اسم شركتك مرة ثانية للبحث.`,
+        draft: state,
+      };
+    }
+    return {
+      ok: false,
+      reply: `اختر شركتك من القائمة، أو «إعادة البحث عن جهة عملك».`,
+      interactive: companyListInteractive(matches),
       draft: state,
     };
   }
