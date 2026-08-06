@@ -53,6 +53,12 @@ const { extractIncomingMessage } = require("./lib/webhook-parse");
 const { normalizeDigits } = require("./lib/digits");
 const { mountAdmin } = require("./lib/admin-routes");
 const { createCustomerLedger } = require("./lib/customer-ledger");
+const {
+  looksLikeApplicationOrderNumber,
+  parseApplicationOrderNumber,
+  buildOrderNumberAckReply,
+} = require("./lib/order-number");
+const CONFIG = require("./config");
 
 function normalizeEnvValue(value) {
   return String(value || "")
@@ -642,6 +648,22 @@ app.post("/webhook/interakt", async (req, res) => {
         clearDraft(countryCode, phone);
         saveSession(countryCode, phone, result.data);
       }
+    } else if (looksLikeApplicationOrderNumber(text)) {
+      // رقم طلب التقديم (يبدأ بـ 1017) — قبل اختيار المبلغ حتى ما ينحسب كمبلغ تمويل
+      const orderNumber = parseApplicationOrderNumber(text);
+      const prev = getSession(countryCode, phone) || {};
+      saveSession(countryCode, phone, {
+        ...prev,
+        orderNumber,
+        orderNumberAt: new Date().toISOString(),
+        awaitingAmountChoice: false,
+      });
+      result = {
+        ok: true,
+        reply: buildOrderNumberAckReply(CONFIG.messages),
+        offer: "order_number_received",
+        data: { orderNumber },
+      };
     } else if (looksLikeAmountChoice(text)) {
       const sessionData = getSession(countryCode, phone);
       if (sessionData?.awaitingCombo || sessionData?.awaitingComboInterest) return;
