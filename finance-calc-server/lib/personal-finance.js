@@ -22,8 +22,8 @@ const {
 const CONFIG = require("../config");
 const { normalizeDigits } = require("./digits");
 
-/** خطوة قائمة المبالغ الأقل للعميل (100 ألف → 90 → 80 … → 10) */
-const AMOUNT_MENU_STEP = 10000;
+/** خطوة قائمة المبالغ الأقل — من config (افتراضي 5,000: 60→55→50→45…→10) */
+const AMOUNT_MENU_STEP = Number(CONFIG.financing?.lowerStep) || 5000;
 
 function mapSector(text) {
   const t = String(text || "")
