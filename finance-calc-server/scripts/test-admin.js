@@ -1,7 +1,10 @@
 const assert = require("assert");
 const express = require("express");
+const os = require("os");
+const path = require("path");
 const { createAdminRouter, normalizePhoneParts } = require("../lib/admin-routes");
 const { showMainMenu } = require("../lib/main-menu");
+const { createCustomerLedger } = require("../lib/customer-ledger");
 
 const parts = normalizePhoneParts({ phone: "0501812339" });
 assert.strictEqual(parts.phone, "501812339");
@@ -13,6 +16,11 @@ const pausedChats = new Set();
 function sessionKey(cc, phone) {
   return `${cc}:${phone}`;
 }
+
+const customerLedger = createCustomerLedger({
+  dataFile: path.join(os.tmpdir(), `admin-ledger-${Date.now()}.json`),
+});
+customerLedger.recordInbound("+966", "551234567", "مرحبا");
 
 const sent = [];
 const app = express();
@@ -42,6 +50,7 @@ app.use(
     },
     showMainMenu,
     interaktConfigured: true,
+    customerLedger,
   })
 );
 
@@ -71,6 +80,14 @@ async function req(method, path, body, token = "test-token") {
   const status = await req("GET", "/status");
   assert.strictEqual(status.status, 200);
   assert.strictEqual(status.json.ok, true);
+  assert.ok((status.json.counts.customersToday || 0) >= 1);
+
+  const customers = await req("GET", "/customers?day=today");
+  assert.strictEqual(customers.status, 200);
+  assert.ok(customers.json.count >= 1);
+  assert.ok(
+    customers.json.customers.some((c) => c.phone === "551234567")
+  );
 
   const pause = await req("POST", "/pause", { phone: "0551234567" });
   assert.strictEqual(pause.json.paused, true);

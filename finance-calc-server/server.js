@@ -52,6 +52,7 @@ const {
 const { extractIncomingMessage } = require("./lib/webhook-parse");
 const { normalizeDigits } = require("./lib/digits");
 const { mountAdmin } = require("./lib/admin-routes");
+const { createCustomerLedger } = require("./lib/customer-ledger");
 
 function normalizeEnvValue(value) {
   return String(value || "")
@@ -76,6 +77,7 @@ const drafts = new Map();
 /** محادثات أوقف العميل فيها الرد الآلي (خيار 6) */
 const pausedChats = new Set();
 const SESSION_TTL_MS = 1000 * 60 * 60 * 6; // 6 ساعات
+const customerLedger = createCustomerLedger();
 
 function sessionKey(countryCode, phone) {
   return `${countryCode}:${phone}`;
@@ -382,6 +384,13 @@ app.post("/webhook/interakt", async (req, res) => {
     const currentSession = getSession(countryCode, phone);
     const draft = getDraft(countryCode, phone);
 
+    // سجل العميل في لوحة التحكم (اليوم / أمس)
+    customerLedger.recordInbound(countryCode, phone, text, {
+      flow: draft?.flow || currentSession?.offer || null,
+      step: draft?.step || null,
+      maxAmount: currentSession?.maxAmount || currentSession?.rounded || null,
+    });
+
     // داخل مسار/اختيار قائمة: الرقم 1 له معنى ثاني (لا نعيد القائمة)
     const inActiveChoice =
       (draft?.flow === "main_menu" &&
@@ -669,6 +678,30 @@ app.post("/webhook/interakt", async (req, res) => {
 
     try {
       const mode = await sendResultReply(countryCode, phone, result);
+      const latestDraft = getDraft(countryCode, phone);
+      const latestSession = getSession(countryCode, phone);
+      const preview =
+        result.reply ||
+        result.followUpReply ||
+        result.interactive?.body ||
+        mode ||
+        "";
+      customerLedger.recordOutbound(countryCode, phone, preview, {
+        mode,
+        flow:
+          result.flow ||
+          latestDraft?.flow ||
+          result.offer ||
+          latestSession?.offer ||
+          null,
+        step: latestDraft?.step || null,
+        maxAmount:
+          result.data?.maxAmount ||
+          result.data?.rounded ||
+          latestSession?.maxAmount ||
+          latestSession?.rounded ||
+          null,
+      });
       console.log(
         "[reply:ok]",
         phone,
@@ -682,6 +715,9 @@ app.post("/webhook/interakt", async (req, res) => {
       if (result?.interactive && result?.reply) {
         try {
           await sendInteraktText(countryCode, phone, result.reply);
+          customerLedger.recordOutbound(countryCode, phone, result.reply, {
+            mode: "fallback-text",
+          });
           console.log("[reply:fallback-text:ok]", phone);
         } catch (err2) {
           console.error("[reply:fallback-text:fail]", err2.message);
@@ -712,6 +748,7 @@ mountAdmin(app, {
   sendResultReply,
   showMainMenu,
   interaktConfigured: Boolean(INTERAKT_API_KEY),
+  customerLedger,
 });
 
 app.listen(PORT, () => {

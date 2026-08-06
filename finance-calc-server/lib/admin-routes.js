@@ -34,6 +34,7 @@ function createAdminRouter(deps) {
     sendResultReply,
     showMainMenu,
     interaktConfigured,
+    customerLedger,
   } = deps;
 
   const router = express.Router();
@@ -127,6 +128,7 @@ function createAdminRouter(deps) {
   }
 
   router.get("/status", requireAdmin, (_req, res) => {
+    const ledgerSummary = customerLedger?.summary?.() || null;
     res.json({
       ok: true,
       service: "finance-calc-server",
@@ -136,7 +138,11 @@ function createAdminRouter(deps) {
         drafts: drafts.size,
         paused: pausedChats.size,
         conversations: listConversations().length,
+        customersToday: ledgerSummary?.counts?.today || 0,
+        customersYesterday: ledgerSummary?.counts?.yesterday || 0,
+        customersAll: ledgerSummary?.counts?.all || 0,
       },
+      customers: ledgerSummary,
       brand: CONFIG.brand?.name || "رائد الحربي",
       followUpPreview: CONFIG.followUp?.electronicMessage || "",
       outboundDelayMs: CONFIG.outbound?.delayMs || 3500,
@@ -145,6 +151,56 @@ function createAdminRouter(deps) {
 
   router.get("/conversations", requireAdmin, (_req, res) => {
     res.json({ ok: true, conversations: listConversations() });
+  });
+
+  /**
+   * عملاء اليوم / أمس / الكل
+   * ?day=today|yesterday|all|YYYY-MM-DD
+   */
+  router.get("/customers", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({
+        ok: false,
+        error: "سجل العملاء غير مفعّل على هذا السيرفر",
+      });
+    }
+    const day = String(req.query.day || "today").trim() || "today";
+    const pack = customerLedger.listByDay(day);
+    const enriched = pack.customers.map((row) => {
+      const key = sessionKey(row.countryCode, row.phone);
+      const sessionRow = sessions.get(key);
+      const draftRow = drafts.get(key);
+      return {
+        ...row,
+        paused: pausedChats.has(key),
+        live: {
+          session: sessionRow
+            ? {
+                savedAt: sessionRow.savedAt,
+                maxAmount:
+                  sessionRow.data?.maxAmount || sessionRow.data?.rounded || null,
+                offer: sessionRow.data?.offer || null,
+              }
+            : null,
+          draft: draftRow
+            ? {
+                savedAt: draftRow.savedAt,
+                flow: draftRow.data?.flow || null,
+                step: draftRow.data?.step || null,
+              }
+            : null,
+        },
+      };
+    });
+    res.json({
+      ok: true,
+      timezone: pack.timezone,
+      today: pack.today,
+      yesterday: pack.yesterday,
+      day: pack.day,
+      count: enriched.length,
+      customers: enriched,
+    });
   });
 
   router.get("/activity", requireAdmin, (_req, res) => {
@@ -184,6 +240,9 @@ function createAdminRouter(deps) {
       if (!phone) return res.status(400).json({ ok: false, error: "رقم الجوال مطلوب" });
       if (!message) return res.status(400).json({ ok: false, error: "نص الرسالة مطلوب" });
       await sendInteraktText(countryCode, phone, message);
+      customerLedger?.recordOutbound?.(countryCode, phone, message, {
+        mode: "admin-text",
+      });
       pushLog({
         action: "send-text",
         phone,
@@ -211,6 +270,9 @@ function createAdminRouter(deps) {
 هل قدمت تمويل؟
 أرسل رقم الطلب (يبدأ بـ 101).`;
       await sendInteraktText(countryCode, phone, message);
+      customerLedger?.recordOutbound?.(countryCode, phone, message, {
+        mode: "admin-followup",
+      });
       pushLog({
         action: "send-followup",
         phone,
@@ -237,6 +299,12 @@ function createAdminRouter(deps) {
       clearSession(countryCode, phone);
       if (result.draft) saveDraft(countryCode, phone, result.draft);
       await sendResultReply(countryCode, phone, result);
+      customerLedger?.recordOutbound?.(
+        countryCode,
+        phone,
+        result.reply || "القائمة الرئيسية",
+        { mode: "admin-menu", flow: "main_menu", step: "awaiting_choice" }
+      );
       pushLog({ action: "send-menu", phone, countryCode });
       res.json({ ok: true, sent: true, phone, countryCode });
     } catch (err) {
@@ -275,6 +343,12 @@ function createAdminRouter(deps) {
       try {
         if (!parts.phone) throw new Error("رقم غير صالح");
         await sendInteraktText(parts.countryCode, parts.phone, message);
+        customerLedger?.recordOutbound?.(
+          parts.countryCode,
+          parts.phone,
+          message,
+          { mode: "admin-bulk-followup" }
+        );
         results.push({ phone: parts.phone, ok: true });
         pushLog({
           action: "bulk-followup",

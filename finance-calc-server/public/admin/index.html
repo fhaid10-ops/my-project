@@ -6,390 +6,150 @@
 <title>لوحة تحكم رائد الحربي</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
 <style>
 :root {
-  --bg: #eef2ef;
-  --bg-deep: #dfe7e2;
-  --ink: #14201b;
-  --muted: #5d6d65;
-  --card: rgba(255, 255, 255, 0.82);
-  --line: rgba(20, 32, 27, 0.1);
-  --accent: #0f6b4c;
-  --accent-2: #c9a227;
-  --danger: #a33b2b;
-  --ok: #1f7a4d;
-  --shadow: 0 18px 50px rgba(20, 32, 27, 0.08);
-  --radius: 18px;
+  --bg: #edf3ef;
+  --bg2: #dce8e0;
+  --ink: #122019;
+  --muted: #5a6b62;
+  --card: rgba(255,255,255,.88);
+  --line: rgba(18,32,25,.1);
+  --accent: #0d6b4c;
+  --accent-soft: rgba(13,107,76,.12);
+  --gold: #b8891f;
+  --danger: #9d3a2d;
+  --shadow: 0 16px 40px rgba(18,32,25,.08);
+  --radius: 16px;
   --font: "IBM Plex Sans Arabic", Tahoma, sans-serif;
-  --display: "Libre Baskerville", "IBM Plex Sans Arabic", serif;
+  --display: "Fraunces", "IBM Plex Sans Arabic", serif;
 }
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  min-height: 100%;
-  font-family: var(--font);
-  color: var(--ink);
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; min-height: 100%;
+  font-family: var(--font); color: var(--ink);
   background:
-    radial-gradient(circle at 12% 10%, rgba(201, 162, 39, 0.18), transparent 28%),
-    radial-gradient(circle at 88% 0%, rgba(15, 107, 76, 0.16), transparent 32%),
-    linear-gradient(160deg, var(--bg), var(--bg-deep));
+    radial-gradient(circle at 8% 0%, rgba(184,137,31,.16), transparent 30%),
+    radial-gradient(circle at 95% 8%, rgba(13,107,76,.14), transparent 34%),
+    linear-gradient(165deg, var(--bg), var(--bg2));
 }
-
-button,
-input,
-textarea {
-  font: inherit;
+button, input, textarea, select { font: inherit; }
+.login-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.card, .login-card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); backdrop-filter: blur(10px);
 }
-
-.login-shell {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
+.login-card { width: min(420px, 100%); padding: 34px 28px; }
+.brand-mark { margin: 0; color: var(--accent); font-weight: 700; letter-spacing: .03em; }
+.login-card h1, .topbar h2 {
+  margin: 8px 0 6px; font-family: var(--display);
+  font-size: clamp(1.55rem, 2vw, 2.1rem);
 }
-
-.login-card,
-.card {
-  background: var(--card);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+.muted, .login-sub, .topbar p { color: var(--muted); margin: 0 0 16px; }
+.field { display: grid; gap: 8px; margin-bottom: 14px; }
+.field span { font-size: .9rem; color: var(--muted); }
+.field.inline { grid-template-columns: 1fr 150px; align-items: end; }
+input, textarea, select {
+  width: 100%; border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; background: #fff; color: var(--ink);
 }
-
-.login-card {
-  width: min(420px, 100%);
-  padding: 36px 28px;
-}
-
-.brand-mark {
-  margin: 0;
-  color: var(--accent);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.login-card h1,
-.topbar h2 {
-  margin: 8px 0 6px;
-  font-family: var(--display);
-  font-size: clamp(1.6rem, 2vw, 2.2rem);
-}
-
-.login-sub,
-.muted,
-.topbar p {
-  color: var(--muted);
-  margin: 0 0 18px;
-}
-
-.field {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.field span {
-  font-size: 0.92rem;
-  color: var(--muted);
-}
-
-.field.inline {
-  grid-template-columns: 1fr 160px;
-  align-items: end;
-}
-
-input,
-textarea {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 12px 14px;
-  background: #fff;
-  color: var(--ink);
-}
-
-textarea {
-  resize: vertical;
-  min-height: 120px;
-}
-
+textarea { min-height: 110px; resize: vertical; }
 .btn {
-  border: 0;
-  border-radius: 12px;
-  padding: 11px 16px;
-  cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  border: 0; border-radius: 12px; padding: 11px 16px; cursor: pointer;
+  font-weight: 600; transition: .15s ease;
 }
-
-.btn:hover {
-  transform: translateY(-1px);
-}
-
-.btn.primary {
-  background: var(--accent);
-  color: #fff;
-  font-weight: 600;
-}
-
-.btn.secondary {
-  background: #e7efe9;
-  color: var(--ink);
-}
-
-.btn.ghost {
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--ink);
-}
-
-.btn.danger {
-  background: rgba(163, 59, 43, 0.12);
-  color: var(--danger);
-}
-
-.btn.tiny {
-  padding: 7px 10px;
-  font-size: 0.85rem;
-}
-
-.error {
-  color: var(--danger);
-  margin-top: 12px;
-}
-
-.status {
-  margin-top: 14px;
-}
-
-.status.ok {
-  color: var(--ok);
-}
-
-.status.bad {
-  color: var(--danger);
-}
-
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.secondary { background: #e8efe9; color: var(--ink); }
+.btn.ghost { background: transparent; border: 1px solid var(--line); }
+.btn.danger { background: rgba(157,58,45,.12); color: var(--danger); }
+.btn.small { padding: 7px 10px; font-size: .85rem; border-radius: 10px; }
+.btn:hover { filter: brightness(.98); transform: translateY(-1px); }
+.error { color: var(--danger); margin-top: 12px; }
+.status { margin-top: 12px; color: var(--accent); }
 .app {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 240px 1fr;
+  min-height: 100vh; display: grid;
+  grid-template-columns: 250px 1fr;
 }
-
 .sidebar {
-  padding: 24px 18px;
-  border-left: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.45);
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  border-left: 1px solid var(--line); background: rgba(255,255,255,.55);
+  padding: 22px 16px; display: flex; flex-direction: column; gap: 18px;
 }
-
-.sidebar-brand {
-  display: grid;
-  gap: 4px;
-}
-
-.sidebar-brand strong {
-  font-size: 1.15rem;
-}
-
-.nav {
-  display: grid;
-  gap: 8px;
-}
-
+.sidebar-brand { display: grid; gap: 4px; }
+.sidebar-brand strong { font-size: 1.05rem; }
+.nav { display: grid; gap: 8px; }
 .nav-btn {
-  text-align: right;
-  border: 0;
-  background: transparent;
-  padding: 12px 14px;
-  border-radius: 12px;
-  color: var(--muted);
-  cursor: pointer;
+  text-align: right; border: 0; background: transparent; padding: 12px 14px;
+  border-radius: 12px; cursor: pointer; color: var(--ink); font-weight: 600;
 }
-
-.nav-btn.active,
-.nav-btn:hover {
-  background: rgba(15, 107, 76, 0.1);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.sidebar-foot {
-  margin-top: auto;
-}
-
-.main {
-  padding: 28px;
-}
-
+.nav-btn.active, .nav-btn:hover { background: var(--accent-soft); color: var(--accent); }
+.sidebar-foot { margin-top: auto; }
+.main { padding: 24px; }
 .topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: start;
-  gap: 16px;
-  margin-bottom: 22px;
+  display: flex; justify-content: space-between; gap: 16px; align-items: flex-start;
+  margin-bottom: 18px;
 }
-
 .stat-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 16px;
+  display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 16px;
 }
-
-.stat,
-.card {
-  padding: 18px;
+.stat {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px; box-shadow: var(--shadow);
 }
-
-.stat span {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.stat strong {
-  display: block;
-  margin-top: 10px;
-  font-size: 2rem;
-  font-family: var(--display);
-}
-
-.card-row {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: 14px;
-}
-
-.card h3 {
-  margin: 0 0 12px;
-  font-size: 1.05rem;
-}
-
-.activity {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-  max-height: 280px;
-  overflow: auto;
-}
-
+.stat span { display: block; color: var(--muted); margin-bottom: 8px; font-size: .9rem; }
+.stat strong { font-size: 1.7rem; font-family: var(--display); }
+.card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.card { padding: 18px; }
+.card h3 { margin: 0 0 12px; font-size: 1.05rem; }
+.activity { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .activity li {
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(15, 107, 76, 0.06);
-  font-size: 0.92rem;
+  padding: 10px 12px; border-radius: 12px; background: #f5f8f6; border: 1px solid var(--line);
+  font-size: .92rem;
 }
-
-.table-wrap {
-  overflow: auto;
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.tab {
+  border: 1px solid var(--line); background: #fff; border-radius: 999px;
+  padding: 8px 14px; cursor: pointer; font-weight: 600; color: var(--muted);
 }
-
-table {
-  width: 100%;
-  border-collapse: collapse;
+.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.toolbar {
+  display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;
+  align-items: center; margin-bottom: 12px;
 }
-
-th,
-td {
-  text-align: right;
-  padding: 12px 10px;
-  border-bottom: 1px solid var(--line);
-  white-space: nowrap;
+.search {
+  min-width: min(280px, 100%);
 }
-
-th {
-  color: var(--muted);
-  font-weight: 600;
-  font-size: 0.88rem;
+.table-wrap { overflow: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td {
+  text-align: right; padding: 12px 10px; border-bottom: 1px solid var(--line);
+  vertical-align: top;
 }
-
-.empty {
-  text-align: center;
-  color: var(--muted);
-  padding: 28px !important;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
+th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
+td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-size: .9rem; }
+.empty { text-align: center; color: var(--muted); padding: 28px !important; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  background: #e7efe9;
+  display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .78rem;
+  background: #e7efe9; white-space: nowrap;
 }
-
-.badge.paused {
-  background: rgba(163, 59, 43, 0.12);
-  color: var(--danger);
-}
-
-.badge.active {
-  background: rgba(15, 107, 76, 0.12);
-  color: var(--accent);
-}
-
-.btn-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.form-card {
-  max-width: 720px;
-}
-
+.badge.paused { background: rgba(157,58,45,.12); color: var(--danger); }
+.badge.active { background: var(--accent-soft); color: var(--accent); }
+.badge.day { background: rgba(184,137,31,.14); color: #8a6714; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.form-card { max-width: 720px; }
+.phone-link { font-weight: 700; direction: ltr; unicode-bidi: plaintext; display: inline-block; }
+.meta-line { font-size: .82rem; color: var(--muted); margin-top: 4px; }
 @media (max-width: 980px) {
-  .app {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    border-left: 0;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .stat-grid,
-  .card-row {
-    grid-template-columns: 1fr 1fr;
-  }
+  .app { grid-template-columns: 1fr; }
+  .sidebar { border-left: 0; border-bottom: 1px solid var(--line); }
+  .nav { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .stat-grid, .card-row { grid-template-columns: 1fr 1fr; }
 }
-
 @media (max-width: 640px) {
-  .main {
-    padding: 18px;
-  }
-
-  .stat-grid,
-  .card-row,
-  .field.inline,
-  .nav {
-    grid-template-columns: 1fr;
-  }
-
-  .topbar {
-    flex-direction: column;
-  }
+  .main { padding: 16px; }
+  .stat-grid, .card-row, .field.inline, .nav { grid-template-columns: 1fr; }
+  .topbar { flex-direction: column; }
 }
-
 </style>
 </head>
 <body>
@@ -397,7 +157,7 @@ th {
   <div class="login-card">
     <p class="brand-mark">رائد الحربي</p>
     <h1>لوحة التحكم</h1>
-    <p class="login-sub">أدخل رمز الإدارة للدخول إلى لوحة الكوبري</p>
+    <p class="login-sub">عملاء اليوم وأمس + إدارة المحادثات والإرسال</p>
     <label class="field">
       <span>رمز الإدارة (ADMIN_TOKEN)</span>
       <input id="token-input" type="password" autocomplete="current-password" placeholder="••••••••" />
@@ -406,6 +166,7 @@ th {
     <p id="login-error" class="error" hidden></p>
   </div>
 </div>
+
 <div id="app-view" class="app" hidden>
   <aside class="sidebar">
     <div class="sidebar-brand">
@@ -414,7 +175,8 @@ th {
     </div>
     <nav class="nav">
       <button class="nav-btn active" data-panel="overview" type="button">نظرة عامة</button>
-      <button class="nav-btn" data-panel="conversations" type="button">المحادثات</button>
+      <button class="nav-btn" data-panel="customers" type="button">عملاء اليوم وأمس</button>
+      <button class="nav-btn" data-panel="conversations" type="button">الجلسات الحية</button>
       <button class="nav-btn" data-panel="compose" type="button">إرسال رسالة</button>
       <button class="nav-btn" data-panel="followup" type="button">متابعة التقديم</button>
     </nav>
@@ -422,32 +184,94 @@ th {
       <button id="logout-btn" class="btn ghost" type="button">خروج</button>
     </div>
   </aside>
+
   <main class="main">
     <header class="topbar">
       <div>
         <h2 id="panel-title">نظرة عامة</h2>
-        <p id="panel-sub">حالة السيرفر والجلسات النشطة</p>
+        <p id="panel-sub">ملخص السيرفر وعدد العملاء</p>
       </div>
       <button id="refresh-btn" class="btn secondary" type="button">تحديث</button>
     </header>
+
     <section id="panel-overview" class="panel">
       <div class="stat-grid">
-        <article class="stat"><span>المحادثات</span><strong id="stat-conversations">0</strong></article>
-        <article class="stat"><span>الجلسات</span><strong id="stat-sessions">0</strong></article>
-        <article class="stat"><span>المسودات</span><strong id="stat-drafts">0</strong></article>
+        <article class="stat"><span>عملاء اليوم</span><strong id="stat-today">0</strong></article>
+        <article class="stat"><span>عملاء أمس</span><strong id="stat-yesterday">0</strong></article>
+        <article class="stat"><span>جلسات حية</span><strong id="stat-sessions">0</strong></article>
         <article class="stat"><span>موقوفة</span><strong id="stat-paused">0</strong></article>
       </div>
       <div class="card-row">
-        <article class="card"><h3>حالة الربط</h3><p id="interakt-status">—</p><p class="muted" id="brand-line">—</p></article>
-        <article class="card"><h3>آخر النشاط</h3><ul id="activity-list" class="activity"></ul></article>
+        <article class="card">
+          <h3>حالة الربط</h3>
+          <p id="interakt-status">—</p>
+          <p class="muted" id="brand-line">—</p>
+          <p class="muted" id="dates-line">—</p>
+        </article>
+        <article class="card">
+          <h3>آخر نشاط الإدارة</h3>
+          <ul id="activity-list" class="activity"></ul>
+        </article>
       </div>
     </section>
-    <section id="panel-conversations" class="panel" hidden>
-      <div class="card"><div class="table-wrap"><table>
-        <thead><tr><th>الجوال</th><th>المسار</th><th>الخطوة</th><th>المبلغ</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-        <tbody id="conversations-body"><tr><td colspan="6" class="empty">لا توجد محادثات نشطة</td></tr></tbody>
-      </table></div></div>
+
+    <section id="panel-customers" class="panel" hidden>
+      <div class="toolbar">
+        <div class="tabs" id="customer-tabs">
+          <button class="tab active" data-day="today" type="button">اليوم</button>
+          <button class="tab" data-day="yesterday" type="button">أمس</button>
+          <button class="tab" data-day="all" type="button">الكل</button>
+        </div>
+        <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو نص الرسالة" />
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <p class="muted" id="customers-meta" style="margin:0">—</p>
+          <button id="copy-today-phones" class="btn secondary small" type="button">نسخ أرقام اليوم</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الجوال</th>
+                <th>آخر ظهور</th>
+                <th>آخر رسالة</th>
+                <th>المسار</th>
+                <th>المبلغ</th>
+                <th>رسائل</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="customers-body">
+              <tr><td colspan="7" class="empty">لا يوجد عملاء بعد</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
+
+    <section id="panel-conversations" class="panel" hidden>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الجوال</th>
+                <th>المسار</th>
+                <th>الخطوة</th>
+                <th>المبلغ</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="conversations-body">
+              <tr><td colspan="6" class="empty">لا توجد جلسات حية</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <section id="panel-compose" class="panel" hidden>
       <div class="card form-card">
         <h3>إرسال رسالة للعميل</h3>
@@ -460,10 +284,11 @@ th {
         <p id="compose-status" class="status" hidden></p>
       </div>
     </section>
+
     <section id="panel-followup" class="panel" hidden>
       <div class="card form-card">
         <h3>متابعة التقديم الإلكتروني</h3>
-        <p class="muted">يمكنك تعديل الرسالة قبل الإرسال</p>
+        <p class="muted">يمكنك لصق أرقام عملاء اليوم من تبويب العملاء</p>
         <label class="field"><span>أرقام الجوال (كل رقم في سطر)</span><textarea id="followup-phones" rows="5"></textarea></label>
         <label class="field"><span>نص المتابعة</span><textarea id="followup-message" rows="6"></textarea></label>
         <label class="field inline"><span>تأخير بين الرسائل (مللي ثانية)</span><input id="followup-delay" type="number" min="0" step="500" value="3500" /></label>
@@ -473,9 +298,13 @@ th {
     </section>
   </main>
 </div>
+
 <script>
 (() => {
   const TOKEN_KEY = "raed_admin_token";
+  let customerDay = "today";
+  let customersCache = [];
+  let statusCache = null;
 
   const loginView = document.getElementById("login-view");
   const appView = document.getElementById("app-view");
@@ -486,256 +315,329 @@ th {
   const refreshBtn = document.getElementById("refresh-btn");
   const panelTitle = document.getElementById("panel-title");
   const panelSub = document.getElementById("panel-sub");
+  const customerSearch = document.getElementById("customer-search");
 
   const titles = {
-    overview: ["نظرة عامة", "حالة السيرفر والجلسات النشطة"],
-    conversations: ["المحادثات", "الجلسات والمسودات الحالية على الكوبري"],
+    overview: ["نظرة عامة", "ملخص السيرفر وعدد العملاء"],
+    customers: ["عملاء اليوم وأمس", "كل من راسل البوت حسب تاريخ الرياض"],
+    conversations: ["الجلسات الحية", "المسودات والجلسات الحالية في الذاكرة"],
     compose: ["إرسال رسالة", "أرسل نصًا أو القائمة الرئيسية لعميل"],
     followup: ["متابعة التقديم", "أرسل رسالة المتابعة لرقم أو أكثر"],
   };
 
   function getToken() {
-    try {
-      return localStorage.getItem(TOKEN_KEY) || "";
-    } catch {
-      return window.__adminToken || "";
-    }
+    try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; }
   }
-
   function setToken(token) {
-    try {
-      localStorage.setItem(TOKEN_KEY, token);
-    } catch {
-      window.__adminToken = token;
-    }
+    try { localStorage.setItem(TOKEN_KEY, token); } catch {}
   }
-
   function clearToken() {
-    try {
-      localStorage.removeItem(TOKEN_KEY);
-    } catch {
-      window.__adminToken = "";
-    }
+    try { localStorage.removeItem(TOKEN_KEY); } catch {}
   }
 
   async function api(path, options = {}) {
-    const headers = {
-      "Content-Type": "application/json",
-      "x-admin-token": getToken(),
-      ...(options.headers || {}),
-    };
+    const token = getToken();
     const res = await fetch(`/admin/api${path}`, {
       ...options,
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-token": token,
+        ...(options.headers || {}),
+      },
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = new Error(data.error || `HTTP ${res.status}`);
-      err.status = res.status;
-      err.data = data;
-      throw err;
+    const json = await res.json().catch(() => ({}));
+    if (res.status === 401) {
+      clearToken();
+      showLogin("انتهت الجلسة أو الرمز غير صحيح");
+      throw new Error("unauthorized");
     }
-    return data;
+    if (!res.ok || json.ok === false) {
+      throw new Error(json.error || `HTTP ${res.status}`);
+    }
+    return json;
   }
 
   function showLogin(msg) {
     appView.hidden = true;
     loginView.hidden = false;
-    if (msg) {
-      loginError.hidden = false;
-      loginError.textContent = msg;
-    } else {
-      loginError.hidden = true;
-    }
+    loginError.hidden = !msg;
+    loginError.textContent = msg || "";
   }
-
   function showApp() {
     loginView.hidden = true;
     appView.hidden = false;
   }
 
   function formatMoney(n) {
-    if (n == null || n === "") return "—";
+    if (n == null || n === "" || Number.isNaN(Number(n))) return "—";
     return Number(n).toLocaleString("en-US");
   }
-
   function formatTime(ts) {
-    if (!ts) return "";
-    try {
-      return new Date(ts).toLocaleString("ar-SA");
-    } catch {
-      return String(ts);
-    }
+    if (!ts) return "—";
+    const d = typeof ts === "number" ? new Date(ts) : new Date(ts);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString("ar-SA", {
+      timeZone: "Asia/Riyadh",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
-
+  function displayPhone(row) {
+    const phone = row.phone || "";
+    return phone.startsWith("0") ? phone : `0${phone}`;
+  }
   function actionLabel(action) {
-    const map = {
-      pause: "إيقاف رد",
+    return ({
+      pause: "إيقاف",
       resume: "استئناف",
-      reset: "تصفير جلسة",
-      "send-text": "رسالة",
+      reset: "تصفير",
+      "send-text": "إرسال نص",
       "send-followup": "متابعة",
       "send-menu": "قائمة",
       "bulk-followup": "متابعة جماعية",
-    };
-    return map[action] || action;
+    })[action] || action;
+  }
+  function flowLabel(flow) {
+    return ({
+      main_menu: "القائمة",
+      personal_chat: "تمويل شخصي",
+      debt_chat: "شراء مديونية",
+      property_combo_interest: "حلول أخرى",
+      property_combo: "عقاري+شخصي",
+    })[flow] || flow || "—";
+  }
+
+  function switchPanel(name) {
+    document.querySelectorAll(".panel").forEach((p) => { p.hidden = true; });
+    document.querySelectorAll(".nav-btn").forEach((b) => {
+      b.classList.toggle("active", b.dataset.panel === name);
+    });
+    const panel = document.getElementById(`panel-${name}`);
+    if (panel) panel.hidden = false;
+    const meta = titles[name] || ["", ""];
+    panelTitle.textContent = meta[0];
+    panelSub.textContent = meta[1];
   }
 
   async function refreshOverview() {
     const status = await api("/status");
-    document.getElementById("stat-conversations").textContent =
-      status.counts.conversations;
-    document.getElementById("stat-sessions").textContent = status.counts.sessions;
-    document.getElementById("stat-drafts").textContent = status.counts.drafts;
-    document.getElementById("stat-paused").textContent = status.counts.paused;
+    statusCache = status;
+    document.getElementById("stat-today").textContent = status.counts?.customersToday ?? 0;
+    document.getElementById("stat-yesterday").textContent = status.counts?.customersYesterday ?? 0;
+    document.getElementById("stat-sessions").textContent = status.counts?.sessions ?? 0;
+    document.getElementById("stat-paused").textContent = status.counts?.paused ?? 0;
     document.getElementById("interakt-status").textContent = status.interaktConfigured
-      ? "Interakt متصل ✓"
+      ? "Interakt متصل"
       : "مفتاح Interakt غير مضبوط";
-    document.getElementById("brand-line").textContent = status.brand || "";
-
-    const followupMsg = document.getElementById("followup-message");
-    if (followupMsg && !followupMsg.dataset.touched) {
-      followupMsg.value = status.followUpPreview || "";
-    }
-    const delay = document.getElementById("followup-delay");
-    if (delay && !delay.dataset.touched) {
-      delay.value = String(status.outboundDelayMs || 3500);
-    }
+    document.getElementById("brand-line").textContent = status.brand || "رائد الحربي";
+    const c = status.customers;
+    document.getElementById("dates-line").textContent = c
+      ? `اليوم ${c.today} · أمس ${c.yesterday} · ${c.timezone || "Asia/Riyadh"}`
+      : "سجل العملاء غير متاح";
 
     const activity = await api("/activity");
     const list = document.getElementById("activity-list");
-    list.innerHTML = "";
-    if (!activity.activity.length) {
-      list.innerHTML = "<li>لا يوجد نشاط بعد</li>";
+    const rows = (activity.activity || []).slice(0, 12);
+    list.innerHTML = rows.length
+      ? rows.map((a) => `<li><strong>${actionLabel(a.action)}</strong> · ${a.phone || "—"}<div class="meta-line">${formatTime(a.at)}</div></li>`).join("")
+      : `<li class="muted">لا يوجد نشاط بعد</li>`;
+
+    if (status.followUpPreview) {
+      const box = document.getElementById("followup-message");
+      if (box && !box.value) box.value = status.followUpPreview;
+    }
+    if (status.outboundDelayMs != null) {
+      const delay = document.getElementById("followup-delay");
+      if (delay && !delay.dataset.touched) delay.value = status.outboundDelayMs;
+    }
+  }
+
+  function renderCustomers(rows) {
+    const body = document.getElementById("customers-body");
+    const q = (customerSearch.value || "").trim().toLowerCase();
+    const filtered = !q
+      ? rows
+      : rows.filter((r) => {
+          const hay = [
+            r.phone,
+            displayPhone(r),
+            r.lastInboundText,
+            r.lastOutboundPreview,
+            r.flow,
+            r.step,
+          ].join(" ").toLowerCase();
+          return hay.includes(q);
+        });
+
+    if (!filtered.length) {
+      body.innerHTML = `<tr><td colspan="7" class="empty">لا يوجد عملاء في هذا التبويب</td></tr>`;
       return;
     }
-    for (const row of activity.activity.slice(0, 12)) {
-      const li = document.createElement("li");
-      li.textContent = `${actionLabel(row.action)} · ${row.countryCode || ""}${row.phone || ""} · ${formatTime(row.at)}`;
-      list.appendChild(li);
-    }
+
+    body.innerHTML = filtered.map((row) => {
+      const amount = row.maxAmount ?? row.live?.session?.maxAmount;
+      const flow = row.live?.draft?.flow || row.flow;
+      const step = row.live?.draft?.step || row.step;
+      const paused = row.paused;
+      return `<tr>
+        <td>
+          <span class="phone-link">${displayPhone(row)}</span>
+          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</div>
+        </td>
+        <td>${formatTime(row.lastSeenAt)}</td>
+        <td class="preview">${escapeHtml(row.lastInboundText || "—")}</td>
+        <td>${escapeHtml(flowLabel(flow))}<div class="meta-line">${escapeHtml(step || "—")}</div></td>
+        <td>${formatMoney(amount)}</td>
+        <td>${row.inboundCount || 0}↓ / ${row.outboundCount || 0}↑</td>
+        <td class="actions">
+          <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
+          <button class="btn secondary small" data-act="compose" data-phone="${row.phone}" type="button">رسالة</button>
+          <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
+          <button class="btn ghost small" data-act="reset" data-phone="${row.phone}" type="button">تصفير</button>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  async function refreshCustomers() {
+    const pack = await api(`/customers?day=${encodeURIComponent(customerDay)}`);
+    customersCache = pack.customers || [];
+    document.getElementById("customers-meta").textContent =
+      `${pack.count || 0} عميل · ${pack.day === "all" ? "كل السجل" : pack.day} · ${pack.timezone || "Asia/Riyadh"}`;
+    renderCustomers(customersCache);
   }
 
   async function refreshConversations() {
     const data = await api("/conversations");
     const body = document.getElementById("conversations-body");
-    body.innerHTML = "";
-    if (!data.conversations.length) {
-      body.innerHTML =
-        '<tr><td colspan="6" class="empty">لا توجد محادثات نشطة</td></tr>';
+    const rows = data.conversations || [];
+    if (!rows.length) {
+      body.innerHTML = `<tr><td colspan="6" class="empty">لا توجد جلسات حية</td></tr>`;
       return;
     }
-    for (const row of data.conversations) {
-      const tr = document.createElement("tr");
-      const flow = row.draft?.flow || (row.session ? "جلسة حسبة" : "—");
+    body.innerHTML = rows.map((row) => {
+      const phone = row.phone;
+      const flow = row.draft?.flow || row.session?.offer || "—";
       const step = row.draft?.step || "—";
-      const amount = formatMoney(row.session?.maxAmount);
-      const badge = row.paused
-        ? '<span class="badge paused">موقوف</span>'
-        : '<span class="badge active">نشط</span>';
-      tr.innerHTML = `
-        <td dir="ltr">${row.countryCode}${row.phone}</td>
-        <td>${flow}</td>
-        <td>${step}</td>
-        <td dir="ltr">${amount}</td>
-        <td>${badge}</td>
-        <td>
-          <div class="actions">
-            <button class="btn tiny secondary" data-act="menu" data-phone="${row.phone}" data-cc="${row.countryCode}" type="button">قائمة</button>
-            <button class="btn tiny secondary" data-act="${row.paused ? "resume" : "pause"}" data-phone="${row.phone}" data-cc="${row.countryCode}" type="button">${row.paused ? "تشغيل" : "إيقاف"}</button>
-            <button class="btn tiny danger" data-act="reset" data-phone="${row.phone}" data-cc="${row.countryCode}" type="button">تصفير</button>
-          </div>
+      const amount = row.session?.maxAmount;
+      const paused = row.paused;
+      return `<tr>
+        <td><span class="phone-link">${displayPhone(row)}</span></td>
+        <td>${escapeHtml(flowLabel(flow))}</td>
+        <td>${escapeHtml(step)}</td>
+        <td>${formatMoney(amount)}</td>
+        <td>${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</td>
+        <td class="actions">
+          <button class="btn secondary small" data-act="menu" data-phone="${phone}" type="button">قائمة</button>
+          <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
+          <button class="btn ghost small" data-act="reset" data-phone="${phone}" type="button">تصفير</button>
         </td>
-      `;
-      body.appendChild(tr);
-    }
+      </tr>`;
+    }).join("");
   }
 
   async function refreshAll() {
     await refreshOverview();
-    await refreshConversations();
+    await Promise.all([refreshCustomers(), refreshConversations()]);
   }
 
-  function switchPanel(name) {
-    document.querySelectorAll(".nav-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.panel === name);
-    });
-    document.querySelectorAll(".panel").forEach((panel) => {
-      panel.hidden = panel.id !== `panel-${name}`;
-    });
-    const [title, sub] = titles[name] || ["لوحة التحكم", ""];
-    panelTitle.textContent = title;
-    panelSub.textContent = sub;
+  async function runAction(act, phone) {
+    if (!phone) return;
+    if (act === "compose") {
+      document.getElementById("compose-phone").value = phone.startsWith("0") ? phone : `0${phone}`;
+      switchPanel("compose");
+      return;
+    }
+    if (act === "menu") await api("/send-menu", { method: "POST", body: JSON.stringify({ phone }) });
+    if (act === "pause") await api("/pause", { method: "POST", body: JSON.stringify({ phone }) });
+    if (act === "resume") await api("/resume", { method: "POST", body: JSON.stringify({ phone }) });
+    if (act === "reset") await api("/reset", { method: "POST", body: JSON.stringify({ phone }) });
+    await refreshAll();
   }
 
   async function tryEnter() {
-    try {
-      await api("/status");
-      showApp();
-      await refreshAll();
-    } catch (err) {
-      clearToken();
-      showLogin(err.message || "فشل الدخول");
-    }
-  }
-
-  loginBtn.addEventListener("click", async () => {
-    const token = tokenInput.value.trim();
+    const token = tokenInput.value.trim() || getToken();
     if (!token) {
       showLogin("أدخل رمز الإدارة");
       return;
     }
-    loginBtn.disabled = true;
-    loginBtn.textContent = "جاري الدخول...";
+    setToken(token);
     try {
-      setToken(token);
-      await tryEnter();
+      await api("/status");
+      showApp();
+      switchPanel("customers");
+      await refreshAll();
     } catch (err) {
-      showLogin(err.message || "فشل الدخول");
-    } finally {
-      loginBtn.disabled = false;
-      loginBtn.textContent = "دخول";
+      clearToken();
+      showLogin(err.message === "unauthorized" ? "الرمز غير صحيح" : err.message);
     }
-  });
+  }
 
+  loginBtn.addEventListener("click", tryEnter);
   tokenInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") loginBtn.click();
+    if (e.key === "Enter") tryEnter();
   });
-
   logoutBtn.addEventListener("click", () => {
     clearToken();
-    showLogin();
+    showLogin("");
   });
-
-  refreshBtn.addEventListener("click", () => {
-    refreshAll().catch((err) => alert(err.message));
-  });
+  refreshBtn.addEventListener("click", () => refreshAll().catch((e) => alert(e.message)));
 
   document.querySelectorAll(".nav-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchPanel(btn.dataset.panel));
   });
 
-  document.getElementById("conversations-body").addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-act]");
-    if (!btn) return;
-    const act = btn.dataset.act;
-    const phone = btn.dataset.phone;
-    const countryCode = btn.dataset.cc;
+  document.getElementById("customer-tabs").addEventListener("click", async (e) => {
+    const tab = e.target.closest(".tab");
+    if (!tab) return;
+    customerDay = tab.dataset.day;
+    document.querySelectorAll("#customer-tabs .tab").forEach((t) => {
+      t.classList.toggle("active", t === tab);
+    });
+    await refreshCustomers();
+  });
+
+  customerSearch.addEventListener("input", () => renderCustomers(customersCache));
+
+  document.getElementById("copy-today-phones").addEventListener("click", async () => {
     try {
-      if (act === "pause") await api("/pause", { method: "POST", body: JSON.stringify({ phone, countryCode }) });
-      if (act === "resume") await api("/resume", { method: "POST", body: JSON.stringify({ phone, countryCode }) });
-      if (act === "reset") await api("/reset", { method: "POST", body: JSON.stringify({ phone, countryCode }) });
-      if (act === "menu") await api("/send-menu", { method: "POST", body: JSON.stringify({ phone, countryCode }) });
-      await refreshAll();
+      const pack = await api("/customers?day=today");
+      const phones = (pack.customers || []).map((r) => displayPhone(r)).join("\n");
+      await navigator.clipboard.writeText(phones || "");
+      alert(phones ? `تم نسخ ${pack.count} رقم` : "لا توجد أرقام اليوم");
     } catch (err) {
       alert(err.message);
     }
   });
 
+  document.getElementById("customers-body").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    try { await runAction(btn.dataset.act, btn.dataset.phone); }
+    catch (err) { alert(err.message); }
+  });
+  document.getElementById("conversations-body").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    try { await runAction(btn.dataset.act, btn.dataset.phone); }
+    catch (err) { alert(err.message); }
+  });
+
   document.getElementById("compose-send").addEventListener("click", async () => {
     const status = document.getElementById("compose-status");
-    status.hidden = false;
     try {
+      status.hidden = false;
+      status.textContent = "جاري الإرسال...";
       await api("/send-text", {
         method: "POST",
         body: JSON.stringify({
@@ -743,51 +645,41 @@ th {
           message: document.getElementById("compose-message").value,
         }),
       });
-      status.className = "status ok";
-      status.textContent = "تم إرسال الرسالة";
-      await refreshOverview();
+      status.textContent = "تم الإرسال";
+      await refreshAll();
     } catch (err) {
-      status.className = "status bad";
       status.textContent = err.message;
     }
   });
 
   document.getElementById("compose-menu").addEventListener("click", async () => {
     const status = document.getElementById("compose-status");
-    status.hidden = false;
     try {
+      status.hidden = false;
+      status.textContent = "جاري إرسال القائمة...";
       await api("/send-menu", {
         method: "POST",
-        body: JSON.stringify({
-          phone: document.getElementById("compose-phone").value,
-        }),
+        body: JSON.stringify({ phone: document.getElementById("compose-phone").value }),
       });
-      status.className = "status ok";
-      status.textContent = "تم إرسال القائمة الرئيسية";
+      status.textContent = "تم إرسال القائمة";
       await refreshAll();
     } catch (err) {
-      status.className = "status bad";
       status.textContent = err.message;
     }
   });
 
-  document.getElementById("followup-message").addEventListener("input", (e) => {
-    e.target.dataset.touched = "1";
-  });
   document.getElementById("followup-delay").addEventListener("input", (e) => {
     e.target.dataset.touched = "1";
   });
 
   document.getElementById("followup-send").addEventListener("click", async () => {
     const status = document.getElementById("followup-status");
-    status.hidden = false;
-    const phones = document
-      .getElementById("followup-phones")
-      .value.split(/\n+/)
+    const phones = document.getElementById("followup-phones").value
+      .split(/\n+/)
       .map((s) => s.trim())
       .filter(Boolean);
     try {
-      status.className = "status";
+      status.hidden = false;
       status.textContent = "جاري الإرسال...";
       const result = await api("/bulk-followup", {
         method: "POST",
@@ -797,22 +689,16 @@ th {
           delayMs: Number(document.getElementById("followup-delay").value || 0),
         }),
       });
-      status.className = "status ok";
-      status.textContent = `تم: ${result.sent} | فشل: ${result.failed}`;
-      await refreshOverview();
+      status.textContent = `تم: ${result.sent} · فشل: ${result.failed}`;
+      await refreshAll();
     } catch (err) {
-      status.className = "status bad";
       status.textContent = err.message;
     }
   });
 
-  if (getToken()) {
-    tryEnter();
-  } else {
-    showLogin();
-  }
+  if (getToken()) tryEnter();
+  else showLogin("");
 })();
-
 </script>
 </body>
 </html>

@@ -11,7 +11,8 @@
     "test:menu": "node scripts/test-main-menu.js",
     "test:amounts": "node scripts/test-amount-examples.js",
     "test:admin": "node scripts/test-admin.js",
-    "test": "npm run test:calc && npm run test:webhook && npm run test:debt && npm run test:menu && npm run test:amounts && npm run test:admin"
+    "test:ledger": "node scripts/test-customer-ledger.js",
+    "test": "npm run test:calc && npm run test:webhook && npm run test:debt && npm run test:menu && npm run test:amounts && npm run test:admin && npm run test:ledger"
   },
   "type": "commonjs",
   "dependencies": {
