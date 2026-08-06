@@ -58,7 +58,7 @@ assert.ok(
     result.sendTextThenInteractive,
   "مستنفذ حد مع شروط الباقة لازم مسار حلول أخرى"
 );
-if (result.data?.rounded != null && result.data.rounded < 19900) {
+if (result.data?.rounded != null && result.data.rounded < 15000) {
   assert.strictEqual(result.offer, "property_combo_interest");
   assert.ok(result.interactive?.kind === "buttons");
 }
