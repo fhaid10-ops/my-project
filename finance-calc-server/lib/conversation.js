@@ -17,6 +17,7 @@ const {
   searchApprovedCompanies,
   companyListInteractive,
   parseCompanyPick,
+  looksLikeCompanyResearch,
   parseCivilianSubtype,
   civilianSubtypeButtons,
 } = require("./approved-companies");
@@ -264,7 +265,7 @@ function advanceCivilianSubtypeFlow(state, raw, salaryMessage) {
   }
 
   if (step === "company_name") {
-    const matches = searchApprovedCompanies(raw, { limit: 10 });
+    const matches = searchApprovedCompanies(raw, { limit: 9 });
     if (!matches.length) {
       return {
         ok: false,
@@ -283,8 +284,8 @@ function advanceCivilianSubtypeFlow(state, raw, salaryMessage) {
     state.step = "company_pick";
     const body =
       matches.length === 1
-        ? "لقينا شركة واحدة — اخترها من القائمة للتأكيد:"
-        : `لقينا ${matches.length} نتائج — اختر شركتك من القائمة:`;
+        ? "لقينا شركة واحدة — اخترها من القائمة، أو أعد البحث:"
+        : `لقينا ${matches.length} نتائج — اختر شركتك، أو أعد البحث عن جهة عملك:`;
     return {
       ok: true,
       reply: body,
@@ -294,6 +295,15 @@ function advanceCivilianSubtypeFlow(state, raw, salaryMessage) {
   }
 
   if (step === "company_pick") {
+    if (looksLikeCompanyResearch(raw)) {
+      state.step = "company_name";
+      state.companyMatches = [];
+      return {
+        ok: true,
+        reply: `تمام — اكتب اسم جهة عملك من جديد (أو جزء منه).`,
+        draft: state,
+      };
+    }
     if (!/^co_\d+$/i.test(raw) && raw.length >= 2) {
       const maybePick = parseCompanyPick(raw, state.companyMatches || []);
       if (!maybePick) {
@@ -314,7 +324,7 @@ function advanceCivilianSubtypeFlow(state, raw, salaryMessage) {
       }
       return {
         ok: false,
-        reply: `اختر شركتك من القائمة، أو اكتب الاسم للبحث من جديد.`,
+        reply: `اختر شركتك من القائمة، أو «إعادة البحث عن جهة عملك».`,
         interactive: companyListInteractive(matches),
         draft: state,
       };

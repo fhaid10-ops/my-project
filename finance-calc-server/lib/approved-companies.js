@@ -77,8 +77,20 @@ function getApprovedCompanyCount() {
   return loadCompanies().length;
 }
 
+const COMPANY_RESEARCH_ID = "co_research";
+const COMPANY_RESEARCH_TITLE = "إعادة البحث عن جهة عملك";
+
+function looksLikeCompanyResearch(text) {
+  const t = String(text || "").trim();
+  if (!t) return false;
+  if (t === COMPANY_RESEARCH_ID) return true;
+  if (t === COMPANY_RESEARCH_TITLE) return true;
+  return /^(إعادة|اعادة)\s*البحث(\s*عن\s*جهة\s*عملك)?$/i.test(t);
+}
+
 function companyListInteractive(matches, bodyText) {
-  const rows = matches.slice(0, 10).map((c, i) => {
+  // نترك صف واحد لخيار إعادة البحث (حد واتساب 10)
+  const rows = matches.slice(0, 9).map((c, i) => {
     const full = c.name;
     const title = full.length <= 24 ? full : `${full.slice(0, 21)}...`;
     const rest = full.length > 24 ? full.slice(21) : c.nameEn || "شركة معتمدة";
@@ -87,6 +99,11 @@ function companyListInteractive(matches, bodyText) {
       title,
       description: String(rest).slice(0, 72),
     };
+  });
+  rows.push({
+    id: COMPANY_RESEARCH_ID,
+    title: COMPANY_RESEARCH_TITLE,
+    description: "اكتب اسم الشركة من جديد",
   });
   return {
     kind: "list",
@@ -99,6 +116,7 @@ function companyListInteractive(matches, bodyText) {
 
 function parseCompanyPick(text, matches = []) {
   const t = String(text || "").trim();
+  if (looksLikeCompanyResearch(t)) return null;
   const m = t.match(/^co_(\d+)$/i);
   if (m) {
     const idx = Number(m[1]);
@@ -151,6 +169,9 @@ module.exports = {
   getApprovedCompanyCount,
   companyListInteractive,
   parseCompanyPick,
+  looksLikeCompanyResearch,
+  COMPANY_RESEARCH_ID,
+  COMPANY_RESEARCH_TITLE,
   parseCivilianSubtype,
   civilianSubtypeButtons,
 };

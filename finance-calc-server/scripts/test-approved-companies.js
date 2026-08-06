@@ -5,6 +5,8 @@ const {
   getApprovedCompanyCount,
   parseCompanyPick,
   companyListInteractive,
+  looksLikeCompanyResearch,
+  COMPANY_RESEARCH_ID,
 } = require("../lib/approved-companies");
 const {
   advancePersonalFinanceFlow,
@@ -56,9 +58,16 @@ assert.strictEqual(resolveInterestRate({ jobCategory: "civilian" }), 13);
 
 const list = companyListInteractive(banks.slice(0, 3));
 assert.ok(list.rows.every((r) => r.title.length <= 24));
+assert.ok(list.rows.some((r) => r.id === COMPANY_RESEARCH_ID));
+assert.ok(list.rows.length <= 10);
+assert.ok(looksLikeCompanyResearch(COMPANY_RESEARCH_ID));
 
 const hit = parseCompanyPick("co_1", banks.slice(0, 3));
 assert.ok(hit);
+
+const research = advancePersonalFinanceFlow(search.draft, COMPANY_RESEARCH_ID);
+assert.strictEqual(research.draft.step, "company_name");
+assert.match(research.reply, /من جديد|اكتب اسم/);
 
 const miss = advancePersonalFinanceFlow(afterPrivate.draft, "شركة وهمية ١٢٣٤٥٦");
 assert.ok(/ما لقينا|نعتذر/.test(miss.reply));

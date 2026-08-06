@@ -7,11 +7,12 @@ const { jobCategories } = CONFIG;
 
 function resolveJobCategory(session) {
   if (!session) return null;
+  // نوع المدني (حكومي/خاص) يغلب مفتاح civilian العام
+  if (session.civilianSubtype === "private") return "private";
+  if (session.civilianSubtype === "government") return "civilian";
   if (session.jobCategory && jobCategories[session.jobCategory]) {
     return session.jobCategory;
   }
-  if (session.civilianSubtype === "private") return "private";
-  if (session.civilianSubtype === "government") return "civilian";
   const label = String(session.jobType || "");
   if (label.includes("عسكري")) return "military";
   if (label.includes("متقاعد")) return "retired";
