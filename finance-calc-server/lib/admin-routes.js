@@ -35,6 +35,7 @@ function createAdminRouter(deps) {
     showMainMenu,
     interaktConfigured,
     customerLedger,
+    interaktApiKey,
   } = deps;
 
   const router = express.Router();
@@ -205,6 +206,109 @@ function createAdminRouter(deps) {
 
   router.get("/activity", requireAdmin, (_req, res) => {
     res.json({ ok: true, activity: activityLog });
+  });
+
+  /** تنزيل بكب JSON لسجل العملاء */
+  router.get("/customers/export", requireAdmin, (_req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const payload = customerLedger.exportPayload();
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="customers-backup-${stamp}.json"`
+    );
+    pushLog({ action: "customers-export", count: payload.count });
+    res.send(JSON.stringify(payload, null, 2));
+  });
+
+  /** استيراد بكب JSON (دمج مع الحالي) */
+  router.post("/customers/import", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const payload = req.body?.customers ? req.body : req.body?.payload || req.body;
+    const result = customerLedger.importPayload(payload, {
+      merge: req.body?.merge !== false,
+    });
+    if (!result.ok) return res.status(400).json(result);
+    pushLog({
+      action: "customers-import",
+      imported: result.imported,
+      updated: result.updated,
+    });
+    res.json(result);
+  });
+
+  /** إنشاء نسخة احتياطية محلية الآن */
+  router.post("/customers/backup", requireAdmin, (_req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    customerLedger.flush();
+    const snap = customerLedger.createSnapshot("manual");
+    pushLog({ action: "customers-backup", count: snap.count || 0 });
+    res.json({
+      ok: Boolean(snap.ok),
+      snapshot: snap,
+      backups: customerLedger.listBackups().slice(0, 10),
+      summary: customerLedger.summary(),
+    });
+  });
+
+  router.get("/customers/backups", requireAdmin, (_req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    res.json({ ok: true, backups: customerLedger.listBackups() });
+  });
+
+  /**
+   * جلب العملاء السابقين من Interakt (آخر N أيام)
+   * يعتمد Get Users API — أرقام + تواريخ، مو نصوص الشات كاملة
+   */
+  router.post("/customers/sync-interakt", requireAdmin, async (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const apiKey = interaktApiKey || process.env.INTERAKT_API_KEY || "";
+    if (!apiKey) {
+      return res.status(503).json({
+        ok: false,
+        error: "INTERAKT_API_KEY غير مضبوط — لا يمكن جلب السابق من Interakt",
+      });
+    }
+    try {
+      const { syncInteraktUsersSince } = require("./interakt-users");
+      const days = Math.min(Math.max(Number(req.body?.days || 7), 1), 30);
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      customerLedger.createSnapshot("pre-sync");
+      const result = await syncInteraktUsersSince({
+        apiKey,
+        sinceIso: since,
+        onUser: (contact) => customerLedger.upsertContact(contact),
+      });
+      customerLedger.flush();
+      pushLog({
+        action: "customers-sync-interakt",
+        fetched: result.fetched,
+        created: result.created,
+      });
+      res.json({
+        ...result,
+        days,
+        since,
+        summary: customerLedger.summary(),
+      });
+    } catch (err) {
+      res.status(500).json({
+        ok: false,
+        error: err.message,
+        details: err.details || null,
+      });
+    }
   });
 
   router.post("/pause", requireAdmin, (req, res) => {

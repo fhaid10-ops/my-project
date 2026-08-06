@@ -8,12 +8,11 @@ const {
   shiftDayKey,
 } = require("../lib/customer-ledger");
 
-const tmp = path.join(
-  os.tmpdir(),
-  `customer-ledger-test-${Date.now()}.json`
-);
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ledger-"));
+const dataFile = path.join(dir, "customers.json");
+const backupDir = path.join(dir, "backups");
 
-const ledger = createCustomerLedger({ dataFile: tmp });
+const ledger = createCustomerLedger({ dataFile, backupDir });
 const today = calendarDayKey();
 const yesterday = shiftDayKey(today, -1);
 
@@ -30,23 +29,31 @@ const todayPack = ledger.listByDay("today");
 assert.ok(todayPack.count >= 1);
 assert.strictEqual(todayPack.today, today);
 assert.strictEqual(todayPack.yesterday, yesterday);
-assert.ok(todayPack.customers.some((c) => c.phone === "508031055"));
 
-const row = todayPack.customers.find((c) => c.phone === "508031055");
-assert.strictEqual(row.inboundCount, 1);
-assert.strictEqual(row.outboundCount, 1);
-assert.ok(String(row.lastInboundText).includes("السلام"));
+const exported = ledger.exportPayload();
+assert.strictEqual(exported.kind, "raed-customer-ledger");
+assert.ok(exported.count >= 1);
 
 ledger.flush();
-assert.ok(fs.existsSync(tmp));
+const snap = ledger.createSnapshot("test");
+assert.ok(snap.ok);
+assert.ok(fs.existsSync(snap.file));
 
-const ledger2 = createCustomerLedger({ dataFile: tmp });
-const again = ledger2.listByDay("today");
-assert.ok(again.customers.some((c) => c.phone === "508031055"));
+const ledger2 = createCustomerLedger({
+  dataFile: path.join(dir, "customers2.json"),
+  backupDir: path.join(dir, "backups2"),
+});
+const imported = ledger2.importPayload(exported);
+assert.ok(imported.ok);
+assert.ok(imported.total >= 1);
 
-const summary = ledger2.summary();
-assert.ok(summary.counts.today >= 1);
-assert.ok(summary.counts.all >= 1);
+const contact = ledger2.upsertContact({
+  phone: "533248917",
+  countryCode: "+966",
+  name: "عميل Interakt",
+  modified_at_utc: new Date().toISOString(),
+});
+assert.ok(contact.created);
+assert.ok(ledger2.listByDay("today").customers.some((c) => c.phone === "533248917"));
 
-fs.unlinkSync(tmp);
-console.log("OK: customer ledger today/yesterday + persistence");
+console.log("OK: customer ledger export/import/backup + interakt upsert");

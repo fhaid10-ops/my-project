@@ -89,6 +89,14 @@ async function req(method, path, body, token = "test-token") {
     customers.json.customers.some((c) => c.phone === "551234567")
   );
 
+  const exported = await req("GET", "/customers/export");
+  assert.strictEqual(exported.status, 200);
+  assert.ok((exported.json.customers || []).length >= 1);
+
+  const backup = await req("POST", "/customers/backup", {});
+  assert.strictEqual(backup.status, 200);
+  assert.ok(backup.json.ok);
+
   const pause = await req("POST", "/pause", { phone: "0551234567" });
   assert.strictEqual(pause.json.paused, true);
   assert.ok(pausedChats.has("+966:551234567"));

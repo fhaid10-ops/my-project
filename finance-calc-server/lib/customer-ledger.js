@@ -8,7 +8,11 @@ const path = require("path");
 const TIMEZONE = "Asia/Riyadh";
 const MAX_CUSTOMERS = 5000;
 const MAX_EVENTS_PER_CUSTOMER = 40;
-const DEFAULT_DATA_FILE = path.join(__dirname, "..", "data", "customers.json");
+const MAX_BACKUPS = 20;
+const DEFAULT_DATA_DIR =
+  process.env.CUSTOMERS_DATA_DIR || path.join(__dirname, "..", "data");
+const DEFAULT_DATA_FILE = path.join(DEFAULT_DATA_DIR, "customers.json");
+const DEFAULT_BACKUP_DIR = path.join(DEFAULT_DATA_DIR, "backups");
 
 function pad(n) {
   return String(n).padStart(2, "0");
@@ -44,12 +48,12 @@ function dayBoundsIso(dayKey, timeZone = TIMEZONE) {
 
 function createCustomerLedger(options = {}) {
   const dataFile = options.dataFile || DEFAULT_DATA_FILE;
+  const backupDir = options.backupDir || DEFAULT_BACKUP_DIR;
   const customers = new Map();
   let writeTimer = null;
   let loaded = false;
 
-  function ensureDir() {
-    const dir = path.dirname(dataFile);
+  function ensureDir(dir = path.dirname(dataFile)) {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
 
@@ -73,28 +77,74 @@ function createCustomerLedger(options = {}) {
     if (writeTimer) return;
     writeTimer = setTimeout(() => {
       writeTimer = null;
-      saveNow();
+      saveNow({ snapshot: false });
     }, 800);
     if (typeof writeTimer.unref === "function") writeTimer.unref();
   }
 
-  function saveNow() {
+  function exportPayload() {
+    load();
+    const list = [...customers.values()].sort(
+      (a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt)
+    );
+    return {
+      ok: true,
+      kind: "raed-customer-ledger",
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      timezone: TIMEZONE,
+      count: list.length,
+      customers: list.slice(0, MAX_CUSTOMERS),
+    };
+  }
+
+  function rotateBackups() {
+    try {
+      if (!fs.existsSync(backupDir)) return;
+      const files = fs
+        .readdirSync(backupDir)
+        .filter((f) => f.startsWith("customers-") && f.endsWith(".json"))
+        .map((f) => ({
+          f,
+          t: fs.statSync(path.join(backupDir, f)).mtimeMs,
+        }))
+        .sort((a, b) => b.t - a.t);
+      for (const old of files.slice(MAX_BACKUPS)) {
+        fs.unlinkSync(path.join(backupDir, old.f));
+      }
+    } catch (err) {
+      console.error("[customer-ledger:rotate]", err.message);
+    }
+  }
+
+  function createSnapshot(label = "auto") {
+    load();
+    try {
+      ensureDir(backupDir);
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const file = path.join(
+        backupDir,
+        `customers-${stamp}-${String(label).replace(/[^\w.-]+/g, "")}.json`
+      );
+      fs.writeFileSync(file, JSON.stringify(exportPayload(), null, 2), "utf8");
+      rotateBackups();
+      return { ok: true, file, count: customers.size };
+    } catch (err) {
+      console.error("[customer-ledger:snapshot]", err.message);
+      return { ok: false, error: err.message };
+    }
+  }
+
+  function saveNow({ snapshot = false } = {}) {
     try {
       ensureDir();
-      const list = [...customers.values()].sort(
-        (a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt)
-      );
+      // Snapshot فقط عند الطلب الصريح (قبل استيراد / إيقاف السيرفر / زر بكب)
+      if (snapshot && fs.existsSync(dataFile) && customers.size > 0) {
+        createSnapshot("presave");
+      }
       fs.writeFileSync(
         dataFile,
-        JSON.stringify(
-          {
-            updatedAt: new Date().toISOString(),
-            timezone: TIMEZONE,
-            customers: list.slice(0, MAX_CUSTOMERS),
-          },
-          null,
-          2
-        ),
+        JSON.stringify(exportPayload(), null, 2),
         "utf8"
       );
     } catch (err) {
@@ -119,6 +169,7 @@ function createCustomerLedger(options = {}) {
       step: row.step || null,
       maxAmount: row.maxAmount ?? null,
       dayKey: row.dayKey || calendarDayKey(new Date(row.lastSeenAt || Date.now())),
+      source: row.source || null,
       events: Array.isArray(row.events) ? row.events.slice(0, MAX_EVENTS_PER_CUSTOMER) : [],
     };
   }
@@ -276,7 +327,160 @@ function createCustomerLedger(options = {}) {
       clearTimeout(writeTimer);
       writeTimer = null;
     }
-    saveNow();
+    saveNow({ snapshot: true });
+  }
+
+  /**
+   * استيراد ملف بكب — merge يحافظ على البيانات الأغنى محليًا
+   */
+  function importPayload(payload, options = {}) {
+    load();
+    const merge = options.merge !== false;
+    const rows = Array.isArray(payload?.customers)
+      ? payload.customers
+      : Array.isArray(payload)
+        ? payload
+        : [];
+    if (!rows.length) {
+      return { ok: false, error: "الملف لا يحتوي عملاء", imported: 0 };
+    }
+    createSnapshot("pre-import");
+    let imported = 0;
+    let updated = 0;
+    for (const raw of rows) {
+      const phone = String(raw.phone || "")
+        .replace(/\D/g, "")
+        .replace(/^0+/, "");
+      const countryCode = String(raw.countryCode || "+966");
+      if (!phone) continue;
+      const key = raw.key || `${countryCode}:${phone}`;
+      const incoming = normalizeRow({ ...raw, key, phone, countryCode });
+      const existing = customers.get(key);
+      if (!existing || !merge) {
+        customers.set(key, incoming);
+        imported += 1;
+        continue;
+      }
+      // دمج: لا نمحو نشاط محلي أحدث
+      const keepLocalNewer =
+        Date.parse(existing.lastSeenAt) > Date.parse(incoming.lastSeenAt);
+      customers.set(
+        key,
+        normalizeRow({
+          ...incoming,
+          ...existing,
+          firstSeenAt:
+            Date.parse(existing.firstSeenAt) <= Date.parse(incoming.firstSeenAt)
+              ? existing.firstSeenAt
+              : incoming.firstSeenAt,
+          lastSeenAt: keepLocalNewer ? existing.lastSeenAt : incoming.lastSeenAt,
+          lastInboundAt: existing.lastInboundAt || incoming.lastInboundAt,
+          lastOutboundAt: existing.lastOutboundAt || incoming.lastOutboundAt,
+          lastInboundText:
+            existing.lastInboundText || incoming.lastInboundText || "",
+          lastOutboundPreview:
+            existing.lastOutboundPreview || incoming.lastOutboundPreview || "",
+          inboundCount: Math.max(
+            existing.inboundCount || 0,
+            incoming.inboundCount || 0
+          ),
+          outboundCount: Math.max(
+            existing.outboundCount || 0,
+            incoming.outboundCount || 0
+          ),
+          maxAmount: existing.maxAmount ?? incoming.maxAmount,
+          flow: existing.flow || incoming.flow,
+          step: existing.step || incoming.step,
+          source: existing.source || incoming.source || null,
+          events: [...(existing.events || []), ...(incoming.events || [])].slice(
+            0,
+            MAX_EVENTS_PER_CUSTOMER
+          ),
+        })
+      );
+      updated += 1;
+    }
+    trimOldest();
+    saveNow({ snapshot: false });
+    return {
+      ok: true,
+      imported,
+      updated,
+      total: customers.size,
+    };
+  }
+
+  /** إدراج/تحديث من جهة اتصال Interakt (بدون محو النشاط المحلي) */
+  function upsertContact(contact = {}) {
+    load();
+    let phone = String(
+      contact.phone || contact.phoneNumber || contact.phone_number || ""
+    ).replace(/\D/g, "");
+    let countryCode = String(
+      contact.countryCode || contact.country_code || "+966"
+    );
+    if (!countryCode.startsWith("+")) countryCode = `+${countryCode}`;
+    if (phone.startsWith("966") && phone.length > 9) phone = phone.slice(3);
+    if (phone.startsWith("0")) phone = phone.slice(1);
+    if (!phone) return null;
+
+    const seenAt =
+      contact.lastSeenAt ||
+      contact.modified_at_utc ||
+      contact.modifiedAt ||
+      contact.created_at_utc ||
+      contact.createdAt ||
+      new Date().toISOString();
+    const key = `${countryCode}:${phone}`;
+    const existing = customers.get(key);
+    if (!existing) {
+      const row = normalizeRow({
+        key,
+        phone,
+        countryCode,
+        firstSeenAt: contact.firstSeenAt || contact.created_at_utc || seenAt,
+        lastSeenAt: seenAt,
+        lastInboundText: contact.lastInboundText || contact.name || "من Interakt",
+        source: "interakt",
+        inboundCount: Number(contact.inboundCount || 0),
+        outboundCount: Number(contact.outboundCount || 0),
+      });
+      customers.set(key, row);
+      scheduleSave();
+      return { row, created: true };
+    }
+    // حدّث فقط إن كان تاريخ Interakt أحدث أو ما عندنا نشاط
+    if (Date.parse(seenAt) >= Date.parse(existing.lastSeenAt)) {
+      existing.lastSeenAt = seenAt;
+      existing.dayKey = calendarDayKey(new Date(seenAt));
+      if (!existing.lastInboundText) {
+        existing.lastInboundText = contact.name || "من Interakt";
+      }
+      existing.source = existing.source || "interakt";
+      scheduleSave();
+    }
+    return { row: existing, created: false };
+  }
+
+  function listBackups() {
+    try {
+      ensureDir(backupDir);
+      return fs
+        .readdirSync(backupDir)
+        .filter((f) => f.endsWith(".json"))
+        .map((f) => {
+          const full = path.join(backupDir, f);
+          const st = fs.statSync(full);
+          return {
+            file: f,
+            size: st.size,
+            mtime: st.mtime.toISOString(),
+          };
+        })
+        .sort((a, b) => Date.parse(b.mtime) - Date.parse(a.mtime));
+    } catch {
+      return [];
+    }
   }
 
   load();
@@ -288,11 +492,17 @@ function createCustomerLedger(options = {}) {
     listByDay,
     summary,
     flush,
+    exportPayload,
+    importPayload,
+    createSnapshot,
+    upsertContact,
+    listBackups,
     calendarDayKey,
     shiftDayKey,
     TIMEZONE,
     _customers: customers,
     _dataFile: dataFile,
+    _backupDir: backupDir,
   };
 }
 

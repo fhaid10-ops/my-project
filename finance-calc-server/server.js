@@ -759,8 +759,22 @@ mountAdmin(app, {
   sendResultReply,
   showMainMenu,
   interaktConfigured: Boolean(INTERAKT_API_KEY),
+  interaktApiKey: INTERAKT_API_KEY,
   customerLedger,
 });
+
+function gracefulShutdown(signal) {
+  try {
+    customerLedger.createSnapshot(`shutdown-${signal}`);
+    customerLedger.flush();
+    console.log(`[shutdown] تم حفظ سجل العملاء قبل الإيقاف (${signal})`);
+  } catch (err) {
+    console.error("[shutdown:ledger]", err.message);
+  }
+  process.exit(0);
+}
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 app.listen(PORT, () => {
   console.log(`finance-calc-server على المنفذ ${PORT}`);

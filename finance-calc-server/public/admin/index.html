@@ -216,6 +216,21 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     </section>
 
     <section id="panel-customers" class="panel" hidden>
+      <div class="card" style="margin-bottom:14px">
+        <h3 style="margin-top:0">النسخ الاحتياطي وجلب السابق</h3>
+        <p class="muted">قبل أي نشر جديد: نزّل بكب. بعد النشر: استورد الملف. أو اجلب الأرقام من Interakt.</p>
+        <div class="btn-row">
+          <button id="export-customers" class="btn primary" type="button">تنزيل بكب</button>
+          <button id="backup-now" class="btn secondary" type="button">حفظ نسخة الآن</button>
+          <button id="sync-interakt" class="btn secondary" type="button">جلب من Interakt (7 أيام)</button>
+        </div>
+        <label class="field" style="margin-top:14px">
+          <span>استيراد بكب (الصق محتوى ملف JSON)</span>
+          <textarea id="import-json" rows="4" placeholder='{"customers":[...]}'></textarea>
+        </label>
+        <button id="import-customers" class="btn secondary" type="button">استيراد ودمج</button>
+        <p id="backup-status" class="status" hidden></p>
+      </div>
       <div class="toolbar">
         <div class="tabs" id="customer-tabs">
           <button class="tab active" data-day="today" type="button">اليوم</button>
@@ -617,6 +632,76 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       alert(phones ? `تم نسخ ${pack.count} رقم` : "لا توجد أرقام اليوم");
     } catch (err) {
       alert(err.message);
+    }
+  });
+
+  function setBackupStatus(msg) {
+    const el = document.getElementById("backup-status");
+    el.hidden = false;
+    el.textContent = msg;
+  }
+
+  document.getElementById("export-customers").addEventListener("click", async () => {
+    try {
+      const token = getToken();
+      const res = await fetch("/admin/api/customers/export", {
+        headers: { "x-admin-token": token },
+      });
+      if (!res.ok) throw new Error("فشل التنزيل");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `customers-backup-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setBackupStatus("تم تنزيل ملف البكب — احفظه عندك قبل أي نشر");
+    } catch (err) {
+      setBackupStatus(err.message);
+    }
+  });
+
+  document.getElementById("backup-now").addEventListener("click", async () => {
+    try {
+      const r = await api("/customers/backup", { method: "POST", body: "{}" });
+      setBackupStatus(`تم الحفظ: ${r.summary?.counts?.all || 0} عميل`);
+      await refreshAll();
+    } catch (err) {
+      setBackupStatus(err.message);
+    }
+  });
+
+  document.getElementById("sync-interakt").addEventListener("click", async () => {
+    try {
+      setBackupStatus("جاري الجلب من Interakt...");
+      const r = await api("/customers/sync-interakt", {
+        method: "POST",
+        body: JSON.stringify({ days: 7 }),
+      });
+      setBackupStatus(
+        `Interakt: جلب ${r.fetched || 0} · جديد ${r.created || 0} · محدّث ${r.updated || 0}`
+      );
+      await refreshAll();
+    } catch (err) {
+      setBackupStatus(err.message);
+    }
+  });
+
+  document.getElementById("import-customers").addEventListener("click", async () => {
+    try {
+      const raw = document.getElementById("import-json").value.trim();
+      if (!raw) throw new Error("الصق محتوى ملف البكب أولًا");
+      const payload = JSON.parse(raw);
+      const r = await api("/customers/import", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setBackupStatus(
+        `تم الاستيراد: جديد/مدمج ${r.imported || 0} · محدّث ${r.updated || 0} · الإجمالي ${r.total || 0}`
+      );
+      await refreshAll();
+    } catch (err) {
+      setBackupStatus(err.message);
     }
   });
 
