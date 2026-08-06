@@ -218,7 +218,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     <section id="panel-customers" class="panel" hidden>
       <div class="card" style="margin-bottom:14px">
         <h3 style="margin-top:0">النسخ الاحتياطي وجلب السابق</h3>
-        <p class="muted">قبل أي نشر جديد: نزّل بكب. بعد النشر: استورد الملف. أو اجلب الأرقام من Interakt.</p>
+        <p class="muted">قبل أي نشر جديد: نزّل بكب. بعد النشر: استورد الملف. زر Interakt يجلب <strong>الأرقام والأسماء فقط</strong> — مو المسار ولا المبلغ ولا نص المحادثة (هذي تجي من رسائل البوت).</p>
         <div class="btn-row">
           <button id="export-customers" class="btn primary" type="button">تنزيل بكب</button>
           <button id="backup-now" class="btn secondary" type="button">حفظ نسخة الآن</button>
@@ -508,14 +508,25 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       const flow = row.live?.draft?.flow || row.flow;
       const step = row.live?.draft?.step || row.step;
       const paused = row.paused;
+      const fromInterakt = row.source === "interakt" && !flow && !(row.inboundCount || 0);
+      const preview = fromInterakt
+        ? (row.lastInboundText && row.lastInboundText !== "من Interakt"
+            ? `اسم: ${row.lastInboundText}`
+            : "جهة من Interakt (بدون محادثة بعد)")
+        : (row.lastInboundText || "—");
+      const pathCell = flow
+        ? `${escapeHtml(flowLabel(flow))}<div class="meta-line">${escapeHtml(step || "—")}</div>`
+        : fromInterakt
+          ? `جهة Interakt<div class="meta-line">بانتظار رسالة</div>`
+          : `—<div class="meta-line">${escapeHtml(step || "—")}</div>`;
       return `<tr>
         <td>
           <span class="phone-link">${displayPhone(row)}</span>
-          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</div>
+          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${fromInterakt ? ' · Interakt' : ''}</div>
         </td>
         <td>${formatTime(row.lastSeenAt)}</td>
-        <td class="preview">${escapeHtml(row.lastInboundText || "—")}</td>
-        <td>${escapeHtml(flowLabel(flow))}<div class="meta-line">${escapeHtml(step || "—")}</div></td>
+        <td class="preview">${escapeHtml(preview)}</td>
+        <td>${pathCell}</td>
         <td>${formatMoney(amount)}</td>
         <td>${row.inboundCount || 0}↓ / ${row.outboundCount || 0}↑</td>
         <td class="actions">

@@ -3,6 +3,7 @@ const {
   extractUsers,
   mapUser,
   pickPhone,
+  isSampleContact,
 } = require("../lib/interakt-users");
 const {
   createCustomerLedger,
@@ -85,5 +86,10 @@ assert.strictEqual(
 assert.ok(
   ledger.listByDay("today").customers.some((c) => c.phone === "501111111")
 );
+
+assert.ok(
+  isSampleContact({ name: "Karthik Menon [Sample]", phone: "508031055" })
+);
+assert.ok(!isSampleContact({ name: "أحمد", phone: "508031055" }));
 
 console.log("OK: interakt extract/map + ledger touchNow sync day");

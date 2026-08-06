@@ -183,6 +183,15 @@ function mapUser(user) {
   };
 }
 
+/** جهات تجريبية من Interakt مثل "Karthik Menon [Sample]" */
+function isSampleContact(userOrMapped = {}) {
+  const traits = userOrMapped.traits || userOrMapped.Traits || {};
+  const name = String(
+    userOrMapped.name || traits.name || userOrMapped.user_name || ""
+  ).toLowerCase();
+  return name.includes("[sample]") || name.includes("(sample)");
+}
+
 async function syncPages({ apiKey, filters, maxPages, onUser }) {
   let offset = 0;
   const limit = 100;
@@ -190,6 +199,7 @@ async function syncPages({ apiKey, filters, maxPages, onUser }) {
   let created = 0;
   let updated = 0;
   let skippedNoPhone = 0;
+  let skippedSample = 0;
   let pages = 0;
   let lastPayloadKeys = [];
   let sampleUserKeys = [];
@@ -215,6 +225,10 @@ async function syncPages({ apiKey, filters, maxPages, onUser }) {
         skippedNoPhone += 1;
         continue;
       }
+      if (isSampleContact(user) || isSampleContact(mapped)) {
+        skippedSample += 1;
+        continue;
+      }
       fetched += 1;
       const result = onUser?.(mapped);
       if (result?.created) created += 1;
@@ -230,6 +244,7 @@ async function syncPages({ apiKey, filters, maxPages, onUser }) {
     created,
     updated,
     skippedNoPhone,
+    skippedSample,
     pages,
     lastPayloadKeys,
     sampleUserKeys,
@@ -323,7 +338,7 @@ async function syncInteraktUsersSince({
     hint:
       best.fetched === 0
         ? "Interakt رجّع صفر جهات اتصال قابلة للقراءة. جرّب تبويب «الكل»، أو تأكد أن جهات الاتصال موجودة في Interakt Contacts وأن الخطة تدعم Get Users API."
-        : null,
+        : "الجلب من Interakt يجيب الرقم والاسم فقط — المسار والمبلغ وعدد الرسائل تتعبّى لما العميل يكلم البوت.",
   };
 }
 
@@ -333,4 +348,5 @@ module.exports = {
   extractUsers,
   mapUser,
   pickPhone,
+  isSampleContact,
 };
