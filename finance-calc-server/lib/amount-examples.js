@@ -61,13 +61,19 @@ function amountExamplesCtaInteractive() {
 }
 
 function looksLikeAmountExamplesCta(text) {
-  const t = String(text || "").trim();
-  if (!t) return false;
-  return (
-    /^start_personal_from_examples$/i.test(t) ||
-    /^تقدم\s*بتمويلك\s*الان$/i.test(t) ||
-    /^تقدم\s*بتمويلك\s*الآن$/i.test(t)
-  );
+  const t = String(text || "")
+    .trim()
+    .replace(/[.\u061F؟?!]+$/g, "")
+    .trim();
+  if (!t || t.length > 60) return false;
+  if (/^start_personal_from_examples$/i.test(t)) return true;
+  // عنوان الزر + صيغ شائعة يكتبها/يرجعها واتساب
+  if (/^تقدم\s*بتمويلك\s*الان$/i.test(t)) return true;
+  if (/^تقدم\s*بتمويلك\s*الآن$/i.test(t)) return true;
+  if (/^تقدم\s*بطلب\s*التمويل\s*الان$/i.test(t)) return true;
+  if (/^تقدم\s*بطلب\s*التمويل\s*الآن$/i.test(t)) return true;
+  if (/تقدم.*(تمويلك|التمويل|بطلب)/i.test(t) && t.length <= 40) return true;
+  return false;
 }
 
 function askAmountExamplesSector() {

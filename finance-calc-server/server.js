@@ -471,12 +471,23 @@ app.post("/webhook/interakt", async (req, res) => {
       if (result.draft) saveDraft(countryCode, phone, result.draft);
       else clearDraft(countryCode, phone);
     } else if (
-      draft?.flow === "main_menu" &&
-      draft.step === "awaiting_amount_examples_cta" &&
-      looksLikeAmountExamplesCta(text)
+      looksLikeAmountExamplesCta(text) &&
+      (draft?.step === "awaiting_amount_examples_cta" ||
+        draft?.step === "awaiting_amount_examples_sector" ||
+        draft?.step === "awaiting_choice" ||
+        !draft)
     ) {
+      // زر «تقدم بتمويلك الآن» — لازم نسأل القطاع (ما نعتمد على Auto Reply)
       clearSession(countryCode, phone);
-      result = startPersonalFinanceFlow();
+      result = startPersonalFinanceFlow({ askSector: true });
+      saveDraft(countryCode, phone, result.draft);
+    } else if (
+      draft?.flow === "main_menu" &&
+      draft.step === "awaiting_amount_examples_cta"
+    ) {
+      // ضغط/رد غير مفهوم بعد الأمثلة → نعيد الزر أو نبدأ التمويل
+      clearSession(countryCode, phone);
+      result = startPersonalFinanceFlow({ askSector: true });
       saveDraft(countryCode, phone, result.draft);
     } else if (
       draft?.flow === "main_menu" &&

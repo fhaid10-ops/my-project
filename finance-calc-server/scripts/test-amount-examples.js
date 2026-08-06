@@ -44,6 +44,13 @@ assert.strictEqual(
   true
 );
 assert.strictEqual(looksLikeAmountExamplesCta("تقدم بتمويلك الآن"), true);
+assert.strictEqual(looksLikeAmountExamplesCta("تقدم بتمويلك الان"), true);
+assert.strictEqual(looksLikeAmountExamplesCta("تقدم بطلب التمويل الان"), true);
+
+const { startPersonalFinanceFlow } = require("../lib/conversation");
+const fromCta = startPersonalFinanceFlow({ askSector: true });
+assert.ok(fromCta.reply, "CTA لازم يرسل سؤال القطاع");
+assert.ok(fromCta.interactive, "CTA لازم يرسل أزرار القطاع");
 
 const civilian = buildAmountList("civilian");
 assert.ok(civilian.includes("مدني"));
