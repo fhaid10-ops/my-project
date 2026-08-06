@@ -710,7 +710,8 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         body: JSON.stringify({ days: 30 }),
       });
       setBackupStatus(
-        `Interakt: جلب ${r.fetched || 0} · جديد ${r.created || 0} · محدّث ${r.updated || 0}` +
+        `Interakt: جلب ${r.fetched || 0} رقم · جديد ${r.created || 0} · محدّث ${r.updated || 0}` +
+          (r.skippedSample ? ` · تجاهل عيّنات ${r.skippedSample}` : "") +
           (r.hint ? ` — ${r.hint}` : "") +
           (r.filterUsed ? ` · فلتر: ${r.filterUsed}` : "")
       );
