@@ -645,18 +645,9 @@ app.post("/webhook/interakt", async (req, res) => {
     } else if (looksLikeAmountChoice(text)) {
       const sessionData = getSession(countryCode, phone);
       if (sessionData?.awaitingCombo || sessionData?.awaitingComboInterest) return;
-      if (!sessionData?.maxAmount && !sessionData?.rounded) {
-        // رقم بدون جلسة/مسودة (مثل التزامات بعد إعادة تشغيل السيرفر) — لا نتجاهل بصمت
-        result = {
-          ok: false,
-          reply: `ما قدرت أكمل معاك لأن الجلسة انقطعت.
-اكتب: إعادة
-أو للقائمة الرئيسية: مرحبا`,
-        };
-      } else {
-        const amount = parseAmountChoice(text);
-        result = calculateSelectedAmount(sessionData || {}, amount);
-      }
+      if (!sessionData?.maxAmount && !sessionData?.rounded) return;
+      const amount = parseAmountChoice(text);
+      result = calculateSelectedAmount(sessionData || {}, amount);
     } else if (!draft && parseMainMenuChoice(text)) {
       // عناوين القائمة بدون مسودة — نتجاهل الأرقام وحدها لتجنب التضارب
       const choice = parseMainMenuChoice(text);
@@ -676,13 +667,7 @@ app.post("/webhook/interakt", async (req, res) => {
         if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
     } else {
-      // بدل الصمت: وجّه العميل لإعادة المسار أو القائمة
-      result = {
-        ok: false,
-        reply: `ما قدرت أكمل معاك.
-اكتب: إعادة
-أو للقائمة الرئيسية: مرحبا`,
-      };
+      return;
     }
 
     if (!result?.reply && !result?.interactive) return;
