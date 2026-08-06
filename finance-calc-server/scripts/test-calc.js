@@ -65,14 +65,28 @@ if (!result.interactive || result.interactive.kind !== "list") {
   }
 }
 
-// محاكاة مبلغ عالي مثل الشاشة (حوالي 126 ألف)
-const highTiers = buildLowerAmountTiers(126000, 10000, 10000);
-const picked = selectTiersForWhatsAppList(highTiers, 8);
+// محاكاة مبلغ عالي مثل الشاشة (حوالي 126 ألف) — خطوة 5,000
+const highTiers = buildLowerAmountTiers(126000, 5000, 10000);
+const picked = selectTiersForWhatsAppList(highTiers, 10);
 if (picked[picked.length - 1] !== 10000) {
   console.error("FAIL: العيّنة ما توصل 10,000", picked);
   process.exitCode = 1;
 } else {
   console.log("OK: عيّنة المبالغ العالية تصل لـ 10,000:", picked.join(", "));
+}
+
+// أعلى 60,000 → مبالغ أقل بخطوة 5,000 حتى 10,000
+const from60 = buildLowerAmountTiers(60000, 5000, 10000);
+if (
+  from60[0] !== 55000 ||
+  !from60.includes(50000) ||
+  !from60.includes(45000) ||
+  from60[from60.length - 1] !== 10000
+) {
+  console.error("FAIL: قائمة 60,000 بخطوة 5,000", from60);
+  process.exitCode = 1;
+} else {
+  console.log("OK: من 60,000 →", from60.join(", "));
 }
 
 if (result.ok && result.data?.lowerTiers?.length) {

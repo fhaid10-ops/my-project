@@ -541,7 +541,7 @@ ${formatMoney(total)} ريال`;
  * واتساب/Interakt عمليًا يعرض عدد محدود من صفوف القائمة.
  * نختار عيّنة من الأعلى للأقل مع ضمان وصول آخر خيار إلى 10,000.
  */
-function selectTiersForWhatsAppList(tiers, maxRows = 8) {
+function selectTiersForWhatsAppList(tiers, maxRows = 10) {
   if (!tiers.length) return [];
   if (tiers.length <= maxRows) return tiers.slice();
 
@@ -583,7 +583,7 @@ function selectTiersForWhatsAppList(tiers, maxRows = 8) {
 function buildLowerAmountInteractive(lowerTiers = []) {
   if (!lowerTiers.length) return null;
 
-  const displayTiers = selectTiersForWhatsAppList(lowerTiers, 8);
+  const displayTiers = selectTiersForWhatsAppList(lowerTiers, 10);
   const rows = displayTiers.map((amount) => ({
     id: `amt_${amount}`,
     title: `${formatMoney(amount)} ريال`,
