@@ -24,7 +24,8 @@ assert.ok(!looksLikeApplicationOrderNumber("1017123456"));
 
 const reply = buildOrderNumberAckReply(CONFIG.messages);
 assert.match(reply, /تم استلام رقم الطلب/);
-assert.match(reply, /24 إلى 48/);
+assert.match(reply, /أقرب وقت ممكن/);
+assert.match(reply, /لمتابعة الطلب/);
 assert.match(reply, /عبدالرحمن/);
 assert.match(reply, /0531240724/);
 

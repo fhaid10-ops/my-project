@@ -63,8 +63,10 @@ function buildOrderNumberAckReply(configMessages = {}) {
   const custom = configMessages.orderNumberRecorded;
   if (typeof custom === "string" && custom.trim()) return custom.trim();
   return `تم استلام رقم الطلب
-سيتم الرد خلال 24 إلى 48 ساعه ايام عمل
-للاستفسار تواصل مع عبدالرحمن 0531240724`;
+سيتم الرد في أقرب وقت ممكن 
+لمتابعة الطلب  ارسل رقم الطلب إلى 
+ عبدالرحمن 
+0531240724`;
 }
 
 module.exports = {
