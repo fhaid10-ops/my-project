@@ -13,6 +13,13 @@ const {
   meetsMinimumSalaryForEntry,
 } = require("./calculations");
 const { normalizeDigits } = require("./digits");
+const {
+  searchApprovedCompanies,
+  companyListInteractive,
+  parseCompanyPick,
+  parseCivilianSubtype,
+  civilianSubtypeButtons,
+} = require("./approved-companies");
 
 function looksLikeStartPersonalFinance(text) {
   const t = String(text || "").trim();
@@ -209,6 +216,139 @@ function militaryWithPropertyReject() {
 الراتب المطلوب للعسكري من ${formatted} ريال`;
 }
 
+/**
+ * بعد اختيار «مدني»: حكومي / قطاع خاص + بحث الشركة المعتمدة
+ * salaryMessage: نص سؤال الراتب (قد يشمل تنويه شراء المديونية)
+ */
+function advanceCivilianSubtypeFlow(state, raw, salaryMessage) {
+  const step = state.step;
+
+  if (step === "civilian_subtype") {
+    const subtype = parseCivilianSubtype(raw);
+    if (!subtype) {
+      const interactive = civilianSubtypeButtons();
+      return {
+        ok: false,
+        reply: `اختر نوع الجهة:
+1- حكومي
+2- قطاع خاص`,
+        interactive,
+        draft: state,
+      };
+    }
+    state.civilianSubtype = subtype;
+    if (subtype === "private") {
+      state.step = "company_name";
+      state.companyMatches = [];
+      return {
+        ok: true,
+        reply: `اكتب اسم شركتك (أو جزء منه).
+بنعرض لك أقرب الشركات المعتمدة تختار منها.
+
+مثال: الراجحي أو أرامكو أو البنك الأهلي`,
+        draft: state,
+      };
+    }
+    state.step = "salary";
+    return {
+      ok: true,
+      reply: salaryMessage || salaryPrompt("civilian"),
+      draft: state,
+    };
+  }
+
+  if (step === "company_name") {
+    const matches = searchApprovedCompanies(raw, { limit: 10 });
+    if (!matches.length) {
+      return {
+        ok: false,
+        reply: `ما لقينا شركة مطابقة ضمن المعتمدة.
+أعد كتابة الاسم بشكل أوضح، أو جزء أشهر من اسم الشركة.
+
+إذا شركتك مو بالقائمة نعتذر منك — التمويل للقطاع الخاص يكون للشركات المعتمدة فقط.`,
+        draft: state,
+      };
+    }
+    state.companyMatches = matches.map((c) => ({
+      name: c.name,
+      nameEn: c.nameEn,
+      index: c.index,
+    }));
+    state.step = "company_pick";
+    const body =
+      matches.length === 1
+        ? "لقينا شركة واحدة — اخترها من القائمة للتأكيد:"
+        : `لقينا ${matches.length} نتائج — اختر شركتك من القائمة:`;
+    return {
+      ok: true,
+      reply: body,
+      interactive: companyListInteractive(matches, body),
+      draft: state,
+    };
+  }
+
+  if (step === "company_pick") {
+    if (!/^co_\d+$/i.test(raw) && raw.length >= 2) {
+      const maybePick = parseCompanyPick(raw, state.companyMatches || []);
+      if (!maybePick) {
+        state.step = "company_name";
+        return advanceCivilianSubtypeFlow(state, raw, salaryMessage);
+      }
+    }
+    const picked = parseCompanyPick(raw, state.companyMatches || []);
+    if (!picked) {
+      const matches = state.companyMatches || [];
+      if (!matches.length) {
+        state.step = "company_name";
+        return {
+          ok: false,
+          reply: `اكتب اسم شركتك مرة ثانية للبحث.`,
+          draft: state,
+        };
+      }
+      return {
+        ok: false,
+        reply: `اختر شركتك من القائمة، أو اكتب الاسم للبحث من جديد.`,
+        interactive: companyListInteractive(matches),
+        draft: state,
+      };
+    }
+    state.companyName = picked.name;
+    state.companyApproved = true;
+    state.companyMatches = undefined;
+    state.step = "salary";
+    return {
+      ok: true,
+      reply: `تم اختيار: ${picked.name}
+
+${salaryMessage || salaryPrompt("civilian")}`,
+      draft: state,
+    };
+  }
+
+  return null;
+}
+
+function afterSectorSelected(state, jobCategory, salaryMessage) {
+  state.jobCategory = jobCategory;
+  if (jobCategory === "civilian") {
+    state.step = "civilian_subtype";
+    const interactive = civilianSubtypeButtons();
+    return {
+      ok: true,
+      reply: interactive.body,
+      interactive,
+      draft: state,
+    };
+  }
+  state.step = "salary";
+  return {
+    ok: true,
+    reply: salaryMessage || salaryPrompt(jobCategory),
+    draft: state,
+  };
+}
+
 function advancePersonalFinanceFlow(draft, text) {
   const state = { ...(draft || {}), flow: "personal_chat" };
   const step = state.step || "sector";
@@ -232,14 +372,15 @@ function advancePersonalFinanceFlow(draft, text) {
         draft: state,
       };
     }
-    state.jobCategory = jobCategory;
-    state.step = "salary";
-    return {
-      ok: true,
-      reply: salaryPrompt(jobCategory),
-      draft: state,
-    };
+    return afterSectorSelected(state, jobCategory, salaryPrompt(jobCategory));
   }
+
+  const civilianStep = advanceCivilianSubtypeFlow(
+    state,
+    raw,
+    salaryPrompt("civilian")
+  );
+  if (civilianStep) return civilianStep;
 
   if (step === "salary") {
     const salary = parseSalaryReply(raw);
@@ -398,6 +539,8 @@ module.exports = {
   looksLikeStartPersonalFinance,
   startPersonalFinanceFlow,
   advancePersonalFinanceFlow,
+  advanceCivilianSubtypeFlow,
+  afterSectorSelected,
   realEstateInteractive,
   parseRealEstateChoice,
   parseSalaryReply,

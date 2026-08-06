@@ -26,6 +26,8 @@ assert.strictEqual(started.draft.step, "sector");
 
 let draft = started.draft;
 let step = advancePersonalFinanceFlow(draft, "مدني");
+assert.strictEqual(step.draft.step, "civilian_subtype");
+step = advancePersonalFinanceFlow(step.draft, "حكومي");
 assert.strictEqual(step.draft.step, "salary");
 assert.ok(String(step.reply).includes("إعادة"));
 

@@ -100,7 +100,11 @@ check("عسكري أقل من 10000 يُرفض", () => {
 
 check("مسار مدني كامل حتى العرض", () => {
   let r = advanceDebtPurchaseFlow(startDebtPurchaseFlow().draft, "مدني");
+  assert.strictEqual(r.draft.step, "civilian_subtype");
+  assert.ok(r.interactive?.buttons?.some((b) => b.title === "حكومي"));
+  r = advanceDebtPurchaseFlow(r.draft, "حكومي");
   assert.match(r.reply, /تنويه بخصوص شراء المديونية|إمكان/);
+  assert.strictEqual(r.draft.step, "salary");
   r = advanceDebtPurchaseFlow(r.draft, "10000");
   assert.strictEqual(r.draft.step, "real_estate");
   r = advanceDebtPurchaseFlow(r.draft, "لا يوجد");

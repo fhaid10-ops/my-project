@@ -21,6 +21,7 @@ assert.ok(!re.interactive.body.includes("1- لا يوجد عقاري"));
 
 let draft = startPersonalFinanceFlow({ askSector: true }).draft;
 draft = advancePersonalFinanceFlow(draft, "مدني").draft;
+draft = advancePersonalFinanceFlow(draft, "حكومي").draft;
 draft = advancePersonalFinanceFlow(draft, "8000").draft;
 assert.strictEqual(draft.step, "commitments");
 

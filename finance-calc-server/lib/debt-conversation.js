@@ -19,6 +19,8 @@ const {
   realEstateStepReply,
   parseRealEstateChoice,
   realEstateInteractive,
+  afterSectorSelected,
+  advanceCivilianSubtypeFlow,
 } = require("./conversation");
 
 function looksLikeStartDebtPurchase(text) {
@@ -112,16 +114,28 @@ function advanceDebtPurchaseFlow(draft, text) {
         draft: state,
       };
     }
-    state.jobCategory = jobCategory;
-    state.step = "salary";
-    return {
-      ok: true,
-      reply: `${debtRulesText()}
+    // للمدني: حكومي/خاص أولًا — تنويه المديونية يطلع مع سؤال الراتب
+    if (jobCategory === "civilian") {
+      return afterSectorSelected(state, jobCategory);
+    }
+    return afterSectorSelected(
+      state,
+      jobCategory,
+      `${debtRulesText()}
 
-${salaryPrompt(jobCategory)}`,
-      draft: state,
-    };
+${salaryPrompt(jobCategory)}`
+    );
   }
+
+  const civilianSalaryMsg = `${debtRulesText()}
+
+${salaryPrompt("civilian")}`;
+  const civilianStep = advanceCivilianSubtypeFlow(
+    state,
+    raw,
+    civilianSalaryMsg
+  );
+  if (civilianStep) return civilianStep;
 
   if (step === "salary") {
     const salary = parseSalaryReply(raw);
