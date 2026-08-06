@@ -206,6 +206,20 @@ function calculatePersonalFinance(input) {
     supportForCalc
   );
   if (!Number.isFinite(monthlyCapacity) || monthlyCapacity <= 0) {
+    const comboReason = resolveComboRejectReason(sessionLike, 0, commitments);
+    if (comboReason) {
+      return buildPropertyComboInterestAsk({
+        jobCategory,
+        salary,
+        commitments,
+        realEstateType,
+        supportAmount,
+        estimated: 0,
+        rounded: 0,
+        monthlyCapacity,
+        reason: comboReason,
+      });
+    }
     return {
       ok: false,
       reply: "نعتذر منك التزامك عالي حسب نسبة الاستقطاع المتاحة.",
