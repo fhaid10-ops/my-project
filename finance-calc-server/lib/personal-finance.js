@@ -242,6 +242,24 @@ function calculatePersonalFinance(input) {
 
   // حماية نهائية لكل القطاعات: لا نعرض عرضًا قسطه أعلى من المتاح
   if (rounded > 0 && installment > monthlyCapacity) {
+    const comboReason = resolveComboRejectReason(
+      sessionLike,
+      rounded,
+      commitments
+    );
+    if (comboReason) {
+      return buildPropertyComboInterestAsk({
+        jobCategory,
+        salary,
+        commitments,
+        realEstateType,
+        supportAmount,
+        estimated,
+        rounded,
+        monthlyCapacity,
+        reason: comboReason,
+      });
+    }
     return {
       ok: false,
       reply:

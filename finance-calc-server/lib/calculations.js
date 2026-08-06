@@ -352,8 +352,9 @@ function isHighCommitmentsForCivilian(salary, commitments) {
 }
 
 /**
- * عقاري + شخصي — بعد فشل التمويل الشخصي العادي:
- * لا عقاري، راتب 7,000+، والمبلغ التقديري أقل من الحد الأدنى، والتزامات مرتفعة.
+ * عقاري + شخصي — بعد فشل/استنفاد التمويل الشخصي العادي:
+ * لا عقاري، راتب 7,000+، والمبلغ التقديري أقل من الحد الأدنى (مستنفذ حد).
+ * (الالتزامات العالية لم تعد شرطًا — أي مستنفذ حد يستحق عرض الباقة)
  */
 function qualifiesForPropertyCombo(session, estimatedAmount, totalCommitments) {
   if (militaryNoPropertyBelowPersonalMin(session)) {
@@ -371,23 +372,27 @@ function qualifiesForPropertyCombo(session, estimatedAmount, totalCommitments) {
     return false;
   }
 
-  return isHighCommitmentsForCivilian(salary, totalCommitments);
+  return true;
 }
 
 /**
  * سبب عدم التمويل الشخصي قبل عرض الباقة (عقاري + شخصي)
- * @returns {"military_low_salary"|"high_commitments"|null}
+ * @returns {"military_low_salary"|"high_commitments"|"low_amount"|null}
  */
 function resolveComboRejectReason(session, estimatedAmount, totalCommitments) {
   if (shouldOfferPropertyComboToMilitary(session)) {
     return "military_low_salary";
   }
 
-  if (qualifiesForPropertyCombo(session, estimatedAmount, totalCommitments)) {
-    return "high_commitments";
+  if (!qualifiesForPropertyCombo(session, estimatedAmount, totalCommitments)) {
+    return null;
   }
 
-  return null;
+  // رسالة أوضح حسب السبب
+  if (isHighCommitmentsForCivilian(Number(session.salary), totalCommitments)) {
+    return "high_commitments";
+  }
+  return "low_amount";
 }
 
 /**
