@@ -44,6 +44,15 @@ const picked = advancePersonalFinanceFlow(search.draft, "co_0");
 assert.strictEqual(picked.draft.step, "salary");
 assert.ok(picked.draft.companyName);
 assert.strictEqual(picked.draft.companyApproved, true);
+assert.strictEqual(picked.draft.jobCategory, "private");
+
+const { resolveInterestRate } = require("../lib/interest-rate");
+assert.strictEqual(resolveInterestRate({ jobCategory: "private" }), 15.5);
+assert.strictEqual(
+  resolveInterestRate({ jobCategory: "civilian", civilianSubtype: "private" }),
+  15.5
+);
+assert.strictEqual(resolveInterestRate({ jobCategory: "civilian" }), 13);
 
 const list = companyListInteractive(banks.slice(0, 3));
 assert.ok(list.rows.every((r) => r.title.length <= 24));

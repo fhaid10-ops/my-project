@@ -140,7 +140,9 @@ function looksLikeSectorOnlyReply(text) {
  * @returns {{ ok: boolean, reply: string, data?: object }}
  */
 function calculatePersonalFinance(input) {
-  const jobCategory = input.jobCategory || mapSector(input.sectorRaw);
+  let jobCategory = input.jobCategory || mapSector(input.sectorRaw);
+  if (input.civilianSubtype === "private") jobCategory = "private";
+  if (input.civilianSubtype === "government") jobCategory = "civilian";
   const realEstateType =
     input.realEstateType || mapRealEstate(input.realEstateRaw) || "none";
   const salary = Number(input.salary);
@@ -195,7 +197,11 @@ function calculatePersonalFinance(input) {
     };
   }
 
-  const session = { jobCategory };
+  const session = {
+    jobCategory,
+    civilianSubtype: input.civilianSubtype,
+    companyName: input.companyName,
+  };
   const rate = resolveInterestRate(session);
   const supportForCalc =
     realEstateType === "supported" ? supportAmount : 0;

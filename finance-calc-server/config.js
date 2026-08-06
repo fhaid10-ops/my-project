@@ -47,7 +47,8 @@ module.exports = {
   // ---------------------------------------------------------------------------
   jobCategories: {
     military: { label: "عسكري", interestRate: 18.5 }, // 18.50% — تمويل شخصي جديد
-    civilian: { label: "مدني", interestRate: 13 }, // 13%
+    civilian: { label: "مدني", interestRate: 13 }, // 13% — حكومي
+    private: { label: "قطاع خاص", interestRate: 15.5 }, // 15.50%
     retired: { label: "متقاعد", interestRate: 13 }, // 13%
   },
 
@@ -61,6 +62,7 @@ module.exports = {
     minSalaryByCategory: {
       military: 10000,
       civilian: 4000,
+      private: 4000,
       retired: 4000,
     },
     /** أقل مبلغ تقديري للقبول في المسار الشخصي */
@@ -212,6 +214,7 @@ module.exports = {
     installmentFormulaByCategory: {
       military: "equalPrincipal",
       civilian: "equalPrincipal",
+      private: "equalPrincipal",
       retired: "equalPrincipal",
     },
     /** قسط التمويل العقاري القديم — يُخصم تلقائياً ولا يُطلب من العميل إدخاله */

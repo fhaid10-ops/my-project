@@ -10,10 +10,13 @@ function resolveJobCategory(session) {
   if (session.jobCategory && jobCategories[session.jobCategory]) {
     return session.jobCategory;
   }
+  if (session.civilianSubtype === "private") return "private";
+  if (session.civilianSubtype === "government") return "civilian";
   const label = String(session.jobType || "");
   if (label.includes("عسكري")) return "military";
   if (label.includes("متقاعد")) return "retired";
-  if (label.includes("مدني")) return "civilian";
+  if (/خاص/.test(label)) return "private";
+  if (label.includes("مدني") || /حكومي/.test(label)) return "civilian";
   return null;
 }
 
@@ -22,6 +25,9 @@ function resolveInterestRate(session) {
   if (!session) return jobCategories.civilian.interestRate;
 
   const category = resolveJobCategory(session);
+  if (category === "private" && jobCategories.private) {
+    return jobCategories.private.interestRate;
+  }
   if (category === "retired" || category === "civilian") {
     return jobCategories.civilian.interestRate;
   }

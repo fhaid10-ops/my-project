@@ -68,7 +68,7 @@ function parseSalaryReply(text) {
 /** مثال الراتب حسب القطاع */
 function salaryExampleForSector(jobCategory) {
   if (jobCategory === "military") return "10000";
-  // مدني + متقاعد
+  // مدني حكومي + قطاع خاص + متقاعد
   return "4000";
 }
 
@@ -112,6 +112,10 @@ function lowSalaryApology(jobCategory) {
   if (jobCategory === "retired") {
     return `نعتذر منك الراتب أقل من المطلوب.
 راتب المتقاعد من ${formatted} ريال`;
+  }
+  if (jobCategory === "private") {
+    return `نعتذر منك الراتب أقل من المطلوب.
+راتب القطاع الخاص من ${formatted} ريال`;
   }
   return `نعتذر منك الراتب أقل من المطلوب.
 راتب المدني من ${formatted} ريال`;
@@ -238,6 +242,7 @@ function advanceCivilianSubtypeFlow(state, raw, salaryMessage) {
     }
     state.civilianSubtype = subtype;
     if (subtype === "private") {
+      state.jobCategory = "private";
       state.step = "company_name";
       state.companyMatches = [];
       return {
@@ -249,6 +254,7 @@ function advanceCivilianSubtypeFlow(state, raw, salaryMessage) {
         draft: state,
       };
     }
+    state.jobCategory = "civilian";
     state.step = "salary";
     return {
       ok: true,
@@ -315,13 +321,14 @@ function advanceCivilianSubtypeFlow(state, raw, salaryMessage) {
     }
     state.companyName = picked.name;
     state.companyApproved = true;
+    state.jobCategory = "private";
     state.companyMatches = undefined;
     state.step = "salary";
     return {
       ok: true,
       reply: `تم اختيار: ${picked.name}
 
-${salaryMessage || salaryPrompt("civilian")}`,
+${salaryMessage || salaryPrompt("private")}`,
       draft: state,
     };
   }
@@ -375,10 +382,14 @@ function advancePersonalFinanceFlow(draft, text) {
     return afterSectorSelected(state, jobCategory, salaryPrompt(jobCategory));
   }
 
+  const civilianSalaryPrompt =
+    state.jobCategory === "private"
+      ? salaryPrompt("private")
+      : salaryPrompt("civilian");
   const civilianStep = advanceCivilianSubtypeFlow(
     state,
     raw,
-    salaryPrompt("civilian")
+    civilianSalaryPrompt
   );
   if (civilianStep) return civilianStep;
 
@@ -503,10 +514,12 @@ ${restartHint()}`,
 function finishPersonalFlow(state) {
   const result = calculatePersonalFinance({
     jobCategory: state.jobCategory,
+    civilianSubtype: state.civilianSubtype,
     salary: state.salary,
     commitments: state.commitments,
     realEstateType: state.realEstateType || "none",
     supportAmount: state.supportAmount || 0,
+    companyName: state.companyName,
   });
 
   const awaitingInterest = Boolean(result.data?.awaitingComboInterest);
