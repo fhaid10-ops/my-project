@@ -382,7 +382,7 @@ function createAdminRouter(deps) {
         CONFIG.followUp?.electronicMessage ||
         `السلام عليكم
 هل قدمت تمويل؟
-أرسل رقم الطلب (يبدأ بـ 101).`;
+أرسل رقم الطلب (8 أرقام ويبدأ بـ 1016 أو 1017).`;
       await sendInteraktText(countryCode, phone, message);
       customerLedger?.recordOutbound?.(countryCode, phone, message, {
         mode: "admin-followup",

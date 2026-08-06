@@ -649,7 +649,7 @@ app.post("/webhook/interakt", async (req, res) => {
         saveSession(countryCode, phone, result.data);
       }
     } else if (looksLikeApplicationOrderNumber(text)) {
-      // رقم طلب التقديم (يبدأ بـ 1017) — قبل اختيار المبلغ حتى ما ينحسب كمبلغ تمويل
+      // رقم طلب التقديم (1016/1017 وطوله 8) — قبل اختيار المبلغ حتى ما ينحسب كمبلغ تمويل
       const orderNumber = parseApplicationOrderNumber(text);
       const prev = getSession(countryCode, phone) || {};
       saveSession(countryCode, phone, {
