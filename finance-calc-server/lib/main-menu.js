@@ -449,7 +449,7 @@ function handleMainMenuChoice(choice) {
 function sectorButtonsInteractive() {
   return {
     kind: "buttons",
-    body: "أي قطاع؟",
+    body: "اختر",
     buttons: [
       { id: "civilian", title: "مدني" },
       { id: "retired", title: "متقاعد" },

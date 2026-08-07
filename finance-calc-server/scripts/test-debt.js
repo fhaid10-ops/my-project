@@ -30,7 +30,7 @@ check("بداية شراء المديونية", () => {
   assert.strictEqual(start.draft.step, "sector");
   assert.ok(start.interactive);
   assert.strictEqual(start.interactive.kind, "buttons");
-  assert.strictEqual(start.reply, "أي قطاع؟");
+  assert.strictEqual(start.reply, "اختر");
   const silent = startDebtPurchaseFlow({ askSector: false });
   assert.strictEqual(silent.reply, null);
   assert.strictEqual(silent.interactive, null);

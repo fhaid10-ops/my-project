@@ -36,7 +36,7 @@ function looksLikeStartDebtPurchase(text) {
 function startDebtPurchaseFlow(options = {}) {
   // الكوبري يسأل القطاع مباشرة (ما نعتمد على Auto Reply في Interakt)
   const askSector = options.askSector !== false;
-  const sectorBody = "أي قطاع؟";
+  const sectorBody = "اختر";
   return {
     ok: true,
     flow: "debt_chat",

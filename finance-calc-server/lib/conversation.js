@@ -37,7 +37,7 @@ function startPersonalFinanceFlow(options = {}) {
   // افتراضيًا صامت: Interakt يعرض أزرار القطاع (مدني/متقاعد/عسكري)
   // حتى لا تتكرر الرسالة مرتين
   const askSector = options.askSector === true;
-  const sectorBody = "أي قطاع؟";
+  const sectorBody = "اختر";
   return {
     ok: true,
     flow: "personal_chat",

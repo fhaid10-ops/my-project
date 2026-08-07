@@ -196,10 +196,10 @@ function askAmountExamplesSector() {
   return {
     ok: true,
     flow: "main_menu",
-    reply: "أي قطاع؟",
+    reply: "اختر",
     interactive: {
       kind: "buttons",
-      body: "أي قطاع؟",
+      body: "اختر",
       buttons: [
         { id: "amt_civilian", title: "مدني" },
         { id: "amt_military", title: "عسكري" },
@@ -335,7 +335,7 @@ function handleAmountExamplesSector(text) {
     return {
       ok: false,
       ...askAmountExamplesSector(),
-      reply: "أي قطاع؟\nمدني / عسكري / متقاعد",
+      reply: "اختر",
     };
   }
   if (sector === "civilian") {
