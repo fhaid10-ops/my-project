@@ -611,10 +611,13 @@ function buildAmountChoiceInteractive({ lowerTiers = [] } = {}) {
 }
 
 /**
- * هل الرسالة اختيار مبلغ؟ (مثال: 90000 أو 90,000 أو amt_60000)
+ * هل الرسالة اختيار مبلغ؟ (مثال: 90000 أو 90,000 أو amt_60000 أو «15,000 ريال مبلغ أقل»)
  */
 function parseAmountChoice(text) {
-  const raw = normalizeDigits(text).trim();
+  let raw = normalizeDigits(text)
+    .replace(/[\u066B\u066C٬]/g, ",") // فواصل آلاف عربية
+    .replace(/\u2026/g, "...")
+    .trim();
   if (!raw) return null;
 
   const idMatch = raw.match(/^amt_(\d+)$/i);
@@ -622,6 +625,13 @@ function parseAmountChoice(text) {
     const amount = Number(idMatch[1]);
     return Number.isFinite(amount) && amount > 0 ? amount : null;
   }
+
+  // واتساب أحيانًا يرسل العنوان + الوصف: «15,000 ريال» + «مبلغ أقل»
+  raw = raw
+    .replace(/\n+/g, " ")
+    .replace(/\s*مبلغ\s*أقل\s*/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
   // رقم واحد في الرسالة (مع فواصل اختيارية)
   const m = raw.match(

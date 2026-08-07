@@ -111,6 +111,20 @@ if (fromListId !== result.data.lowerTiers[0]) {
   process.exitCode = 1;
 }
 
+const fromTitle = parseAmountChoice("15,000 ريال");
+const fromTitleDesc = parseAmountChoice("15,000 ريال مبلغ أقل");
+const fromTitleDescNl = parseAmountChoice("15,000 ريال\nمبلغ أقل");
+if (fromTitle !== 15000 || fromTitleDesc !== 15000 || fromTitleDescNl !== 15000) {
+  console.error("FAIL: parseAmountChoice من عنوان قائمة واتساب", {
+    fromTitle,
+    fromTitleDesc,
+    fromTitleDescNl,
+  });
+  process.exitCode = 1;
+} else {
+  console.log("OK: اختيار «15,000 ريال مبلغ أقل» من قائمة المبالغ");
+}
+
 // رجوع: القسط ما يتجاوز المتاح — عسكري / مدني / متقاعد
 const capacityCases = [
   {
