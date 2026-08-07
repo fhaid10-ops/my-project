@@ -670,6 +670,10 @@ app.post("/webhook/interakt", async (req, res) => {
       if (!sessionData?.maxAmount && !sessionData?.rounded) return;
       const amount = parseAmountChoice(text);
       result = calculateSelectedAmount(sessionData || {}, amount);
+      // احفظ الجلسة عشان يقدر يغيّر المبلغ لاحقًا (مثل من 15,000 إلى 10,000)
+      if (result?.ok && result.data) {
+        saveSession(countryCode, phone, result.data);
+      }
     } else if (!draft && parseMainMenuChoice(text)) {
       // عناوين القائمة بدون مسودة — نتجاهل الأرقام وحدها لتجنب التضارب
       const choice = parseMainMenuChoice(text);

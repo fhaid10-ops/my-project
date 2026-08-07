@@ -707,15 +707,31 @@ ${formatMoney(installment)} ريال
 الإجمالي التقريبي:
 ${formatMoney(total)} ريال`;
 
+  // نبقي قائمة المبالغ الأقل عشان يقدر يغيّر رأيه (مثل 10,000)
+  const lowerTiers =
+    Array.isArray(sessionData?.lowerTiers) && sessionData.lowerTiers.length
+      ? sessionData.lowerTiers
+      : buildLowerAmountTiers(
+          Number(sessionData?.maxAmount || sessionData?.rounded || amount),
+          AMOUNT_MENU_STEP,
+          CONFIG.financing.minLowerAmount || 10000
+        );
+  const interactive = buildLowerAmountInteractive(lowerTiers);
+
   return {
     ok: true,
     reply,
     followUpReply: buildPersonalApplyFollowUp(),
+    interactive,
+    sendTextThenInteractive: Boolean(interactive),
     data: {
       ...sessionData,
       selectedAmount: amount,
       installment,
       total,
+      lowerTiers,
+      maxAmount: Number(sessionData?.maxAmount || sessionData?.rounded || 0),
+      awaitingAmountChoice: true,
     },
   };
 }

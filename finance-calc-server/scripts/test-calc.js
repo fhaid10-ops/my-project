@@ -114,15 +114,47 @@ if (fromListId !== result.data.lowerTiers[0]) {
 const fromTitle = parseAmountChoice("15,000 ريال");
 const fromTitleDesc = parseAmountChoice("15,000 ريال مبلغ أقل");
 const fromTitleDescNl = parseAmountChoice("15,000 ريال\nمبلغ أقل");
-if (fromTitle !== 15000 || fromTitleDesc !== 15000 || fromTitleDescNl !== 15000) {
+const fromTen = parseAmountChoice("مبلغ أقل 10,000 ريال");
+if (
+  fromTitle !== 15000 ||
+  fromTitleDesc !== 15000 ||
+  fromTitleDescNl !== 15000 ||
+  fromTen !== 10000
+) {
   console.error("FAIL: parseAmountChoice من عنوان قائمة واتساب", {
     fromTitle,
     fromTitleDesc,
     fromTitleDescNl,
+    fromTen,
   });
   process.exitCode = 1;
 } else {
   console.log("OK: اختيار «15,000 ريال مبلغ أقل» من قائمة المبالغ");
+}
+
+// تغيير الرأي: بعد 15,000 يختار 10,000
+const firstPick = calculateSelectedAmount(result.data, 15000);
+const secondPick = calculateSelectedAmount(
+  { ...result.data, ...firstPick.data },
+  10000
+);
+if (
+  !firstPick.ok ||
+  !secondPick.ok ||
+  !firstPick.data?.awaitingAmountChoice ||
+  !secondPick.interactive ||
+  !String(secondPick.reply).includes("10,000")
+) {
+  console.error("FAIL: تغيير الرأي لمبلغ أقل 10,000", {
+    firstOk: firstPick.ok,
+    secondOk: secondPick.ok,
+    awaiting: firstPick.data?.awaitingAmountChoice,
+    hasList: Boolean(secondPick.interactive),
+    reply: secondPick.reply,
+  });
+  process.exitCode = 1;
+} else {
+  console.log("OK: تغيير الرأي من مبلغ إلى 10,000 مع بقاء القائمة");
 }
 
 // رجوع: القسط ما يتجاوز المتاح — عسكري / مدني / متقاعد
