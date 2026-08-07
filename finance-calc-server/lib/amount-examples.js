@@ -1,5 +1,6 @@
 /**
  * أمثلة مبالغ التمويل (بدون حسبة) — للقائمة الرئيسية
+ * المسار: مدني/عسكري/متقاعد → إن مدني: حكومي أو قطاع خاص
  */
 const CONFIG = require("../config");
 const {
@@ -16,6 +17,14 @@ function amountExamplesConfig() {
   };
 }
 
+function amountExamplesLabel(jobCategory) {
+  if (jobCategory === "military") return "عسكري";
+  if (jobCategory === "retired") return "متقاعد";
+  if (jobCategory === "private") return "قطاع خاص";
+  if (jobCategory === "civilian") return "قطاع حكومي";
+  return CONFIG.jobCategories?.[jobCategory]?.label || "مدني";
+}
+
 function buildAmountList(jobCategory) {
   const { min, max, step } = amountExamplesConfig();
   const rate =
@@ -25,13 +34,7 @@ function buildAmountList(jobCategory) {
       : jobCategory === "private"
         ? 15.5
         : 13);
-  const label =
-    CONFIG.jobCategories?.[jobCategory]?.label ||
-    (jobCategory === "military"
-      ? "عسكري"
-      : jobCategory === "private"
-        ? "قطاع خاص"
-        : "مدني");
+  const label = amountExamplesLabel(jobCategory);
   const rateLabel = Number.isInteger(rate) ? String(rate) : rate.toFixed(2);
 
   const lines = [];
@@ -55,6 +58,21 @@ ${lines.join("\n")}
 ملاحظة: هذه أمثلة توضيحية فقط وليست عرضًا ملزمًا.`;
 }
 
+function showAmountExamplesList(jobCategory) {
+  return {
+    ok: true,
+    flow: "main_menu",
+    reply: buildAmountList(jobCategory),
+    interactive: amountExamplesCtaInteractive(),
+    sendTextThenInteractive: true,
+    draft: {
+      flow: "main_menu",
+      step: "awaiting_amount_examples_cta",
+      amountExamplesSector: jobCategory,
+    },
+  };
+}
+
 /** زر تحت الأمثلة لبدء التمويل الشخصي */
 function amountExamplesCtaInteractive() {
   return {
@@ -76,7 +94,6 @@ function looksLikeAmountExamplesCta(text) {
     .trim();
   if (!t || t.length > 60) return false;
   if (/^start_personal_from_examples$/i.test(t)) return true;
-  // عنوان الزر + صيغ شائعة يكتبها/يرجعها واتساب
   if (/^تقدم\s*بتمويلك\s*الان$/i.test(t)) return true;
   if (/^تقدم\s*بتمويلك\s*الآن$/i.test(t)) return true;
   if (/^تقدم\s*بطلب\s*التمويل\s*الان$/i.test(t)) return true;
@@ -94,9 +111,9 @@ function askAmountExamplesSector() {
       kind: "buttons",
       body: "أي قطاع؟",
       buttons: [
-        { id: "amt_military", title: "عسكري" },
         { id: "amt_civilian", title: "مدني" },
-        { id: "amt_private", title: "قطاع خاص" },
+        { id: "amt_military", title: "عسكري" },
+        { id: "amt_retired", title: "متقاعد" },
       ],
     },
     draft: {
@@ -106,26 +123,66 @@ function askAmountExamplesSector() {
   };
 }
 
+function askAmountExamplesCivilianSubtype() {
+  return {
+    ok: true,
+    flow: "main_menu",
+    reply: "مدني — اختر: قطاع حكومي أو قطاع خاص",
+    interactive: {
+      kind: "buttons",
+      body: "مدني — اختر: قطاع حكومي أو قطاع خاص",
+      buttons: [
+        { id: "amt_gov", title: "قطاع حكومي" },
+        { id: "amt_private", title: "قطاع خاص" },
+      ],
+    },
+    draft: {
+      flow: "main_menu",
+      step: "awaiting_amount_examples_civilian_subtype",
+    },
+  };
+}
+
+/** الشاشة الأولى: مدني / عسكري / متقاعد */
 function parseAmountExamplesSector(text) {
   const t = String(text || "").trim();
   if (!t) return null;
   if (
-    /^(عسكري|military|amt_military|1)$/i.test(t) ||
+    /^(عسكري|military|amt_military|2)$/i.test(t) ||
     t === "عسكري"
   ) {
     return "military";
   }
   if (
-    /^(قطاع\s*خاص|خاص|private|amt_private|3)$/i.test(t) ||
-    t === "قطاع خاص"
+    /^(متقاعد|retired|amt_retired|3)$/i.test(t) ||
+    t === "متقاعد"
   ) {
-    return "private";
+    return "retired";
   }
   if (
-    /^(مدني|civilian|amt_civilian|2)$/i.test(t) ||
+    /^(مدني|civilian|amt_civilian|1)$/i.test(t) ||
     t === "مدني"
   ) {
     return "civilian";
+  }
+  return null;
+}
+
+/** بعد مدني: حكومي → civilian | خاص → private */
+function parseAmountExamplesCivilianSubtype(text) {
+  const t = String(text || "").trim();
+  if (!t) return null;
+  if (
+    /^(قطاع\s*حكومي|حكومي|government|gov|amt_gov|civilian_gov|1)$/i.test(t) ||
+    t === "قطاع حكومي"
+  ) {
+    return "civilian";
+  }
+  if (
+    /^(قطاع\s*خاص|خاص|private|amt_private|civilian_private|2)$/i.test(t) ||
+    t === "قطاع خاص"
+  ) {
+    return "private";
   }
   return null;
 }
@@ -136,27 +193,35 @@ function handleAmountExamplesSector(text) {
     return {
       ok: false,
       ...askAmountExamplesSector(),
-      reply: "أي قطاع؟",
+      reply: "أي قطاع؟\nمدني / عسكري / متقاعد",
     };
   }
-  return {
-    ok: true,
-    flow: "main_menu",
-    reply: buildAmountList(sector),
-    interactive: amountExamplesCtaInteractive(),
-    sendTextThenInteractive: true,
-    draft: {
-      flow: "main_menu",
-      step: "awaiting_amount_examples_cta",
-    },
-  };
+  if (sector === "civilian") {
+    return askAmountExamplesCivilianSubtype();
+  }
+  return showAmountExamplesList(sector);
+}
+
+function handleAmountExamplesCivilianSubtype(text) {
+  const jobCategory = parseAmountExamplesCivilianSubtype(text);
+  if (!jobCategory) {
+    return {
+      ok: false,
+      ...askAmountExamplesCivilianSubtype(),
+      reply: "اختر: قطاع حكومي أو قطاع خاص",
+    };
+  }
+  return showAmountExamplesList(jobCategory);
 }
 
 module.exports = {
   buildAmountList,
   askAmountExamplesSector,
+  askAmountExamplesCivilianSubtype,
   parseAmountExamplesSector,
+  parseAmountExamplesCivilianSubtype,
   handleAmountExamplesSector,
+  handleAmountExamplesCivilianSubtype,
   amountExamplesCtaInteractive,
   looksLikeAmountExamplesCta,
   amountExamplesConfig,

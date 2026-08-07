@@ -47,6 +47,7 @@ const {
 } = require("./lib/main-menu");
 const {
   handleAmountExamplesSector,
+  handleAmountExamplesCivilianSubtype,
   looksLikeAmountExamplesCta,
 } = require("./lib/amount-examples");
 const { extractIncomingMessage } = require("./lib/webhook-parse");
@@ -402,6 +403,7 @@ app.post("/webhook/interakt", async (req, res) => {
       (draft?.flow === "main_menu" &&
         (draft.step === "awaiting_choice" ||
           draft.step === "awaiting_amount_examples_sector" ||
+          draft.step === "awaiting_amount_examples_civilian_subtype" ||
           draft.step === "awaiting_amount_examples_cta" ||
           draft.step === "awaiting_service_stop_qualify" ||
           draft.step === "awaiting_service_stop_agent")) ||
@@ -477,9 +479,17 @@ app.post("/webhook/interakt", async (req, res) => {
       if (result.draft) saveDraft(countryCode, phone, result.draft);
       else clearDraft(countryCode, phone);
     } else if (
+      draft?.flow === "main_menu" &&
+      draft.step === "awaiting_amount_examples_civilian_subtype"
+    ) {
+      result = handleAmountExamplesCivilianSubtype(text);
+      if (result.draft) saveDraft(countryCode, phone, result.draft);
+      else clearDraft(countryCode, phone);
+    } else if (
       looksLikeAmountExamplesCta(text) &&
       (draft?.step === "awaiting_amount_examples_cta" ||
         draft?.step === "awaiting_amount_examples_sector" ||
+        draft?.step === "awaiting_amount_examples_civilian_subtype" ||
         draft?.step === "awaiting_choice" ||
         !draft)
     ) {
