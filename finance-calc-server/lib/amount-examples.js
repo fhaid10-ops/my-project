@@ -167,7 +167,7 @@ function morePageFromText(text) {
 function amountExamplesCtaInteractive() {
   return {
     kind: "buttons",
-    body: "تبي تقدم بتمويلك الآن؟",
+    body: "تقدم بتمويلك الآن؟",
     buttons: [
       {
         id: "start_personal_from_examples",
