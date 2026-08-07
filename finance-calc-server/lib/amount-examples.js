@@ -20,10 +20,19 @@ function buildAmountList(jobCategory) {
   const { min, max, step } = amountExamplesConfig();
   const rate =
     CONFIG.jobCategories?.[jobCategory]?.interestRate ||
-    (jobCategory === "military" ? 18.5 : 13);
+    (jobCategory === "military"
+      ? 18.5
+      : jobCategory === "private"
+        ? 15.5
+        : 13);
   const label =
     CONFIG.jobCategories?.[jobCategory]?.label ||
-    (jobCategory === "military" ? "عسكري" : "مدني");
+    (jobCategory === "military"
+      ? "عسكري"
+      : jobCategory === "private"
+        ? "قطاع خاص"
+        : "مدني");
+  const rateLabel = Number.isInteger(rate) ? String(rate) : rate.toFixed(2);
 
   const lines = [];
   for (let amount = min; amount <= max; amount += step) {
@@ -39,7 +48,7 @@ function buildAmountList(jobCategory) {
   }
 
   return `أمثلة مبالغ التمويل — ${label}
-(نسبة تقريبية ${rate}% لمدة 60 شهر)
+(نسبة تقريبية ${rateLabel}% لمدة 60 شهر)
 
 ${lines.join("\n")}
 
@@ -87,6 +96,7 @@ function askAmountExamplesSector() {
       buttons: [
         { id: "amt_military", title: "عسكري" },
         { id: "amt_civilian", title: "مدني" },
+        { id: "amt_private", title: "قطاع خاص" },
       ],
     },
     draft: {
@@ -104,6 +114,12 @@ function parseAmountExamplesSector(text) {
     t === "عسكري"
   ) {
     return "military";
+  }
+  if (
+    /^(قطاع\s*خاص|خاص|private|amt_private|3)$/i.test(t) ||
+    t === "قطاع خاص"
+  ) {
+    return "private";
   }
   if (
     /^(مدني|civilian|amt_civilian|2)$/i.test(t) ||

@@ -20,11 +20,13 @@ assert.ok(
 
 const ask = askAmountExamplesSector();
 assert.strictEqual(ask.interactive.kind, "buttons");
-assert.strictEqual(ask.interactive.buttons.length, 2);
+assert.strictEqual(ask.interactive.buttons.length, 3);
 assert.strictEqual(ask.draft.step, "awaiting_amount_examples_sector");
 
 assert.strictEqual(parseAmountExamplesSector("عسكري"), "military");
 assert.strictEqual(parseAmountExamplesSector("مدني"), "civilian");
+assert.strictEqual(parseAmountExamplesSector("قطاع خاص"), "private");
+assert.strictEqual(parseAmountExamplesSector("amt_private"), "private");
 assert.strictEqual(parseAmountExamplesSector("amt_military"), "military");
 
 const military = handleAmountExamplesSector("عسكري");
@@ -55,6 +57,14 @@ assert.ok(fromCta.interactive, "CTA لازم يرسل أزرار القطاع");
 const civilian = buildAmountList("civilian");
 assert.ok(civilian.includes("مدني"));
 assert.ok(civilian.includes("150,000 ريال"));
+assert.ok(civilian.includes("13%"));
+
+const privateList = handleAmountExamplesSector("قطاع خاص");
+assert.ok(privateList.reply.includes("قطاع خاص"));
+assert.ok(privateList.reply.includes("15.50%"));
+assert.ok(privateList.reply.includes("10,000 ريال"));
+assert.ok(privateList.reply.includes("150,000 ريال"));
+assert.strictEqual(privateList.draft.step, "awaiting_amount_examples_cta");
 
 const fromMenu = handleMainMenuChoice("3");
 assert.strictEqual(fromMenu.draft.step, "awaiting_amount_examples_sector");
