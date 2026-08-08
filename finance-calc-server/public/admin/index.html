@@ -280,7 +280,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-08-p";
+  const UI_VERSION = "2026-08-08-q";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -521,6 +521,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         </td>
         <td class="actions" data-label="إجراءات">
           <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
+          <button class="btn primary small" data-act="ask-order" data-phone="${row.phone}" type="button" title="يرسل: السلام عليكم / هل تم تقديم الطلب / ارسل رقم الطلب">سؤال عن الطلب</button>
           <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
           <button class="btn ghost small" data-act="reset" data-phone="${row.phone}" type="button">تصفير</button>
@@ -604,6 +605,12 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         body: JSON.stringify({ phone, outcome }),
       });
       if (row) row.outcome = outcome;
+      await refreshCustomers({ append: false });
+      return;
+    }
+    if (act === "ask-order") {
+      await api("/send-followup", { method: "POST", body: JSON.stringify({ phone }) });
+      alert("تم إرسال سؤال التقديم للعميل");
       await refreshCustomers({ append: false });
       return;
     }

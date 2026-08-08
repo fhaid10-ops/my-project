@@ -175,6 +175,18 @@ async function req(method, path, body, token = "test-token") {
   assert.strictEqual(send.json.sent, true);
   assert.strictEqual(sent[0].message, "اختبار");
 
+  const followup = await req("POST", "/send-followup", { phone: "0551234567" });
+  assert.strictEqual(followup.status, 200);
+  assert.strictEqual(followup.json.sent, true);
+  assert.ok(
+    String(sent[sent.length - 1].message).includes("هل تم تقديم الطلب"),
+    "رسالة سؤال التقديم"
+  );
+  assert.ok(
+    String(sent[sent.length - 1].message).includes("ارسل رقم الطلب"),
+    "طلب رقم الطلب"
+  );
+
   const menu = await req("POST", "/send-menu", { phone: "0551234567" });
   assert.strictEqual(menu.json.sent, true);
   assert.ok(drafts.has("+966:551234567"));
