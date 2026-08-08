@@ -148,6 +148,20 @@ function resumeChat(countryCode, phone) {
 }
 
 app.get("/health", (_req, res) => {
+  let customers = null;
+  try {
+    const summary = customerLedger.summary();
+    const persistence = customerLedger.persistenceInfo();
+    customers = {
+      today: summary?.counts?.today || 0,
+      yesterday: summary?.counts?.yesterday || 0,
+      all: summary?.counts?.all || 0,
+      durable: Boolean(persistence?.durable),
+      dataDir: persistence?.dataDir || null,
+    };
+  } catch (err) {
+    customers = { error: err.message };
+  }
   res.json({
     ok: true,
     service: "finance-calc-server",
@@ -156,6 +170,7 @@ app.get("/health", (_req, res) => {
     activeSessions: sessions.size,
     drafts: drafts.size,
     paused: pausedChats.size,
+    customers,
   });
 });
 

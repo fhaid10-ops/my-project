@@ -57,6 +57,36 @@ function createAdminRouter(deps) {
       .replace(/^['"]|['"]$/g, "");
   }
 
+  function cookieToken(req) {
+    const raw = req.get("cookie") || "";
+    const parts = raw.split(";").map((p) => p.trim());
+    for (const part of parts) {
+      if (part.startsWith("raed_admin_token=")) {
+        try {
+          return decodeURIComponent(part.slice("raed_admin_token=".length));
+        } catch {
+          return part.slice("raed_admin_token=".length);
+        }
+      }
+    }
+    return "";
+  }
+
+  function setAdminCookie(res, token) {
+    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+    res.setHeader(
+      "Set-Cookie",
+      `raed_admin_token=${encodeURIComponent(token)}; Path=/; Max-Age=2592000; SameSite=Lax; HttpOnly${secure}`
+    );
+  }
+
+  function clearAdminCookie(res) {
+    res.setHeader(
+      "Set-Cookie",
+      "raed_admin_token=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly"
+    );
+  }
+
   function requireAdmin(req, res, next) {
     const token = normalizeToken(adminToken);
     if (!token) {
@@ -69,6 +99,7 @@ function createAdminRouter(deps) {
       req.get("x-admin-token") ||
         (req.get("authorization") || "").replace(/^Bearer\s+/i, "") ||
         req.query.token ||
+        cookieToken(req) ||
         ""
     );
     if (got !== token) {
@@ -79,6 +110,31 @@ function createAdminRouter(deps) {
     }
     return next();
   }
+
+  /** دخول يضبط كوكي HttpOnly عشان ما يضيع بعد تحديث الجوال */
+  router.post("/login", (req, res) => {
+    const token = normalizeToken(adminToken);
+    if (!token) {
+      return res.status(503).json({ ok: false, error: "ADMIN_TOKEN غير مضبوط" });
+    }
+    const got = normalizeToken(req.body?.token || req.get("x-admin-token") || "");
+    if (got !== token) {
+      return res.status(401).json({ ok: false, error: "الرمز غير صحيح" });
+    }
+    setAdminCookie(res, token);
+    const persistence = customerLedger?.persistenceInfo?.() || null;
+    const summary = customerLedger?.summary?.() || null;
+    return res.json({
+      ok: true,
+      counts: summary?.counts || null,
+      persistence,
+    });
+  });
+
+  router.post("/logout", (_req, res) => {
+    clearAdminCookie(res);
+    res.json({ ok: true });
+  });
 
   function listConversations() {
     const keys = new Set([

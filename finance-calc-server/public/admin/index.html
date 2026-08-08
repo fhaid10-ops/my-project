@@ -164,6 +164,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     </label>
     <button id="login-btn" class="btn primary" type="button">دخول</button>
     <p id="login-error" class="error" hidden></p>
+    <p id="login-health" class="muted" style="margin-top:14px">جاري قراءة العدد المحفوظ...</p>
   </div>
 </div>
 
@@ -326,7 +327,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 <script>
 (() => {
   const TOKEN_KEY = "raed_admin_token";
-  const UI_VERSION = "2026-08-08-c";
+  const UI_VERSION = "2026-08-08-d";
   const PAGE_SIZE = 100;
   let customerDay = "today";
   let customersCache = [];
@@ -377,6 +378,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     const token = getToken();
     const res = await fetch(`/admin/api${path}`, {
       ...options,
+      credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
         "x-admin-token": token,
@@ -396,11 +398,30 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     return json;
   }
 
+  async function refreshLoginHealth() {
+    const el = document.getElementById("login-health");
+    if (!el) return;
+    try {
+      const res = await fetch("/health", { credentials: "same-origin" });
+      const h = await res.json();
+      const c = h.customers || {};
+      if (c.error) {
+        el.textContent = `تعذر قراءة السجل: ${c.error}`;
+        return;
+      }
+      el.textContent = `المحفوظ على السيرفر الآن: ${c.all ?? 0} · اليوم ${c.today ?? 0} · أمس ${c.yesterday ?? 0} · ${c.durable ? "قرص دائم" : "تخزين مؤقت"}`;
+      el.style.color = Number(c.all) > 0 ? "var(--accent)" : "var(--danger)";
+    } catch (err) {
+      el.textContent = `تعذر الاتصال بالسيرفر: ${err.message}`;
+    }
+  }
+
   function showLogin(msg) {
     appView.hidden = true;
     loginView.hidden = false;
     loginError.hidden = !msg;
     loginError.textContent = msg || "";
+    refreshLoginHealth();
   }
   function showApp() {
     loginView.hidden = true;
@@ -506,12 +527,16 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     updatePersistenceUi(status.persistence);
     updateLiveCounts(status.counts, status.persistence);
 
-    const activity = await api("/activity");
-    const list = document.getElementById("activity-list");
-    const rows = (activity.activity || []).slice(0, 12);
-    list.innerHTML = rows.length
-      ? rows.map((a) => `<li><strong>${actionLabel(a.action)}</strong> · ${a.phone || "—"}<div class="meta-line">${formatTime(a.at)}</div></li>`).join("")
-      : `<li class="muted">لا يوجد نشاط بعد</li>`;
+    try {
+      const activity = await api("/activity");
+      const list = document.getElementById("activity-list");
+      const rows = (activity.activity || []).slice(0, 12);
+      list.innerHTML = rows.length
+        ? rows.map((a) => `<li><strong>${actionLabel(a.action)}</strong> · ${a.phone || "—"}<div class="meta-line">${formatTime(a.at)}</div></li>`).join("")
+        : `<li class="muted">لا يوجد نشاط بعد</li>`;
+    } catch {
+      /* لا تفشل النظرة العامة بسبب سجل النشاط */
+    }
 
     if (status.followUpPreview) {
       const box = document.getElementById("followup-message");
@@ -692,28 +717,44 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     const token = tokenInput.value.trim() || getToken();
     if (!token) {
       showLogin("أدخل رمز الإدارة");
+      await refreshLoginHealth();
       return;
     }
     setToken(token);
     try {
+      // يضبط كوكي على السيرفر + يتحقق من الرمز
+      const login = await fetch("/admin/api/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({ token }),
+      }).then((r) => r.json());
+      if (!login.ok) {
+        clearToken();
+        showLogin(login.error || "الرمز غير صحيح");
+        await refreshLoginHealth();
+        return;
+      }
       const status = await api("/status");
       showApp();
       switchPanel("customers");
-      updatePersistenceUi(status.persistence);
-      document.getElementById("stat-today").textContent = status.counts?.customersToday ?? 0;
-      document.getElementById("stat-yesterday").textContent = status.counts?.customersYesterday ?? 0;
+      updatePersistenceUi(status.persistence || login.persistence);
+      updateLiveCounts(status.counts, status.persistence || login.persistence);
+      document.getElementById("stat-today").textContent = status.counts?.customersToday ?? login.counts?.today ?? 0;
+      document.getElementById("stat-yesterday").textContent = status.counts?.customersYesterday ?? login.counts?.yesterday ?? 0;
       try {
         await refreshAll();
       } catch (loadErr) {
         if (loadErr.message === "unauthorized") throw loadErr;
         const body = document.getElementById("customers-body");
-        const total = status.counts?.customersAll ?? 0;
+        const total = status.counts?.customersAll ?? login.counts?.all ?? 0;
         body.innerHTML = `<tr><td colspan="7" class="empty">العدد ${total} محفوظ على السيرفر، لكن فشل عرض القائمة: ${escapeHtml(loadErr.message)}. اضغط تحديث.</td></tr>`;
         setBackupStatus(`تعذر تحميل الجدول: ${loadErr.message}`);
       }
     } catch (err) {
       clearToken();
       showLogin(err.message === "unauthorized" ? "الرمز غير صحيح" : err.message);
+      await refreshLoginHealth();
     }
   }
 
@@ -721,9 +762,13 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
   tokenInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") tryEnter();
   });
-  logoutBtn.addEventListener("click", () => {
+  logoutBtn.addEventListener("click", async () => {
     clearToken();
+    try {
+      await fetch("/admin/api/logout", { method: "POST", credentials: "same-origin" });
+    } catch {}
     showLogin("");
+    await refreshLoginHealth();
   });
   refreshBtn.addEventListener("click", () => refreshAll().catch((e) => alert(e.message)));
 
@@ -915,7 +960,9 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
   });
 
   if (getToken()) tryEnter();
-  else showLogin("");
+  else {
+    showLogin("");
+  }
 })();
 </script>
 </body>

@@ -177,6 +177,39 @@ function createCustomerLedger(options = {}) {
     }
   }
 
+  /** إذا الذاكرة فارغة والملف على القرص فيه بيانات — أعد التحميل (يمنع التصفير الكاذب) */
+  function hydrateFromDiskIfNeeded() {
+    load();
+    if (customers.size > 0) return false;
+    try {
+      if (!fs.existsSync(dataFile)) {
+        const backup = latestBackupFile();
+        if (!backup) return false;
+        customers.clear();
+        loaded = true;
+        const n = readCustomersFile(backup);
+        if (n > 0) {
+          console.log(`[customer-ledger:hydrate] ${n} من بكب بعد ذاكرة فارغة`);
+          saveNow({ snapshot: false, force: true });
+          return true;
+        }
+        return false;
+      }
+      const st = fs.statSync(dataFile);
+      if (st.size < 200) return false;
+      customers.clear();
+      loaded = true;
+      const n = readCustomersFile(dataFile);
+      if (n > 0) {
+        console.log(`[customer-ledger:hydrate] ${n} من القرص بعد ذاكرة فارغة`);
+        return true;
+      }
+    } catch (err) {
+      console.error("[customer-ledger:hydrate]", err.message);
+    }
+    return false;
+  }
+
   function scheduleSave() {
     if (writeTimer) return;
     writeTimer = setTimeout(() => {
@@ -283,7 +316,7 @@ function createCustomerLedger(options = {}) {
   }
 
   function persistenceInfo() {
-    load();
+    hydrateFromDiskIfNeeded();
     let bytes = 0;
     let mtime = null;
     try {
@@ -440,7 +473,7 @@ function createCustomerLedger(options = {}) {
   }
 
   function listByDay(day = "today") {
-    load();
+    hydrateFromDiskIfNeeded();
     const today = calendarDayKey();
     const yesterday = shiftDayKey(today, -1);
     let target = null;
@@ -474,7 +507,7 @@ function createCustomerLedger(options = {}) {
   }
 
   function summary() {
-    load();
+    hydrateFromDiskIfNeeded();
     const todayPack = listByDay("today");
     const yesterdayPack = listByDay("yesterday");
     return {
@@ -668,6 +701,7 @@ function createCustomerLedger(options = {}) {
     upsertContact,
     listBackups,
     persistenceInfo,
+    hydrateFromDiskIfNeeded,
     calendarDayKey,
     shiftDayKey,
     TIMEZONE,

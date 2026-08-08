@@ -87,6 +87,36 @@ const contact = ledger2.upsertContact({
 assert.ok(contact.created);
 assert.ok(ledger2.listByDay("today").customers.some((c) => c.phone === "533248917"));
 
+// hydrate: ذاكرة فارغة + ملف على القرص
+const hydrateFile = path.join(dir, "customers-hydrate.json");
+const hydrateBackup = path.join(dir, "backups-hydrate");
+fs.writeFileSync(
+  hydrateFile,
+  JSON.stringify(
+    {
+      customers: [
+        {
+          key: "+966:511111111",
+          phone: "511111111",
+          countryCode: "+966",
+          lastSeenAt: new Date().toISOString(),
+        },
+      ],
+    },
+    null,
+    2
+  )
+);
+const hydra = createCustomerLedger({
+  dataFile: hydrateFile,
+  backupDir: hydrateBackup,
+});
+assert.ok(hydra.summary().counts.all >= 1);
+hydra._customers.clear();
+assert.strictEqual(hydra._customers.size, 0);
+assert.ok(hydra.hydrateFromDiskIfNeeded());
+assert.ok(hydra.summary().counts.all >= 1);
+
 const {
   resolveCustomersDataDir,
   isDurableDir,
