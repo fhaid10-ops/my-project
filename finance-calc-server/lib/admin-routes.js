@@ -159,6 +159,8 @@ function createAdminRouter(deps) {
   /**
    * عملاء اليوم / أمس / الكل
    * ?day=today|yesterday|all|YYYY-MM-DD
+   * ?limit=&offset= للصفحات (افتراضي 100) — يقلل ثقل الجوال
+   * ?phonesOnly=1 لنسخ الأرقام فقط
    */
   router.get("/customers", requireAdmin, (req, res) => {
     if (!customerLedger) {
@@ -169,12 +171,55 @@ function createAdminRouter(deps) {
     }
     const day = String(req.query.day || "today").trim() || "today";
     const pack = customerLedger.listByDay(day);
-    const enriched = pack.customers.map((row) => {
+    const summary = customerLedger.summary();
+    const phonesOnly =
+      req.query.phonesOnly === "1" || req.query.phonesOnly === "true";
+    if (phonesOnly) {
+      return res.json({
+        ok: true,
+        timezone: pack.timezone,
+        today: pack.today,
+        yesterday: pack.yesterday,
+        day: pack.day,
+        count: pack.count,
+        counts: summary.counts,
+        phones: pack.customers.map((row) => ({
+          phone: row.phone,
+          countryCode: row.countryCode,
+        })),
+      });
+    }
+
+    const total = pack.customers.length;
+    const wantAll =
+      req.query.limit === "all" ||
+      req.query.limit === "0" ||
+      req.query.all === "1";
+    const limit = wantAll
+      ? total
+      : Math.min(Math.max(Number(req.query.limit || 100), 1), 500);
+    const offset = Math.max(Number(req.query.offset || 0), 0);
+    const slice = pack.customers.slice(offset, offset + limit);
+    const enriched = slice.map((row) => {
       const key = sessionKey(row.countryCode, row.phone);
       const sessionRow = sessions.get(key);
       const draftRow = drafts.get(key);
       return {
-        ...row,
+        key: row.key,
+        phone: row.phone,
+        countryCode: row.countryCode,
+        firstSeenAt: row.firstSeenAt,
+        lastSeenAt: row.lastSeenAt,
+        lastInboundText: row.lastInboundText || "",
+        lastOutboundPreview: row.lastOutboundPreview || "",
+        inboundCount: row.inboundCount || 0,
+        outboundCount: row.outboundCount || 0,
+        flow: row.flow || null,
+        step: row.step || null,
+        maxAmount: row.maxAmount ?? null,
+        source: row.source || null,
+        syncedAt: row.syncedAt || null,
+        dayKey: row.dayKey || null,
         paused: pausedChats.has(key),
         live: {
           session: sessionRow
@@ -195,16 +240,19 @@ function createAdminRouter(deps) {
         },
       };
     });
-    const summary = customerLedger.summary();
     res.json({
       ok: true,
       timezone: pack.timezone,
       today: pack.today,
       yesterday: pack.yesterday,
       day: pack.day,
-      count: enriched.length,
+      count: total,
+      offset,
+      limit: wantAll ? total : limit,
+      hasMore: offset + enriched.length < total,
       counts: summary.counts,
       customers: enriched,
+      persistence: customerLedger.persistenceInfo?.() || null,
     });
   });
 
@@ -527,10 +575,23 @@ function mountAdmin(app, deps) {
   app.use("/admin/api", router);
 
   app.get(["/admin", "/admin/"], (_req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
     res.sendFile(indexFile);
   });
 
-  app.use("/admin", express.static(adminDir));
+  app.use(
+    "/admin",
+    express.static(adminDir, {
+      etag: false,
+      lastModified: false,
+      setHeaders(res, filePath) {
+        if (filePath.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        }
+      },
+    })
+  );
 }
 
 module.exports = {

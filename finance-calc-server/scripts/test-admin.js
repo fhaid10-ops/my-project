@@ -89,6 +89,16 @@ async function req(method, path, body, token = "test-token") {
     customers.json.customers.some((c) => c.phone === "551234567")
   );
 
+  const paged = await req("GET", "/customers?day=today&limit=1&offset=0");
+  assert.strictEqual(paged.status, 200);
+  assert.ok(paged.json.count >= 1);
+  assert.strictEqual(paged.json.customers.length, 1);
+  assert.ok(!("events" in (paged.json.customers[0] || {})));
+
+  const phonesOnly = await req("GET", "/customers?day=today&phonesOnly=1");
+  assert.strictEqual(phonesOnly.status, 200);
+  assert.ok((phonesOnly.json.phones || []).length >= 1);
+
   const exported = await req("GET", "/customers/export");
   assert.strictEqual(exported.status, 200);
   assert.ok((exported.json.customers || []).length >= 1);

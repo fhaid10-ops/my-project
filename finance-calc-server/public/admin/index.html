@@ -247,7 +247,10 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       <div class="card">
         <div class="toolbar">
           <p class="muted" id="customers-meta" style="margin:0">—</p>
-          <button id="copy-today-phones" class="btn secondary small" type="button">نسخ أرقام اليوم</button>
+          <div class="btn-row">
+            <button id="copy-today-phones" class="btn secondary small" type="button">نسخ أرقام اليوم</button>
+            <button id="load-more-customers" class="btn secondary small" type="button" hidden>تحميل المزيد</button>
+          </div>
         </div>
         <div class="table-wrap">
           <table>
@@ -322,8 +325,11 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 <script>
 (() => {
   const TOKEN_KEY = "raed_admin_token";
+  const PAGE_SIZE = 100;
   let customerDay = "today";
   let customersCache = [];
+  let customersTotal = 0;
+  let customersHasMore = false;
   let statusCache = null;
 
   const loginView = document.getElementById("login-view");
@@ -570,22 +576,43 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       .replace(/"/g, "&quot;");
   }
 
-  async function refreshCustomers() {
-    let pack = await api(`/customers?day=${encodeURIComponent(customerDay)}`);
+  function setCustomersMeta(pack, counts) {
+    const shown = customersCache.length;
+    const total = pack.count || shown;
+    document.getElementById("customers-meta").textContent =
+      `عرض ${shown} من ${total} · ${pack.day === "all" ? "كل السجل" : pack.day} · ${pack.timezone || "Asia/Riyadh"}` +
+      ` · الكل ${counts.all ?? "—"}` +
+      (counts.today != null ? ` · اليوم ${counts.today}` : "");
+    const moreBtn = document.getElementById("load-more-customers");
+    if (moreBtn) moreBtn.hidden = !customersHasMore;
+  }
+
+  async function refreshCustomers({ append = false } = {}) {
+    const body = document.getElementById("customers-body");
+    if (!append) {
+      body.innerHTML = `<tr><td colspan="7" class="empty">جاري تحميل العملاء...</td></tr>`;
+    }
+    const offset = append ? customersCache.length : 0;
+    let pack = await api(
+      `/customers?day=${encodeURIComponent(customerDay)}&limit=${PAGE_SIZE}&offset=${offset}`
+    );
     // إذا تبويب اليوم فاضي وفيه سجل قديم — انقل العرض إلى الكل تلقائياً
     if (
+      !append &&
       customerDay === "today" &&
       !(pack.customers || []).length &&
       (pack.counts?.all || 0) > 0
     ) {
       setCustomerTab("all");
-      pack = await api("/customers?day=all");
+      pack = await api(`/customers?day=all&limit=${PAGE_SIZE}&offset=0`);
     }
-    customersCache = pack.customers || [];
+    const page = pack.customers || [];
+    customersCache = append ? customersCache.concat(page) : page;
+    customersTotal = pack.count || customersCache.length;
+    customersHasMore = Boolean(pack.hasMore);
     const counts = pack.counts || {};
-    document.getElementById("customers-meta").textContent =
-      `${pack.count || 0} عميل · ${pack.day === "all" ? "كل السجل" : pack.day} · ${pack.timezone || "Asia/Riyadh"}` +
-      ` · الكل ${counts.all ?? "—"}`;
+    if (pack.persistence) updatePersistenceUi(pack.persistence);
+    setCustomersMeta(pack, counts);
     renderCustomers(customersCache, counts);
   }
 
@@ -645,10 +672,21 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     }
     setToken(token);
     try {
-      await api("/status");
+      const status = await api("/status");
       showApp();
       switchPanel("customers");
-      await refreshAll();
+      updatePersistenceUi(status.persistence);
+      document.getElementById("stat-today").textContent = status.counts?.customersToday ?? 0;
+      document.getElementById("stat-yesterday").textContent = status.counts?.customersYesterday ?? 0;
+      try {
+        await refreshAll();
+      } catch (loadErr) {
+        if (loadErr.message === "unauthorized") throw loadErr;
+        const body = document.getElementById("customers-body");
+        const total = status.counts?.customersAll ?? 0;
+        body.innerHTML = `<tr><td colspan="7" class="empty">العدد ${total} محفوظ على السيرفر، لكن فشل عرض القائمة: ${escapeHtml(loadErr.message)}. اضغط تحديث.</td></tr>`;
+        setBackupStatus(`تعذر تحميل الجدول: ${loadErr.message}`);
+      }
     } catch (err) {
       clearToken();
       showLogin(err.message === "unauthorized" ? "الرمز غير صحيح" : err.message);
@@ -673,15 +711,23 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     const tab = e.target.closest(".tab");
     if (!tab) return;
     setCustomerTab(tab.dataset.day);
-    await refreshCustomers();
+    await refreshCustomers({ append: false }).catch((err) => alert(err.message));
   });
 
   customerSearch.addEventListener("input", () => renderCustomers(customersCache));
 
+  document.getElementById("load-more-customers").addEventListener("click", async () => {
+    try {
+      await refreshCustomers({ append: true });
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
   document.getElementById("copy-today-phones").addEventListener("click", async () => {
     try {
-      const pack = await api("/customers?day=today");
-      const phones = (pack.customers || []).map((r) => displayPhone(r)).join("\n");
+      const pack = await api("/customers?day=today&phonesOnly=1");
+      const phones = (pack.phones || []).map((r) => displayPhone(r)).join("\n");
       await navigator.clipboard.writeText(phones || "");
       alert(phones ? `تم نسخ ${pack.count} رقم` : "لا توجد أرقام اليوم");
     } catch (err) {
