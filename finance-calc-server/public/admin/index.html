@@ -71,10 +71,18 @@ textarea { min-height: 110px; resize: vertical; }
 }
 .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .tab {
-  border: 1px solid var(--line); background: #fff; border-radius: 999px;
-  padding: 8px 14px; cursor: pointer; font-weight: 600; color: var(--muted);
+  border: 1px solid var(--line); background: #fff; border-radius: 14px;
+  padding: 8px 16px; cursor: pointer; font-weight: 600; color: var(--muted);
+  display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 88px;
+}
+.tab-label { line-height: 1.2; }
+.tab-count {
+  font-size: .78rem; font-weight: 700; color: var(--accent);
+  font-variant-numeric: tabular-nums; line-height: 1.2;
 }
 .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.tab.active .tab-count { color: rgba(255,255,255,.92); }
 .toolbar {
   display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;
   align-items: center; margin-bottom: 12px;
@@ -241,9 +249,18 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
     <div class="toolbar">
       <div class="tabs" id="customer-tabs">
-        <button class="tab active" data-day="today" type="button">اليوم</button>
-        <button class="tab" data-day="yesterday" type="button">أمس</button>
-        <button class="tab" data-day="all" type="button">الكل</button>
+        <button class="tab active" data-day="today" type="button">
+          <span class="tab-label">اليوم</span>
+          <span class="tab-count" id="tab-count-today">—</span>
+        </button>
+        <button class="tab" data-day="yesterday" type="button">
+          <span class="tab-label">أمس</span>
+          <span class="tab-count" id="tab-count-yesterday">—</span>
+        </button>
+        <button class="tab" data-day="all" type="button">
+          <span class="tab-label">الكل</span>
+          <span class="tab-count" id="tab-count-all">—</span>
+        </button>
       </div>
       <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو الطلب أو جهة العمل أو وش صار أو ملاحظة" />
     </div>
@@ -280,7 +297,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-08-q";
+  const UI_VERSION = "2026-08-08-r";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -439,6 +456,19 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       .replace(/"/g, "&quot;");
   }
 
+  function updateTabCounts(counts) {
+    const today = counts?.today ?? counts?.customersToday;
+    const yesterday = counts?.yesterday ?? counts?.customersYesterday;
+    const all = counts?.all ?? counts?.customersAll;
+    const set = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value == null || value === "" ? "—" : String(value);
+    };
+    set("tab-count-today", today);
+    set("tab-count-yesterday", yesterday);
+    set("tab-count-all", all);
+  }
+
   function updateLiveCounts(counts, persistence) {
     const el = document.getElementById("live-counts");
     if (!el) return;
@@ -448,6 +478,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     const disk = persistence?.durable ? "قرص دائم" : "تخزين مؤقت";
     el.textContent = `العدد المحفوظ: ${all} · اليوم ${today} · أمس ${yesterday} · ${disk}`;
     el.style.color = Number(all) > 0 ? "var(--accent)" : "var(--danger)";
+    updateTabCounts(counts);
   }
 
   function updatePersistenceUi(persistence) {
@@ -539,6 +570,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       (counts.today != null ? ` · اليوم ${counts.today}` : "");
     const moreBtn = document.getElementById("load-more-customers");
     if (moreBtn) moreBtn.hidden = !customersHasMore;
+    updateTabCounts(counts);
   }
 
   async function refreshCustomers({ append = false } = {}) {
