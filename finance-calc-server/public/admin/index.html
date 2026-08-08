@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>لوحة تحكم رائد الحربي</title>
+<title>عملاء رائد الحربي</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
@@ -34,21 +34,15 @@ html, body {
     linear-gradient(165deg, var(--bg), var(--bg2));
 }
 button, input, textarea, select { font: inherit; }
-.login-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
-.card, .login-card {
+.card {
   background: var(--card); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: var(--shadow); backdrop-filter: blur(10px);
+  padding: 18px;
 }
-.login-card { width: min(420px, 100%); padding: 34px 28px; }
 .brand-mark { margin: 0; color: var(--accent); font-weight: 700; letter-spacing: .03em; }
-.login-card h1, .topbar h2 {
-  margin: 8px 0 6px; font-family: var(--display);
-  font-size: clamp(1.55rem, 2vw, 2.1rem);
-}
-.muted, .login-sub, .topbar p { color: var(--muted); margin: 0 0 16px; }
+.muted { color: var(--muted); margin: 0 0 16px; }
 .field { display: grid; gap: 8px; margin-bottom: 14px; }
 .field span { font-size: .9rem; color: var(--muted); }
-.field.inline { grid-template-columns: 1fr 150px; align-items: end; }
 input, textarea, select {
   width: 100%; border: 1px solid var(--line); border-radius: 12px;
   padding: 12px 14px; background: #fff; color: var(--ink);
@@ -64,47 +58,16 @@ textarea { min-height: 110px; resize: vertical; }
 .btn.danger { background: rgba(157,58,45,.12); color: var(--danger); }
 .btn.small { padding: 7px 10px; font-size: .85rem; border-radius: 10px; }
 .btn:hover { filter: brightness(.98); transform: translateY(-1px); }
-.error { color: var(--danger); margin-top: 12px; }
 .status { margin-top: 12px; color: var(--accent); }
-.app {
-  min-height: 100vh; display: grid;
-  grid-template-columns: 250px 1fr;
-}
-.sidebar {
-  border-left: 1px solid var(--line); background: rgba(255,255,255,.55);
-  padding: 22px 16px; display: flex; flex-direction: column; gap: 18px;
-}
-.sidebar-brand { display: grid; gap: 4px; }
-.sidebar-brand > div { display: grid; gap: 4px; }
-.sidebar-brand strong { font-size: 1.05rem; }
-.nav { display: grid; gap: 8px; }
-.nav-btn {
-  text-align: right; border: 0; background: transparent; padding: 12px 14px;
-  border-radius: 12px; cursor: pointer; color: var(--ink); font-weight: 600;
-}
-.nav-btn.active, .nav-btn:hover { background: var(--accent-soft); color: var(--accent); }
-.sidebar-foot { margin-top: auto; }
-.main { padding: 24px; }
+.app { min-height: 100vh; }
+.main { padding: 20px 24px 40px; max-width: 1200px; margin: 0 auto; }
 .topbar {
   display: flex; justify-content: space-between; gap: 16px; align-items: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
-.stat-grid {
-  display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 16px;
-}
-.stat {
-  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 16px; box-shadow: var(--shadow);
-}
-.stat span { display: block; color: var(--muted); margin-bottom: 8px; font-size: .9rem; }
-.stat strong { font-size: 1.7rem; font-family: var(--display); }
-.card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.card { padding: 18px; }
-.card h3 { margin: 0 0 12px; font-size: 1.05rem; }
-.activity { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.activity li {
-  padding: 10px 12px; border-radius: 12px; background: #f5f8f6; border: 1px solid var(--line);
-  font-size: .92rem;
+.topbar h1 {
+  margin: 6px 0 4px; font-family: var(--display);
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
 }
 .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .tab {
@@ -116,9 +79,7 @@ textarea { min-height: 110px; resize: vertical; }
   display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;
   align-items: center; margin-bottom: 12px;
 }
-.search {
-  min-width: min(280px, 100%);
-}
+.search { min-width: min(280px, 100%); }
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td {
@@ -126,7 +87,6 @@ th, td {
   vertical-align: top;
 }
 th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
-td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-size: .9rem; }
 .notes-input {
   width: 100%; min-width: 140px; max-width: 260px;
   border: 1px solid var(--line); border-radius: 10px;
@@ -147,7 +107,6 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 }
 .badge.paused { background: rgba(157,58,45,.12); color: var(--danger); }
 .badge.active { background: var(--accent-soft); color: var(--accent); }
-.badge.day { background: rgba(184,137,31,.14); color: #8a6714; }
 .work-choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .work-choice {
   border: 1px solid var(--line); background: #fff; color: var(--ink);
@@ -157,7 +116,6 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
   background: var(--accent); color: #fff; border-color: var(--accent);
 }
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
-.form-card { max-width: 720px; }
 .phone-link {
   font-weight: 700; direction: ltr; unicode-bidi: plaintext;
   display: inline-block; color: var(--accent); text-decoration: none;
@@ -174,105 +132,51 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 }
 .backup-panel[open] > summary::after { transform: rotate(180deg); }
 .backup-panel > summary + * { margin-top: 12px; }
-.mobile-only { display: none; }
-@media (max-width: 980px) {
-  .app { grid-template-columns: 1fr; }
-  .sidebar {
-    position: sticky; top: 0; z-index: 50;
-    border-left: 0; border-bottom: 1px solid var(--line);
-    background: rgba(255,255,255,.94); backdrop-filter: blur(12px);
-    padding: 12px 14px; gap: 10px;
-  }
-  .sidebar-brand {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  }
-  .sidebar-brand strong { font-size: .98rem; }
-  .nav {
-    display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; padding-bottom: 2px;
-  }
-  .nav::-webkit-scrollbar { display: none; }
-  .nav-btn {
-    flex: 0 0 auto; white-space: nowrap; text-align: center;
-    padding: 10px 14px; font-size: .9rem;
-  }
-  .sidebar-foot { margin-top: 0; }
-  .sidebar-foot .btn { padding: 8px 12px; font-size: .85rem; }
-  .mobile-only { display: inline-flex; align-items: center; justify-content: center; }
-  .desktop-logout { display: none; }
-  .stat-grid, .card-row { grid-template-columns: 1fr 1fr; }
+.error-banner {
+  display: none; margin-bottom: 14px; padding: 12px 14px;
+  border-radius: 12px; border: 1px solid rgba(157,58,45,.35);
+  background: rgba(157,58,45,.08); color: var(--danger); font-weight: 600;
 }
 @media (max-width: 720px) {
-  .main { padding: 14px 12px 88px; }
+  .main { padding: 14px 12px 40px; }
   .topbar { flex-direction: column; gap: 10px; margin-bottom: 14px; }
-  .topbar h2 { font-size: 1.35rem; margin: 4px 0; }
   .topbar .btn, .btn-row .btn, .toolbar .btn { width: 100%; }
   .btn-row { width: 100%; }
   .btn-row .btn { flex: 1 1 calc(50% - 6px); min-width: 140px; }
-  .stat-grid, .card-row, .field.inline { grid-template-columns: 1fr; }
   .search { min-width: 100%; width: 100%; }
   .tabs { width: 100%; }
   .tab { flex: 1 1 auto; text-align: center; min-height: 42px; }
   .toolbar { align-items: stretch; }
   .card { padding: 14px; }
   .notes-input, .order-input { max-width: none; min-width: 0; width: 100%; }
-  .form-card { max-width: none; }
-
-  /* جداول → بطاقات على الجوال */
   .table-wrap { overflow: visible; margin: 0 -2px; }
   table { border-collapse: separate; border-spacing: 0; }
   thead { display: none; }
   tbody tr {
-    display: block;
-    background: #fff;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 12px 12px 8px;
-    margin-bottom: 12px;
+    display: block; background: #fff; border: 1px solid var(--line);
+    border-radius: 14px; padding: 12px 12px 8px; margin-bottom: 12px;
     box-shadow: 0 8px 22px rgba(18,32,25,.05);
   }
   tbody tr:has(.empty) {
     background: transparent; border: 0; box-shadow: none; padding: 8px 0; margin: 0;
   }
   tbody td {
-    display: grid;
-    grid-template-columns: 92px minmax(0, 1fr);
-    gap: 8px 10px;
-    align-items: start;
-    border-bottom: 0;
-    padding: 8px 0;
+    display: grid; grid-template-columns: 92px minmax(0, 1fr);
+    gap: 8px 10px; align-items: start; border-bottom: 0; padding: 8px 0;
   }
   tbody td::before {
-    content: attr(data-label);
-    color: var(--muted);
-    font-size: .78rem;
-    font-weight: 700;
-    padding-top: 6px;
-    line-height: 1.3;
+    content: attr(data-label); color: var(--muted);
+    font-size: .78rem; font-weight: 700; padding-top: 6px; line-height: 1.3;
   }
-  tbody td.empty {
-    display: block;
-    text-align: center;
-    padding: 24px 8px !important;
-  }
+  tbody td.empty { display: block; text-align: center; padding: 24px 8px !important; }
   tbody td.empty::before { content: none; }
   tbody td.actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding-top: 10px;
-    margin-top: 4px;
-    border-top: 1px dashed var(--line);
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding-top: 10px; margin-top: 4px; border-top: 1px dashed var(--line);
   }
-  tbody td.actions::before {
-    flex: 1 0 100%;
-    padding-top: 0;
-    margin-bottom: 0;
-  }
-  tbody td.actions .btn,
-  tbody td.actions a.btn {
-    flex: 1 1 calc(50% - 6px);
-    min-height: 42px;
+  tbody td.actions::before { flex: 1 0 100%; padding-top: 0; }
+  tbody td.actions .btn, tbody td.actions a.btn {
+    flex: 1 1 calc(50% - 6px); min-height: 42px;
     display: inline-flex; align-items: center; justify-content: center;
     text-align: center; text-decoration: none;
   }
@@ -288,193 +192,89 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 </style>
 </head>
 <body>
-<div id="login-view" class="login-shell">
-  <div class="login-card">
-    <p class="brand-mark">رائد الحربي</p>
-    <h1>لوحة التحكم</h1>
-    <p class="login-sub">عملاء اليوم وأمس + إدارة المحادثات والإرسال</p>
-    <label class="field">
-      <span>رمز الإدارة (ADMIN_TOKEN)</span>
-      <input id="token-input" type="password" autocomplete="current-password" placeholder="••••••••" />
-    </label>
-    <button id="login-btn" class="btn primary" type="button">دخول</button>
-    <p id="login-error" class="error" hidden></p>
-    <p id="login-health" class="muted" style="margin-top:14px">جاري قراءة العدد المحفوظ...</p>
-  </div>
-</div>
-
-<div id="app-view" class="app" hidden>
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <div>
-        <span class="brand-mark">رائد الحربي</span>
-        <strong>لوحة التحكم</strong>
-      </div>
-      <button id="logout-btn-mobile" class="btn ghost mobile-only" type="button">خروج</button>
-    </div>
-    <nav class="nav" aria-label="أقسام اللوحة">
-      <button class="nav-btn active" data-panel="overview" type="button">نظرة عامة</button>
-      <button class="nav-btn" data-panel="customers" type="button">العملاء</button>
-      <button class="nav-btn" data-panel="conversations" type="button">الجلسات</button>
-      <button class="nav-btn" data-panel="compose" type="button">إرسال</button>
-      <button class="nav-btn" data-panel="followup" type="button">متابعة</button>
-    </nav>
-    <div class="sidebar-foot desktop-logout">
-      <button id="logout-btn" class="btn ghost" type="button">خروج</button>
-    </div>
-  </aside>
-
+<div class="app">
   <main class="main">
     <header class="topbar">
       <div>
-        <h2 id="panel-title">نظرة عامة</h2>
-        <p id="panel-sub">ملخص السيرفر وعدد العملاء</p>
+        <p class="brand-mark">رائد الحربي</p>
+        <h1>العملاء</h1>
         <p id="live-counts" class="muted" style="margin:8px 0 0;font-weight:700;color:var(--accent)">العدد المحفوظ: —</p>
       </div>
       <button id="refresh-btn" class="btn secondary" type="button">تحديث</button>
     </header>
 
-    <section id="panel-overview" class="panel">
-      <div class="stat-grid">
-        <article class="stat"><span>عملاء اليوم</span><strong id="stat-today">0</strong></article>
-        <article class="stat"><span>عملاء أمس</span><strong id="stat-yesterday">0</strong></article>
-        <article class="stat"><span>جلسات حية</span><strong id="stat-sessions">0</strong></article>
-        <article class="stat"><span>موقوفة</span><strong id="stat-paused">0</strong></article>
-      </div>
-      <div class="card-row">
-        <article class="card">
-          <h3>حالة الربط</h3>
-          <p id="interakt-status">—</p>
-          <p class="muted" id="brand-line">—</p>
-          <p class="muted" id="dates-line">—</p>
-        </article>
-        <article class="card">
-          <h3>آخر نشاط الإدارة</h3>
-          <ul id="activity-list" class="activity"></ul>
-        </article>
-      </div>
-    </section>
+    <div id="error-banner" class="error-banner"></div>
 
-    <section id="panel-customers" class="panel" hidden>
-      <div id="persistence-banner" class="card" style="margin-bottom:14px;display:none;border-color:rgba(157,58,45,.35);background:rgba(157,58,45,.06)">
-        <h3 style="margin-top:0;color:var(--danger)">التخزين مؤقت — يتصفر بعد إعادة التشغيل</h3>
-        <p class="muted" id="persistence-banner-text" style="margin-bottom:0">أضف Persistent Disk في Render على المسار <code>/var/data</code> ثم Environment: <code>CUSTOMERS_DATA_DIR=/var/data/kobri</code>. قبل أي نشر: نزّل بكب.</p>
-      </div>
-      <details class="card backup-panel" id="backup-panel" style="margin-bottom:14px" open>
-        <summary>النسخ الاحتياطي وجلب السابق</summary>
-        <div>
-          <p class="muted">قبل أي نشر جديد: نزّل بكب. بعد النشر: استورد الملف. زر Interakt يجلب <strong>الأرقام والأسماء فقط</strong> — مو المسار ولا المبلغ ولا نص المحادثة (هذي تجي من رسائل البوت).</p>
-          <p class="muted" id="persistence-line" style="margin-top:8px">حالة الحفظ: —</p>
-          <div class="btn-row">
-            <button id="export-customers" class="btn primary" type="button">تنزيل بكب</button>
-            <button id="backup-now" class="btn secondary" type="button">حفظ نسخة الآن</button>
-            <button id="sync-interakt" class="btn secondary" type="button">جلب من Interakt (30 يوم)</button>
-          </div>
-          <label class="field" style="margin-top:14px">
-            <span>استيراد بكب (الصق محتوى ملف JSON)</span>
-            <textarea id="import-json" rows="4" placeholder='{"customers":[...]}'></textarea>
-          </label>
-          <button id="import-customers" class="btn secondary" type="button">استيراد ودمج</button>
-          <p id="backup-status" class="status" hidden></p>
-        </div>
-      </details>
-      <div class="toolbar">
-        <div class="tabs" id="customer-tabs">
-          <button class="tab active" data-day="today" type="button">اليوم</button>
-          <button class="tab" data-day="yesterday" type="button">أمس</button>
-          <button class="tab" data-day="all" type="button">الكل</button>
-        </div>
-        <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو الطلب أو جهة العمل أو ملاحظة" />
-      </div>
-      <div class="card">
-        <div class="toolbar">
-          <p class="muted" id="customers-meta" style="margin:0">—</p>
-          <div class="btn-row">
-            <button id="copy-today-phones" class="btn secondary small" type="button">نسخ أرقام اليوم</button>
-            <button id="load-more-customers" class="btn secondary small" type="button" hidden>تحميل المزيد</button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>رقم الجوال</th>
-                <th>تاريخ الإرسال</th>
-                <th>جهة العمل</th>
-                <th>رقم الطلب</th>
-                <th>ملاحظات</th>
-                <th>إجراءات</th>
-              </tr>
-            </thead>
-            <tbody id="customers-body">
-              <tr><td colspan="6" class="empty">لا يوجد عملاء بعد</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+    <div id="persistence-banner" class="card" style="margin-bottom:14px;display:none;border-color:rgba(157,58,45,.35);background:rgba(157,58,45,.06)">
+      <h3 style="margin-top:0;color:var(--danger)">التخزين مؤقت — يتصفر بعد إعادة التشغيل</h3>
+      <p class="muted" id="persistence-banner-text" style="margin-bottom:0">أضف Persistent Disk في Render على المسار <code>/var/data</code> ثم Environment: <code>CUSTOMERS_DATA_DIR=/var/data/kobri</code>. قبل أي نشر: نزّل بكب.</p>
+    </div>
 
-    <section id="panel-conversations" class="panel" hidden>
-      <div class="card">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>الجوال</th>
-                <th>المسار</th>
-                <th>الخطوة</th>
-                <th>المبلغ</th>
-                <th>الحالة</th>
-                <th>إجراءات</th>
-              </tr>
-            </thead>
-            <tbody id="conversations-body">
-              <tr><td colspan="6" class="empty">لا توجد جلسات حية</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <section id="panel-compose" class="panel" hidden>
-      <div class="card form-card">
-        <h3>إرسال رسالة للعميل</h3>
-        <label class="field"><span>رقم الجوال</span><input id="compose-phone" type="text" placeholder="05xxxxxxxx" /></label>
-        <label class="field"><span>نص الرسالة</span><textarea id="compose-message" rows="6"></textarea></label>
+    <details class="card backup-panel" id="backup-panel" style="margin-bottom:14px" open>
+      <summary>النسخ الاحتياطي وجلب السابق</summary>
+      <div>
+        <p class="muted">قبل أي نشر جديد: نزّل بكب. بعد النشر: استورد الملف. زر Interakt يجلب <strong>الأرقام والأسماء فقط</strong>.</p>
+        <p class="muted" id="persistence-line" style="margin-top:8px">حالة الحفظ: —</p>
         <div class="btn-row">
-          <button id="compose-send" class="btn primary" type="button">إرسال</button>
-          <button id="compose-menu" class="btn secondary" type="button">إرسال القائمة الرئيسية</button>
+          <button id="export-customers" class="btn primary" type="button">تنزيل بكب</button>
+          <button id="backup-now" class="btn secondary" type="button">حفظ نسخة الآن</button>
+          <button id="sync-interakt" class="btn secondary" type="button">جلب من Interakt (30 يوم)</button>
         </div>
-        <p id="compose-status" class="status" hidden></p>
+        <label class="field" style="margin-top:14px">
+          <span>استيراد بكب (الصق محتوى ملف JSON)</span>
+          <textarea id="import-json" rows="4" placeholder='{"customers":[...]}'></textarea>
+        </label>
+        <button id="import-customers" class="btn secondary" type="button">استيراد ودمج</button>
+        <p id="backup-status" class="status" hidden></p>
       </div>
-    </section>
+    </details>
 
-    <section id="panel-followup" class="panel" hidden>
-      <div class="card form-card">
-        <h3>متابعة التقديم الإلكتروني</h3>
-        <p class="muted">يمكنك لصق أرقام عملاء اليوم من تبويب العملاء</p>
-        <label class="field"><span>أرقام الجوال (كل رقم في سطر)</span><textarea id="followup-phones" rows="5"></textarea></label>
-        <label class="field"><span>نص المتابعة</span><textarea id="followup-message" rows="6"></textarea></label>
-        <label class="field inline"><span>تأخير بين الرسائل (مللي ثانية)</span><input id="followup-delay" type="number" min="0" step="500" value="3500" /></label>
-        <button id="followup-send" class="btn primary" type="button">بدء الإرسال</button>
-        <p id="followup-status" class="status" hidden></p>
+    <div class="toolbar">
+      <div class="tabs" id="customer-tabs">
+        <button class="tab active" data-day="today" type="button">اليوم</button>
+        <button class="tab" data-day="yesterday" type="button">أمس</button>
+        <button class="tab" data-day="all" type="button">الكل</button>
       </div>
-    </section>
+      <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو الطلب أو جهة العمل أو ملاحظة" />
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <p class="muted" id="customers-meta" style="margin:0">—</p>
+        <div class="btn-row">
+          <button id="copy-today-phones" class="btn secondary small" type="button">نسخ أرقام اليوم</button>
+          <button id="load-more-customers" class="btn secondary small" type="button" hidden>تحميل المزيد</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>رقم الجوال</th>
+              <th>تاريخ الإرسال</th>
+              <th>جهة العمل</th>
+              <th>رقم الطلب</th>
+              <th>ملاحظات</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="customers-body">
+            <tr><td colspan="6" class="empty">جاري تحميل العملاء...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </main>
 </div>
 
 <script>
 (() => {
-  const TOKEN_KEY = "raed_admin_token";
-  const UI_VERSION = "2026-08-08-k";
+  const UI_VERSION = "2026-08-08-m";
   const PAGE_SIZE = 100;
   let customerDay = "today";
   let customersCache = [];
-  let customersTotal = 0;
   let customersHasMore = false;
-  let statusCache = null;
 
-  // كسر كاش الجوال لنسخة اللوحة القديمة
   try {
     const url = new URL(location.href);
     if (url.searchParams.get("v") !== UI_VERSION) {
@@ -484,52 +284,37 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     }
   } catch {}
 
-  const loginView = document.getElementById("login-view");
-  const appView = document.getElementById("app-view");
-  const tokenInput = document.getElementById("token-input");
-  const loginBtn = document.getElementById("login-btn");
-  const loginError = document.getElementById("login-error");
-  const logoutBtn = document.getElementById("logout-btn");
   const refreshBtn = document.getElementById("refresh-btn");
-  const panelTitle = document.getElementById("panel-title");
-  const panelSub = document.getElementById("panel-sub");
   const customerSearch = document.getElementById("customer-search");
+  const errorBanner = document.getElementById("error-banner");
 
-  const titles = {
-    overview: ["نظرة عامة", "ملخص السيرفر وعدد العملاء"],
-    customers: ["عملاء اليوم وأمس", "كل من راسل البوت حسب تاريخ الرياض"],
-    conversations: ["الجلسات الحية", "المسودات والجلسات الحالية في الذاكرة"],
-    compose: ["إرسال رسالة", "أرسل نصًا أو القائمة الرئيسية لعميل"],
-    followup: ["متابعة التقديم", "أرسل رسالة المتابعة لرقم أو أكثر"],
-  };
+  try {
+    const backupPanel = document.getElementById("backup-panel");
+    if (backupPanel && window.matchMedia("(max-width: 720px)").matches) {
+      backupPanel.open = false;
+    }
+  } catch (_) {}
 
-  function getToken() {
-    try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; }
-  }
-  function setToken(token) {
-    try { localStorage.setItem(TOKEN_KEY, token); } catch {}
-  }
-  function clearToken() {
-    try { localStorage.removeItem(TOKEN_KEY); } catch {}
+  function showError(msg) {
+    if (!msg) {
+      errorBanner.style.display = "none";
+      errorBanner.textContent = "";
+      return;
+    }
+    errorBanner.style.display = "block";
+    errorBanner.textContent = msg;
   }
 
   async function api(path, options = {}) {
-    const token = getToken();
     const res = await fetch(`/admin/api${path}`, {
       ...options,
       credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-token": token,
         ...(options.headers || {}),
       },
     });
     const json = await res.json().catch(() => ({}));
-    if (res.status === 401) {
-      clearToken();
-      showLogin("انتهت الجلسة أو الرمز غير صحيح");
-      throw new Error("unauthorized");
-    }
     if (!res.ok || json.ok === false) {
       const base = json.error || `HTTP ${res.status}`;
       throw new Error(json.hint ? `${base} — ${json.hint}` : base);
@@ -537,40 +322,6 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     return json;
   }
 
-  async function refreshLoginHealth() {
-    const el = document.getElementById("login-health");
-    if (!el) return;
-    try {
-      const res = await fetch("/health", { credentials: "same-origin" });
-      const h = await res.json();
-      const c = h.customers || {};
-      if (c.error) {
-        el.textContent = `تعذر قراءة السجل: ${c.error}`;
-        return;
-      }
-      el.textContent = `المحفوظ على السيرفر الآن: ${c.all ?? 0} · اليوم ${c.today ?? 0} · أمس ${c.yesterday ?? 0} · ${c.durable ? "قرص دائم" : "تخزين مؤقت"}`;
-      el.style.color = Number(c.all) > 0 ? "var(--accent)" : "var(--danger)";
-    } catch (err) {
-      el.textContent = `تعذر الاتصال بالسيرفر: ${err.message}`;
-    }
-  }
-
-  function showLogin(msg) {
-    appView.hidden = true;
-    loginView.hidden = false;
-    loginError.hidden = !msg;
-    loginError.textContent = msg || "";
-    refreshLoginHealth();
-  }
-  function showApp() {
-    loginView.hidden = true;
-    appView.hidden = false;
-  }
-
-  function formatMoney(n) {
-    if (n == null || n === "" || Number.isNaN(Number(n))) return "—";
-    return Number(n).toLocaleString("en-US");
-  }
   function formatTime(ts) {
     if (!ts) return "—";
     const d = typeof ts === "number" ? new Date(ts) : new Date(ts);
@@ -587,7 +338,6 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     const phone = row.phone || "";
     return phone.startsWith("0") ? phone : `0${phone}`;
   }
-  /** رقم دولي لرابط واتساب: 9665xxxxxxxx */
   function whatsappE164(row) {
     let phone = String(row.phone || "").replace(/\D/g, "");
     if (phone.startsWith("0")) phone = phone.slice(1);
@@ -599,38 +349,16 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     const phone = whatsappE164(row);
     const ua = navigator.userAgent || "";
     const isAndroid = /Android/i.test(ua);
-    // أندرويد: Intent يفتح واتساب بزنس (com.whatsapp.w4b) مو العادي
     if (isAndroid) {
       const fallback = encodeURIComponent(`https://wa.me/${phone}`);
       return `intent://send/?phone=${phone}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url=${fallback};end`;
     }
-    // آيفون/سطح المكتب: whatsapp:// يفتح التطبيق الافتراضي (غالبًا بزنس إن كان المثبت للعمل)
     return `whatsapp://send?phone=${phone}`;
   }
   function phoneWhatsAppLink(row) {
     const label = escapeHtml(displayPhone(row));
     const href = escapeHtml(whatsappUrl(row));
     return `<a class="phone-link" href="${href}" rel="noopener noreferrer" title="فتح واتساب بزنس">${label}</a>`;
-  }
-  function actionLabel(action) {
-    return ({
-      pause: "إيقاف",
-      resume: "استئناف",
-      reset: "تصفير",
-      "send-text": "إرسال نص",
-      "send-followup": "متابعة",
-      "send-menu": "قائمة",
-      "bulk-followup": "متابعة جماعية",
-    })[action] || action;
-  }
-  function flowLabel(flow) {
-    return ({
-      main_menu: "القائمة",
-      personal_chat: "تمويل شخصي",
-      debt_chat: "شراء مديونية",
-      property_combo_interest: "حلول أخرى",
-      property_combo: "عقاري+شخصي",
-    })[flow] || flow || "—";
   }
   function workplaceChoiceOf(row) {
     const job = row.jobCategory;
@@ -670,17 +398,12 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
   function sendDateOf(row) {
     return row.lastInboundAt || row.lastSeenAt || row.syncedAt || row.firstSeenAt || null;
   }
-
-  function switchPanel(name) {
-    document.querySelectorAll(".panel").forEach((p) => { p.hidden = true; });
-    document.querySelectorAll(".nav-btn").forEach((b) => {
-      b.classList.toggle("active", b.dataset.panel === name);
-    });
-    const panel = document.getElementById(`panel-${name}`);
-    if (panel) panel.hidden = false;
-    const meta = titles[name] || ["", ""];
-    panelTitle.textContent = meta[0];
-    panelSub.textContent = meta[1];
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   function updateLiveCounts(counts, persistence) {
@@ -690,7 +413,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     const today = counts?.customersToday ?? counts?.today ?? "—";
     const yesterday = counts?.customersYesterday ?? counts?.yesterday ?? "—";
     const disk = persistence?.durable ? "قرص دائم" : "تخزين مؤقت";
-    el.textContent = `العدد المحفوظ: ${all} · اليوم ${today} · أمس ${yesterday} · ${disk} · v${UI_VERSION}`;
+    el.textContent = `العدد المحفوظ: ${all} · اليوم ${today} · أمس ${yesterday} · ${disk}`;
     el.style.color = Number(all) > 0 ? "var(--accent)" : "var(--danger)";
   }
 
@@ -708,45 +431,6 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         ? `حالة الحفظ: قرص دائم · ${persistence.count || 0} عميل محفوظ · ${persistence.dataDir || ""}`
         : `حالة الحفظ: مؤقت (يُمسح بعد إعادة التشغيل/النشر) · ${persistence.count || 0} عميل · ${persistence.dataDir || ""}`;
       line.style.color = persistence.durable ? "var(--accent)" : "var(--danger)";
-    }
-  }
-
-  async function refreshOverview() {
-    const status = await api("/status");
-    statusCache = status;
-    document.getElementById("stat-today").textContent = status.counts?.customersToday ?? 0;
-    document.getElementById("stat-yesterday").textContent = status.counts?.customersYesterday ?? 0;
-    document.getElementById("stat-sessions").textContent = status.counts?.sessions ?? 0;
-    document.getElementById("stat-paused").textContent = status.counts?.paused ?? 0;
-    document.getElementById("interakt-status").textContent = status.interaktConfigured
-      ? "Interakt متصل"
-      : "مفتاح Interakt غير مضبوط";
-    document.getElementById("brand-line").textContent = status.brand || "رائد الحربي";
-    const c = status.customers;
-    document.getElementById("dates-line").textContent = c
-      ? `اليوم ${c.today} · أمس ${c.yesterday} · ${c.timezone || "Asia/Riyadh"}`
-      : "سجل العملاء غير متاح";
-    updatePersistenceUi(status.persistence);
-    updateLiveCounts(status.counts, status.persistence);
-
-    try {
-      const activity = await api("/activity");
-      const list = document.getElementById("activity-list");
-      const rows = (activity.activity || []).slice(0, 12);
-      list.innerHTML = rows.length
-        ? rows.map((a) => `<li><strong>${actionLabel(a.action)}</strong> · ${a.phone || "—"}<div class="meta-line">${formatTime(a.at)}</div></li>`).join("")
-        : `<li class="muted">لا يوجد نشاط بعد</li>`;
-    } catch {
-      /* لا تفشل النظرة العامة بسبب سجل النشاط */
-    }
-
-    if (status.followUpPreview) {
-      const box = document.getElementById("followup-message");
-      if (box && !box.value) box.value = status.followUpPreview;
-    }
-    if (status.outboundDelayMs != null) {
-      const delay = document.getElementById("followup-delay");
-      if (delay && !delay.dataset.touched) delay.value = status.outboundDelayMs;
     }
   }
 
@@ -795,41 +479,19 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         <td data-label="تاريخ الإرسال">${formatTime(sendDateOf(row))}</td>
         <td data-label="جهة العمل">${workplaceChoicesHtml(row)}</td>
         <td data-label="رقم الطلب">
-          <input
-            class="order-input"
-            data-order-phone="${row.phone}"
-            type="text"
-            inputmode="numeric"
-            maxlength="8"
-            placeholder="101xxxxx"
-            value="${orderNumber}"
-          />
+          <input class="order-input" data-order-phone="${row.phone}" type="text" inputmode="numeric" maxlength="8" placeholder="101xxxxx" value="${orderNumber}" />
         </td>
         <td data-label="ملاحظات">
-          <textarea
-            class="notes-input"
-            data-notes-phone="${row.phone}"
-            rows="2"
-            placeholder="اكتب ملاحظة..."
-          >${notes}</textarea>
+          <textarea class="notes-input" data-notes-phone="${row.phone}" rows="2" placeholder="اكتب ملاحظة...">${notes}</textarea>
         </td>
         <td class="actions" data-label="إجراءات">
           <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
           <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
-          <button class="btn secondary small" data-act="compose" data-phone="${row.phone}" type="button">رسالة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
           <button class="btn ghost small" data-act="reset" data-phone="${row.phone}" type="button">تصفير</button>
         </td>
       </tr>`;
     }).join("");
-  }
-
-  function escapeHtml(s) {
-    return String(s || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
   }
 
   function setCustomersMeta(pack, counts) {
@@ -852,7 +514,6 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     let pack = await api(
       `/customers?day=${encodeURIComponent(customerDay)}&limit=${PAGE_SIZE}&offset=${offset}`
     );
-    // إذا تبويب اليوم فاضي وفيه سجل قديم — انقل العرض إلى الكل تلقائياً
     if (
       !append &&
       customerDay === "today" &&
@@ -864,61 +525,32 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     }
     const page = pack.customers || [];
     customersCache = append ? customersCache.concat(page) : page;
-    customersTotal = pack.count || customersCache.length;
     customersHasMore = Boolean(pack.hasMore);
     const counts = pack.counts || {};
     if (pack.persistence) updatePersistenceUi(pack.persistence);
+    updateLiveCounts(counts, pack.persistence);
     setCustomersMeta(pack, counts);
     renderCustomers(customersCache, counts);
-  }
-
-  async function refreshConversations() {
-    const data = await api("/conversations");
-    const body = document.getElementById("conversations-body");
-    const rows = data.conversations || [];
-    if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="6" class="empty">لا توجد جلسات حية</td></tr>`;
-      return;
-    }
-    body.innerHTML = rows.map((row) => {
-      const phone = row.phone;
-      const flow = row.draft?.flow || row.session?.offer || "—";
-      const step = row.draft?.step || "—";
-      const amount = row.session?.maxAmount;
-      const paused = row.paused;
-      return `<tr>
-        <td data-label="الجوال">${phoneWhatsAppLink(row)}</td>
-        <td data-label="المسار">${escapeHtml(flowLabel(flow))}</td>
-        <td data-label="الخطوة">${escapeHtml(step)}</td>
-        <td data-label="المبلغ">${formatMoney(amount)}</td>
-        <td data-label="الحالة">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</td>
-        <td class="actions" data-label="إجراءات">
-          <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
-          <button class="btn secondary small" data-act="menu" data-phone="${phone}" type="button">قائمة</button>
-          <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
-          <button class="btn ghost small" data-act="reset" data-phone="${phone}" type="button">تصفير</button>
-        </td>
-      </tr>`;
-    }).join("");
+    showError("");
   }
 
   async function refreshAll() {
-    await refreshOverview();
-    await Promise.all([refreshCustomers(), refreshConversations()]);
+    try {
+      const status = await api("/status");
+      updatePersistenceUi(status.persistence);
+      updateLiveCounts(status.counts, status.persistence);
+    } catch (_) {
+      /* تحميل العملاء يكفي */
+    }
+    await refreshCustomers();
   }
 
   async function runAction(act, phone, extra = {}) {
     if (!phone) return;
-    if (act === "compose") {
-      document.getElementById("compose-phone").value = phone.startsWith("0") ? phone : `0${phone}`;
-      switchPanel("compose");
-      return;
-    }
     if (act === "workplace") {
       const row = customersCache.find((r) => r.phone === phone) || {};
       const current = workplaceChoiceOf(row);
       const next = extra.workplace || "";
-      // اختياري: الضغط مرة ثانية على نفس الخيار يلغيه
       const workplace = current && current === next ? "clear" : next;
       await api("/customers/workplace", {
         method: "POST",
@@ -931,89 +563,30 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     if (act === "pause") await api("/pause", { method: "POST", body: JSON.stringify({ phone }) });
     if (act === "resume") await api("/resume", { method: "POST", body: JSON.stringify({ phone }) });
     if (act === "reset") await api("/reset", { method: "POST", body: JSON.stringify({ phone }) });
-    await refreshAll();
+    await refreshCustomers({ append: false });
   }
 
-  async function tryEnter() {
-    const token = tokenInput.value.trim() || getToken();
-    if (!token) {
-      showLogin("أدخل رمز الإدارة");
-      await refreshLoginHealth();
-      return;
-    }
-    setToken(token);
-    try {
-      // يضبط كوكي على السيرفر + يتحقق من الرمز
-      const login = await fetch("/admin/api/login", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json", "x-admin-token": token },
-        body: JSON.stringify({ token }),
-      }).then((r) => r.json());
-      if (!login.ok) {
-        clearToken();
-        showLogin(login.error || "الرمز غير صحيح");
-        await refreshLoginHealth();
-        return;
-      }
-      const status = await api("/status");
-      showApp();
-      switchPanel("customers");
-      updatePersistenceUi(status.persistence || login.persistence);
-      updateLiveCounts(status.counts, status.persistence || login.persistence);
-      document.getElementById("stat-today").textContent = status.counts?.customersToday ?? login.counts?.today ?? 0;
-      document.getElementById("stat-yesterday").textContent = status.counts?.customersYesterday ?? login.counts?.yesterday ?? 0;
-      try {
-        await refreshAll();
-      } catch (loadErr) {
-        if (loadErr.message === "unauthorized") throw loadErr;
-        const body = document.getElementById("customers-body");
-        const total = status.counts?.customersAll ?? login.counts?.all ?? 0;
-        body.innerHTML = `<tr><td colspan="6" class="empty">العدد ${total} محفوظ على السيرفر، لكن فشل عرض القائمة: ${escapeHtml(loadErr.message)}. اضغط تحديث.</td></tr>`;
-        setBackupStatus(`تعذر تحميل الجدول: ${loadErr.message}`);
-      }
-    } catch (err) {
-      clearToken();
-      showLogin(err.message === "unauthorized" ? "الرمز غير صحيح" : err.message);
-      await refreshLoginHealth();
-    }
+  function setBackupStatus(msg) {
+    const el = document.getElementById("backup-status");
+    el.hidden = false;
+    el.textContent = msg;
   }
 
-  loginBtn.addEventListener("click", tryEnter);
-  tokenInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") tryEnter();
-  });
-  // على الجوال: طي قسم النسخ الاحتياطي حتى لا يغطي قائمة العملاء
-  try {
-    const backupPanel = document.getElementById("backup-panel");
-    if (backupPanel && window.matchMedia("(max-width: 720px)").matches) {
-      backupPanel.open = false;
-    }
-  } catch (_) {}
-
-  async function doLogout() {
-    clearToken();
-    try {
-      await fetch("/admin/api/logout", { method: "POST", credentials: "same-origin" });
-    } catch {}
-    showLogin("");
-    await refreshLoginHealth();
-  }
-
-  logoutBtn.addEventListener("click", () => { doLogout(); });
-  const logoutBtnMobile = document.getElementById("logout-btn-mobile");
-  if (logoutBtnMobile) logoutBtnMobile.addEventListener("click", () => { doLogout(); });
-  refreshBtn.addEventListener("click", () => refreshAll().catch((e) => alert(e.message)));
-
-  document.querySelectorAll(".nav-btn").forEach((btn) => {
-    btn.addEventListener("click", () => switchPanel(btn.dataset.panel));
+  refreshBtn.addEventListener("click", () => {
+    refreshAll().catch((e) => {
+      showError(e.message);
+      alert(e.message);
+    });
   });
 
   document.getElementById("customer-tabs").addEventListener("click", async (e) => {
     const tab = e.target.closest(".tab");
     if (!tab) return;
     setCustomerTab(tab.dataset.day);
-    await refreshCustomers({ append: false }).catch((err) => alert(err.message));
+    await refreshCustomers({ append: false }).catch((err) => {
+      showError(err.message);
+      alert(err.message);
+    });
   });
 
   customerSearch.addEventListener("input", () => renderCustomers(customersCache));
@@ -1037,24 +610,15 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     }
   });
 
-  function setBackupStatus(msg) {
-    const el = document.getElementById("backup-status");
-    el.hidden = false;
-    el.textContent = msg;
-  }
-
   document.getElementById("export-customers").addEventListener("click", async () => {
     try {
-      const token = getToken();
-      const res = await fetch("/admin/api/customers/export", {
-        headers: { "x-admin-token": token },
-      });
+      const res = await fetch("/admin/api/customers/export", { credentials: "same-origin" });
       if (!res.ok) throw new Error("فشل التنزيل");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `customers-backup-${new Date().toISOString().slice(0,10)}.json`;
+      a.download = `customers-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
       setBackupStatus("تم تنزيل ملف البكب — احفظه عندك قبل أي نشر");
@@ -1086,12 +650,9 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         `Interakt: جلب ${r.fetched || 0} رقم · جديد ${r.created || 0} · محدّث ${r.updated || 0}` +
           (savedOk ? " · تم الحفظ على القرص" : " · فشل الحفظ على القرص") +
           (r.persistence?.durable ? " · تخزين دائم" : " · تخزين مؤقت") +
-          (r.skippedSample ? ` · تجاهل عيّنات ${r.skippedSample}` : "") +
-          (r.filterUsed ? ` · فلتر: ${r.filterUsed}` : "") +
           (r.hint ? ` — ${r.hint}` : "")
       );
       setCustomerTab(r.preferDay || (r.fetched > 0 ? "today" : "all"));
-      switchPanel("customers");
       await refreshAll();
     } catch (err) {
       setBackupStatus(err.message);
@@ -1204,80 +765,12 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       order.blur();
     }
   });
-  document.getElementById("conversations-body").addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-act]");
-    if (!btn) return;
-    try { await runAction(btn.dataset.act, btn.dataset.phone); }
-    catch (err) { alert(err.message); }
-  });
 
-  document.getElementById("compose-send").addEventListener("click", async () => {
-    const status = document.getElementById("compose-status");
-    try {
-      status.hidden = false;
-      status.textContent = "جاري الإرسال...";
-      await api("/send-text", {
-        method: "POST",
-        body: JSON.stringify({
-          phone: document.getElementById("compose-phone").value,
-          message: document.getElementById("compose-message").value,
-        }),
-      });
-      status.textContent = "تم الإرسال";
-      await refreshAll();
-    } catch (err) {
-      status.textContent = err.message;
-    }
+  refreshAll().catch((err) => {
+    showError(err.message);
+    document.getElementById("customers-body").innerHTML =
+      `<tr><td colspan="6" class="empty">تعذر التحميل: ${escapeHtml(err.message)}</td></tr>`;
   });
-
-  document.getElementById("compose-menu").addEventListener("click", async () => {
-    const status = document.getElementById("compose-status");
-    try {
-      status.hidden = false;
-      status.textContent = "جاري إرسال القائمة...";
-      await api("/send-menu", {
-        method: "POST",
-        body: JSON.stringify({ phone: document.getElementById("compose-phone").value }),
-      });
-      status.textContent = "تم إرسال القائمة";
-      await refreshAll();
-    } catch (err) {
-      status.textContent = err.message;
-    }
-  });
-
-  document.getElementById("followup-delay").addEventListener("input", (e) => {
-    e.target.dataset.touched = "1";
-  });
-
-  document.getElementById("followup-send").addEventListener("click", async () => {
-    const status = document.getElementById("followup-status");
-    const phones = document.getElementById("followup-phones").value
-      .split(/\n+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    try {
-      status.hidden = false;
-      status.textContent = "جاري الإرسال...";
-      const result = await api("/bulk-followup", {
-        method: "POST",
-        body: JSON.stringify({
-          phones,
-          message: document.getElementById("followup-message").value,
-          delayMs: Number(document.getElementById("followup-delay").value || 0),
-        }),
-      });
-      status.textContent = `تم: ${result.sent} · فشل: ${result.failed}`;
-      await refreshAll();
-    } catch (err) {
-      status.textContent = err.message;
-    }
-  });
-
-  if (getToken()) tryEnter();
-  else {
-    showLogin("");
-  }
 })();
 </script>
 </body>

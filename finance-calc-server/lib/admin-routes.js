@@ -737,9 +737,25 @@ function mountAdmin(app, deps) {
   const adminDir = path.join(__dirname, "..", "public", "admin");
   const indexFile = path.join(adminDir, "index.html");
 
+  function grantAdminCookie(res) {
+    const token = String(deps.adminToken || "")
+      .replace(/^\uFEFF/, "")
+      .replace(/[\r\n]/g, "")
+      .trim()
+      .replace(/^['"]|['"]$/g, "");
+    if (!token) return;
+    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+    // فتح /admin يضبط الجلسة مباشرة — بدون شاشة دخول
+    res.setHeader(
+      "Set-Cookie",
+      `raed_admin_token=${encodeURIComponent(token)}; Path=/; Max-Age=2592000; SameSite=Lax; HttpOnly${secure}`
+    );
+  }
+
   app.use("/admin/api", router);
 
-  app.get(["/admin", "/admin/"], (_req, res) => {
+  app.get(["/admin", "/admin/", "/admin/index.html"], (_req, res) => {
+    grantAdminCookie(res);
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.setHeader("Pragma", "no-cache");
     res.sendFile(indexFile);
@@ -752,6 +768,7 @@ function mountAdmin(app, deps) {
       lastModified: false,
       setHeaders(res, filePath) {
         if (filePath.endsWith(".html")) {
+          grantAdminCookie(res);
           res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
         }
       },
