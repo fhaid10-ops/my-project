@@ -445,6 +445,7 @@ function createCustomerLedger(options = {}) {
         "أخذ رابط التمويل",
         "أخذ باقة",
         "مستنفذ حد",
+        "إيقاف خدمات",
       ]);
       if (!autoLabels.has(current)) return row;
     }

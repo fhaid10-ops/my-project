@@ -547,6 +547,11 @@ app.post("/webhook/interakt", async (req, res) => {
         saveDraft(countryCode, phone, result.draft);
       }
       if (result.silent) {
+        const silentOutcome = detectCustomerOutcome(result);
+        if (silentOutcome) {
+          customerLedger.setOutcomeNotes(countryCode, phone, silentOutcome);
+          console.log("[outcome:auto]", phone, silentOutcome, "(silent)");
+        }
         return;
       }
     } else if (

@@ -5,12 +5,23 @@ const OUTCOMES = {
   FINANCE_LINK: "أخذ رابط التمويل",
   PACKAGE: "أخذ باقة",
   LIMIT_EXHAUSTED: "مستنفذ حد",
+  SERVICE_STOP: "إيقاف خدمات",
 };
 
 const AUTO_OUTCOME_LABELS = new Set(Object.values(OUTCOMES));
 
 function detectCustomerOutcome(result) {
   if (!result || typeof result !== "object") return null;
+
+  // اختيار مسار إيقاف خدمات من القائمة (أو إكمال خطواته)
+  if (
+    result.offer === "service_stop" ||
+    result.offer === "service_stop_accepted" ||
+    result.draft?.step === "awaiting_service_stop_qualify" ||
+    result.draft?.step === "awaiting_service_stop_agent"
+  ) {
+    return OUTCOMES.SERVICE_STOP;
+  }
 
   // قبول الباقة (عقاري + شخصي)
   if (result.offer === "property_combo_accepted") {

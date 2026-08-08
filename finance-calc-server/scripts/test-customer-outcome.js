@@ -23,6 +23,28 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
+  detectCustomerOutcome({
+    offer: "service_stop",
+    draft: { flow: "main_menu", step: "awaiting_service_stop_qualify" },
+  }),
+  OUTCOMES.SERVICE_STOP
+);
+
+assert.strictEqual(
+  detectCustomerOutcome({
+    offer: "service_stop_accepted",
+    silent: true,
+  }),
+  OUTCOMES.SERVICE_STOP
+);
+
+const { startServiceStopFlow } = require("../lib/main-menu");
+assert.strictEqual(
+  detectCustomerOutcome(startServiceStopFlow()),
+  OUTCOMES.SERVICE_STOP
+);
+
+assert.strictEqual(
   detectCustomerOutcome(buildPropertyComboInterestAsk({ reason: "low_amount" })),
   OUTCOMES.LIMIT_EXHAUSTED
 );

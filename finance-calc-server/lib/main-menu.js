@@ -233,6 +233,7 @@ function startServiceStopFlow() {
   return {
     ok: true,
     flow: "main_menu",
+    offer: "service_stop",
     interactive: serviceStopYesNoButtons(body),
     draft: { flow: "main_menu", step: "awaiting_service_stop_qualify" },
   };
@@ -271,6 +272,7 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
       return {
         ok: true,
         flow: "main_menu",
+        offer: "service_stop",
         interactive: serviceStopYesNoButtons(serviceStopOfferBody()),
         draft: { flow: "main_menu", step: "awaiting_service_stop_agent" },
       };
@@ -282,6 +284,7 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
       return {
         ok: true,
         flow: "main_menu",
+        offer: "service_stop",
         reply:
           typeof declined === "function"
             ? declined()
@@ -296,6 +299,7 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
     return {
       ok: false,
       flow: "main_menu",
+      offer: "service_stop",
       interactive: serviceStopYesNoButtons(
         typeof reask === "function"
           ? reask()
@@ -313,6 +317,7 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
       return {
         ok: true,
         flow: "main_menu",
+        offer: "service_stop_accepted",
         silent: true,
         clearDraft: true,
         draft: null,
@@ -325,6 +330,7 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
       return {
         ok: true,
         flow: "main_menu",
+        offer: "service_stop",
         reply:
           typeof declined === "function"
             ? declined()
@@ -336,6 +342,7 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
     return {
       ok: false,
       flow: "main_menu",
+      offer: "service_stop",
       interactive: serviceStopYesNoButtons(serviceStopOfferBody()),
       draft: { flow: "main_menu", step: "awaiting_service_stop_agent" },
     };
