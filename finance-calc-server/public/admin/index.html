@@ -126,6 +126,12 @@ th, td {
 }
 th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-size: .9rem; }
+.notes-input {
+  width: 100%; min-width: 140px; max-width: 260px;
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 10px; background: #fff; color: var(--ink);
+  resize: vertical; min-height: 38px; max-height: 90px;
+}
 .empty { text-align: center; color: var(--muted); padding: 28px !important; }
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .badge {
@@ -337,7 +343,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 <script>
 (() => {
   const TOKEN_KEY = "raed_admin_token";
-  const UI_VERSION = "2026-08-08-h";
+  const UI_VERSION = "2026-08-08-i";
   const PAGE_SIZE = 100;
   let customerDay = "today";
   let customersCache = [];
@@ -655,10 +661,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 
     body.innerHTML = filtered.map((row) => {
       const paused = row.paused;
-      const notes = row.notes || "";
-      const notesPreview = notes
-        ? escapeHtml(notes)
-        : `<span class="muted">بدون ملاحظة</span>`;
+      const notes = escapeHtml(row.notes || "");
       return `<tr>
         <td>
           ${phoneWhatsAppLink(row)}
@@ -666,10 +669,16 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         </td>
         <td>${formatTime(sendDateOf(row))}</td>
         <td>${workplaceChoicesHtml(row)}</td>
-        <td class="preview">${notesPreview}</td>
+        <td>
+          <textarea
+            class="notes-input"
+            data-notes-phone="${row.phone}"
+            rows="1"
+            placeholder="اكتب ملاحظة..."
+          >${notes}</textarea>
+        </td>
         <td class="actions">
           <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
-          <button class="btn secondary small" data-act="notes" data-phone="${row.phone}" type="button">ملاحظة</button>
           <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
           <button class="btn secondary small" data-act="compose" data-phone="${row.phone}" type="button">رسالة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
@@ -767,17 +776,6 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     if (act === "compose") {
       document.getElementById("compose-phone").value = phone.startsWith("0") ? phone : `0${phone}`;
       switchPanel("compose");
-      return;
-    }
-    if (act === "notes") {
-      const current = (customersCache.find((r) => r.phone === phone) || {}).notes || "";
-      const next = window.prompt("ملاحظة عن العميل:", current);
-      if (next == null) return;
-      await api("/customers/notes", {
-        method: "POST",
-        body: JSON.stringify({ phone, notes: next }),
-      });
-      await refreshCustomers({ append: false });
       return;
     }
     if (act === "workplace") {
@@ -970,6 +968,29 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     }
   });
 
+  async function saveNotesField(input) {
+    const phone = input?.dataset?.notesPhone;
+    if (!phone) return;
+    const notes = String(input.value || "");
+    const current = (customersCache.find((r) => r.phone === phone) || {}).notes || "";
+    if (notes === current) return;
+    input.disabled = true;
+    try {
+      await api("/customers/notes", {
+        method: "POST",
+        body: JSON.stringify({ phone, notes }),
+      });
+      const row = customersCache.find((r) => r.phone === phone);
+      if (row) row.notes = notes;
+      input.style.borderColor = "var(--accent)";
+      setTimeout(() => { input.style.borderColor = ""; }, 700);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      input.disabled = false;
+    }
+  }
+
   document.getElementById("customers-body").addEventListener("click", async (e) => {
     const btn = e.target.closest("button[data-act]");
     if (!btn) return;
@@ -979,6 +1000,21 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       });
     } catch (err) {
       alert(err.message);
+    }
+  });
+
+  document.getElementById("customers-body").addEventListener("focusout", (e) => {
+    const input = e.target.closest("textarea.notes-input");
+    if (!input) return;
+    saveNotesField(input);
+  });
+
+  document.getElementById("customers-body").addEventListener("keydown", (e) => {
+    const input = e.target.closest("textarea.notes-input");
+    if (!input) return;
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      input.blur();
     }
   });
   document.getElementById("conversations-body").addEventListener("click", async (e) => {
