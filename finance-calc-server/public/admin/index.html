@@ -135,6 +135,14 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 .badge.paused { background: rgba(157,58,45,.12); color: var(--danger); }
 .badge.active { background: var(--accent-soft); color: var(--accent); }
 .badge.day { background: rgba(184,137,31,.14); color: #8a6714; }
+.work-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.work-choice {
+  border: 1px solid var(--line); background: #fff; color: var(--ink);
+  border-radius: 10px; padding: 6px 10px; cursor: pointer; font-size: .82rem; font-weight: 600;
+}
+.work-choice.active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .form-card { max-width: 720px; }
 .phone-link {
@@ -329,7 +337,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 <script>
 (() => {
   const TOKEN_KEY = "raed_admin_token";
-  const UI_VERSION = "2026-08-08-g";
+  const UI_VERSION = "2026-08-08-h";
   const PAGE_SIZE = 100;
   let customerDay = "today";
   let customersCache = [];
@@ -495,18 +503,40 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       property_combo: "عقاري+شخصي",
     })[flow] || flow || "—";
   }
-  function workplaceLabel(row) {
-    if (row.companyName) return String(row.companyName);
+  function workplaceChoiceOf(row) {
     const job = row.jobCategory;
     const sub = row.civilianSubtype;
-    if (job === "military") return "عسكري";
-    if (job === "retired") return "متقاعد";
-    if (job === "civilian") {
-      if (sub === "government" || sub === "gov") return "مدني — حكومي";
-      if (sub === "private") return "مدني — قطاع خاص";
-      return "مدني";
-    }
+    if (job === "military") return "military";
+    if (job === "civilian" && (sub === "government" || sub === "gov")) return "government";
+    if (job === "civilian" && sub === "private") return "private";
     return "";
+  }
+  function workplaceLabel(row) {
+    const choice = workplaceChoiceOf(row);
+    if (choice === "government") return "حكومي";
+    if (choice === "private") return "خاص";
+    if (choice === "military") return "عسكري";
+    if (row.companyName) return String(row.companyName);
+    if (row.jobCategory === "retired") return "متقاعد";
+    return "";
+  }
+  function workplaceChoicesHtml(row) {
+    const selected = workplaceChoiceOf(row);
+    const opts = [
+      { id: "government", label: "حكومي" },
+      { id: "private", label: "خاص" },
+      { id: "military", label: "عسكري" },
+    ];
+    const buttons = opts
+      .map((o) => {
+        const active = selected === o.id ? " active" : "";
+        return `<button type="button" class="work-choice${active}" data-act="workplace" data-workplace="${o.id}" data-phone="${row.phone}">${o.label}</button>`;
+      })
+      .join("");
+    const company = row.companyName
+      ? `<div class="meta-line">${escapeHtml(row.companyName)}</div>`
+      : "";
+    return `<div class="work-choices">${buttons}</div>${company}`;
   }
   function sendDateOf(row) {
     return row.lastInboundAt || row.lastSeenAt || row.syncedAt || row.firstSeenAt || null;
@@ -625,7 +655,6 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 
     body.innerHTML = filtered.map((row) => {
       const paused = row.paused;
-      const work = workplaceLabel(row) || "—";
       const notes = row.notes || "";
       const notesPreview = notes
         ? escapeHtml(notes)
@@ -636,7 +665,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
           <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</div>
         </td>
         <td>${formatTime(sendDateOf(row))}</td>
-        <td>${escapeHtml(work)}</td>
+        <td>${workplaceChoicesHtml(row)}</td>
         <td class="preview">${notesPreview}</td>
         <td class="actions">
           <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
@@ -733,7 +762,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     await Promise.all([refreshCustomers(), refreshConversations()]);
   }
 
-  async function runAction(act, phone) {
+  async function runAction(act, phone, extra = {}) {
     if (!phone) return;
     if (act === "compose") {
       document.getElementById("compose-phone").value = phone.startsWith("0") ? phone : `0${phone}`;
@@ -747,6 +776,19 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       await api("/customers/notes", {
         method: "POST",
         body: JSON.stringify({ phone, notes: next }),
+      });
+      await refreshCustomers({ append: false });
+      return;
+    }
+    if (act === "workplace") {
+      const row = customersCache.find((r) => r.phone === phone) || {};
+      const current = workplaceChoiceOf(row);
+      const next = extra.workplace || "";
+      // اختياري: الضغط مرة ثانية على نفس الخيار يلغيه
+      const workplace = current && current === next ? "clear" : next;
+      await api("/customers/workplace", {
+        method: "POST",
+        body: JSON.stringify({ phone, workplace }),
       });
       await refreshCustomers({ append: false });
       return;
@@ -931,8 +973,13 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
   document.getElementById("customers-body").addEventListener("click", async (e) => {
     const btn = e.target.closest("button[data-act]");
     if (!btn) return;
-    try { await runAction(btn.dataset.act, btn.dataset.phone); }
-    catch (err) { alert(err.message); }
+    try {
+      await runAction(btn.dataset.act, btn.dataset.phone, {
+        workplace: btn.dataset.workplace || "",
+      });
+    } catch (err) {
+      alert(err.message);
+    }
   });
   document.getElementById("conversations-body").addEventListener("click", async (e) => {
     const btn = e.target.closest("button[data-act]");

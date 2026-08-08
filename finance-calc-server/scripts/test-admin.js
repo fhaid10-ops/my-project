@@ -116,6 +116,24 @@ async function req(method, path, body, token = "test-token") {
     )
   );
 
+  const workplace = await req("POST", "/customers/workplace", {
+    phone: "0551234567",
+    workplace: "government",
+  });
+  assert.strictEqual(workplace.status, 200);
+  assert.strictEqual(workplace.json.jobCategory, "civilian");
+  assert.strictEqual(workplace.json.civilianSubtype, "government");
+  const privateWp = await req("POST", "/customers/workplace", {
+    phone: "0551234567",
+    workplace: "private",
+  });
+  assert.strictEqual(privateWp.json.civilianSubtype, "private");
+  const militaryWp = await req("POST", "/customers/workplace", {
+    phone: "0551234567",
+    workplace: "military",
+  });
+  assert.strictEqual(militaryWp.json.jobCategory, "military");
+
   const exported = await req("GET", "/customers/export");
   assert.strictEqual(exported.status, 200);
   assert.ok((exported.json.customers || []).length >= 1);

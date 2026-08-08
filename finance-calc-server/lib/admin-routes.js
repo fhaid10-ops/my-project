@@ -406,6 +406,40 @@ function createAdminRouter(deps) {
     res.json({ ok: true, phone, countryCode, notes: row.notes });
   });
 
+  /** تحديث جهة العمل من اللوحة: government | private | military | clear */
+  router.post("/customers/workplace", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const { phone, countryCode } = normalizePhoneParts(req.body || {});
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: "رقم الجوال مطلوب" });
+    }
+    const workplace = String(req.body?.workplace ?? req.body?.choice ?? "").trim();
+    const result = customerLedger.setWorkplace(countryCode, phone, workplace);
+    if (!result || result.ok === false) {
+      return res.status(400).json({
+        ok: false,
+        error: result?.error || "تعذر حفظ جهة العمل",
+      });
+    }
+    customerLedger.flush();
+    pushLog({
+      action: "customers-workplace",
+      phone,
+      countryCode,
+      workplace: workplace || "clear",
+    });
+    res.json({
+      ok: true,
+      phone,
+      countryCode,
+      jobCategory: result.row.jobCategory,
+      civilianSubtype: result.row.civilianSubtype,
+      companyName: result.row.companyName || null,
+    });
+  });
+
   /**
    * جلب العملاء السابقين من Interakt (آخر N أيام)
    * يعتمد Get Users API — أرقام + تواريخ، مو نصوص الشات كاملة

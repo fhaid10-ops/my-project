@@ -31,6 +31,13 @@ const noted = ledger.setNotes("+966", "508031055", "يتابع العرض");
 assert.ok(noted);
 assert.strictEqual(noted.companyName, "شركة اختبار");
 assert.strictEqual(noted.notes, "يتابع العرض");
+const wp = ledger.setWorkplace("+966", "508031055", "government");
+assert.ok(wp.ok);
+assert.strictEqual(wp.row.jobCategory, "civilian");
+assert.strictEqual(wp.row.civilianSubtype, "government");
+const cleared = ledger.setWorkplace("+966", "508031055", "clear");
+assert.ok(cleared.ok);
+assert.strictEqual(cleared.row.jobCategory, null);
 
 const todayPack = ledger.listByDay("today");
 assert.ok(todayPack.count >= 1);

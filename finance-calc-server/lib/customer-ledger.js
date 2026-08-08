@@ -424,6 +424,36 @@ function createCustomerLedger(options = {}) {
     return row;
   }
 
+  /**
+   * تعيين جهة العمل من اللوحة (اختياري)
+   * حكومي → civilian/government | خاص → civilian/private | عسكري → military
+   * القيمة الفارغة تمسح الاختيار
+   */
+  function setWorkplace(countryCode, phone, workplace) {
+    const row = getOrCreate(countryCode, phone);
+    if (!row) return null;
+    const choice = String(workplace || "")
+      .trim()
+      .toLowerCase();
+    if (!choice || choice === "none" || choice === "clear") {
+      row.jobCategory = null;
+      row.civilianSubtype = null;
+    } else if (choice === "government" || choice === "gov" || choice === "حكومي") {
+      row.jobCategory = "civilian";
+      row.civilianSubtype = "government";
+    } else if (choice === "private" || choice === "خاص") {
+      row.jobCategory = "civilian";
+      row.civilianSubtype = "private";
+    } else if (choice === "military" || choice === "عسكري") {
+      row.jobCategory = "military";
+      row.civilianSubtype = null;
+    } else {
+      return { ok: false, error: "خيار جهة العمل غير معروف", row };
+    }
+    scheduleSave();
+    return { ok: true, row };
+  }
+
   function pushEvent(row, event) {
     row.events.unshift({
       ...event,
@@ -720,6 +750,7 @@ function createCustomerLedger(options = {}) {
     recordOutbound,
     updateState,
     setNotes,
+    setWorkplace,
     listByDay,
     summary,
     flush,
