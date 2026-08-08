@@ -109,10 +109,19 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(notes.status, 200);
   assert.strictEqual(notes.json.notes, "عميل متابع");
+  const outcome = await req("POST", "/customers/outcome", {
+    phone: "0551234567",
+    outcome: "أخذ باقة",
+  });
+  assert.strictEqual(outcome.status, 200);
+  assert.strictEqual(outcome.json.outcome, "أخذ باقة");
   const afterNotes = await req("GET", "/customers?day=today");
   assert.ok(
     afterNotes.json.customers.some(
-      (c) => c.phone === "551234567" && c.notes === "عميل متابع"
+      (c) =>
+        c.phone === "551234567" &&
+        c.notes === "عميل متابع" &&
+        c.outcome === "أخذ باقة"
     )
   );
 

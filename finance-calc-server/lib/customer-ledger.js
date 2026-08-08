@@ -5,6 +5,7 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { AUTO_OUTCOME_LABELS } = require("./customer-outcome");
 
 const TIMEZONE = "Asia/Riyadh";
 const MAX_CUSTOMERS = 5000;
@@ -346,8 +347,20 @@ function createCustomerLedger(options = {}) {
     };
   }
 
+  function migrateOutcomeFromNotes(row) {
+    if (!row) return row;
+    const notes = String(row.notes || "").trim();
+    const outcome = String(row.outcome || "").trim();
+    // نسخ قديمة: كانت الحالات تُحفظ داخل notes
+    if (!outcome && AUTO_OUTCOME_LABELS.has(notes)) {
+      row.outcome = notes;
+      row.notes = "";
+    }
+    return row;
+  }
+
   function normalizeRow(row = {}) {
-    return {
+    const normalized = {
       key: String(row.key),
       phone: String(row.phone || ""),
       countryCode: String(row.countryCode || "+966"),
@@ -365,6 +378,7 @@ function createCustomerLedger(options = {}) {
       companyName: row.companyName || null,
       jobCategory: row.jobCategory || null,
       civilianSubtype: row.civilianSubtype || null,
+      outcome: row.outcome || "",
       notes: row.notes || "",
       orderNumber: row.orderNumber || null,
       orderNumberAt: row.orderNumberAt || null,
@@ -373,6 +387,7 @@ function createCustomerLedger(options = {}) {
       syncedAt: row.syncedAt || null,
       events: Array.isArray(row.events) ? row.events.slice(0, MAX_EVENTS_PER_CUSTOMER) : [],
     };
+    return migrateOutcomeFromNotes(normalized);
   }
 
   function getOrCreate(countryCode, phone) {
@@ -415,6 +430,7 @@ function createCustomerLedger(options = {}) {
     if (patch.civilianSubtype != null && String(patch.civilianSubtype).trim()) {
       row.civilianSubtype = String(patch.civilianSubtype).trim();
     }
+    if (patch.outcome != null) row.outcome = String(patch.outcome);
     if (patch.notes != null) row.notes = String(patch.notes);
     if (patch.orderNumber != null && String(patch.orderNumber).trim()) {
       row.orderNumber = String(patch.orderNumber).replace(/\D/g, "").slice(0, 8);
@@ -425,32 +441,22 @@ function createCustomerLedger(options = {}) {
   function setNotes(countryCode, phone, notes) {
     const row = getOrCreate(countryCode, phone);
     if (!row) return null;
+    migrateOutcomeFromNotes(row);
     row.notes = String(notes || "").slice(0, 500);
     scheduleSave();
     return row;
   }
 
   /**
-   * تحديث ملاحظة النتيجة من مسار البوت (رابط / باقة / مستنفذ حد)
-   * لا يستبدل ملاحظة يدوية خارج الحالات التلقائية
+   * تحديث خانة «وش صار» (منفصلة عن الملاحظة الحرة)
    */
-  function setOutcomeNotes(countryCode, phone, outcome, { force = false } = {}) {
-    const label = String(outcome || "").trim();
-    if (!label) return null;
+  function setOutcomeNotes(countryCode, phone, outcome) {
     const row = getOrCreate(countryCode, phone);
     if (!row) return null;
-    const current = String(row.notes || "").trim();
-    if (!force && current && current !== label) {
-      const autoLabels = new Set([
-        "أخذ رابط التمويل",
-        "أخذ باقة",
-        "مستنفذ حد",
-        "إيقاف خدمات",
-      ]);
-      if (!autoLabels.has(current)) return row;
-    }
-    if (current === label) return row;
-    row.notes = label.slice(0, 500);
+    migrateOutcomeFromNotes(row);
+    const label = String(outcome || "").trim().slice(0, 80);
+    if (String(row.outcome || "").trim() === label) return row;
+    row.outcome = label;
     scheduleSave();
     return row;
   }
@@ -694,6 +700,7 @@ function createCustomerLedger(options = {}) {
           jobCategory: existing.jobCategory || incoming.jobCategory || null,
           civilianSubtype:
             existing.civilianSubtype || incoming.civilianSubtype || null,
+          outcome: existing.outcome || incoming.outcome || "",
           notes: existing.notes || incoming.notes || "",
           orderNumber: existing.orderNumber || incoming.orderNumber || null,
           orderNumberAt:

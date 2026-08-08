@@ -13,6 +13,7 @@ const {
   replyPropertyComboDecision,
   calculatePersonalFinance,
 } = require("../lib/personal-finance");
+const { startServiceStopFlow } = require("../lib/main-menu");
 
 assert.strictEqual(
   detectCustomerOutcome({
@@ -38,7 +39,6 @@ assert.strictEqual(
   OUTCOMES.SERVICE_STOP
 );
 
-const { startServiceStopFlow } = require("../lib/main-menu");
 assert.strictEqual(
   detectCustomerOutcome(startServiceStopFlow()),
   OUTCOMES.SERVICE_STOP
@@ -82,23 +82,39 @@ const ledger = createCustomerLedger({
 ledger.recordInbound("+966", "501112223", "مرحبا");
 ledger.setOutcomeNotes("+966", "501112223", OUTCOMES.LIMIT_EXHAUSTED);
 assert.strictEqual(
-  ledger._customers.get("+966:501112223").notes,
+  ledger._customers.get("+966:501112223").outcome,
   OUTCOMES.LIMIT_EXHAUSTED
+);
+ledger.setNotes("+966", "501112223", "يتابع معايا بكرا");
+assert.strictEqual(
+  ledger._customers.get("+966:501112223").notes,
+  "يتابع معايا بكرا"
+);
+assert.strictEqual(
+  ledger._customers.get("+966:501112223").outcome,
+  OUTCOMES.LIMIT_EXHAUSTED,
+  "الملاحظة الحرة لا تمسح وش صار"
 );
 ledger.setOutcomeNotes("+966", "501112223", OUTCOMES.PACKAGE);
 assert.strictEqual(
-  ledger._customers.get("+966:501112223").notes,
+  ledger._customers.get("+966:501112223").outcome,
   OUTCOMES.PACKAGE
 );
-ledger.setNotes("+966", "501112223", "ملاحظة يدوية خاصة");
-ledger.setOutcomeNotes("+966", "501112223", OUTCOMES.FINANCE_LINK);
 assert.strictEqual(
   ledger._customers.get("+966:501112223").notes,
-  "ملاحظة يدوية خاصة",
-  "لا نستبدل ملاحظة يدوية خارج الحالات التلقائية"
+  "يتابع معايا بكرا",
+  "تحديث وش صار لا يمسح الملاحظة الحرة"
 );
 
-// حاسبة ناجحة ترسل followUp مع الرابط
+// ترحيل بيانات قديمة كانت داخل notes
+ledger.recordInbound("+966", "509998887", "مرحبا");
+const legacy = ledger._customers.get("+966:509998887");
+legacy.notes = OUTCOMES.FINANCE_LINK;
+legacy.outcome = "";
+const after = ledger.setNotes("+966", "509998887", "ملاحظة جديدة");
+assert.strictEqual(after.outcome, OUTCOMES.FINANCE_LINK);
+assert.strictEqual(after.notes, "ملاحظة جديدة");
+
 const okCalc = calculatePersonalFinance({
   jobCategory: "military",
   salary: 15000,

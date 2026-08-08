@@ -286,6 +286,7 @@ function createAdminRouter(deps) {
         companyName: row.companyName || liveCompany || null,
         jobCategory: row.jobCategory || liveJob || null,
         civilianSubtype: row.civilianSubtype || liveSubtype || null,
+        outcome: row.outcome || "",
         notes: row.notes || "",
         orderNumber:
           row.orderNumber ||
@@ -429,7 +430,26 @@ function createAdminRouter(deps) {
     });
   });
 
-  /** تحديث ملاحظات عميل */
+  /** تحديث خانة «وش صار» */
+  router.post("/customers/outcome", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const { phone, countryCode } = normalizePhoneParts(req.body || {});
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: "رقم الجوال مطلوب" });
+    }
+    const outcome = String(req.body?.outcome ?? req.body?.note ?? "");
+    const row = customerLedger.setOutcomeNotes(countryCode, phone, outcome);
+    if (!row) {
+      return res.status(400).json({ ok: false, error: "تعذر حفظ الحالة" });
+    }
+    customerLedger.flush();
+    pushLog({ action: "customers-outcome", phone, countryCode, outcome: row.outcome });
+    res.json({ ok: true, phone, countryCode, outcome: row.outcome || "" });
+  });
+
+  /** تحديث ملاحظة حرة للعميل */
   router.post("/customers/notes", requireAdmin, (req, res) => {
     if (!customerLedger) {
       return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
@@ -445,7 +465,13 @@ function createAdminRouter(deps) {
     }
     customerLedger.flush();
     pushLog({ action: "customers-notes", phone, countryCode });
-    res.json({ ok: true, phone, countryCode, notes: row.notes });
+    res.json({
+      ok: true,
+      phone,
+      countryCode,
+      notes: row.notes,
+      outcome: row.outcome || "",
+    });
   });
 
   /** تحديث جهة العمل من اللوحة: government | private | military | clear */
