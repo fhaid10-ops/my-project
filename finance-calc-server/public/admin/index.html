@@ -331,7 +331,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 <script>
 (() => {
   const TOKEN_KEY = "raed_admin_token";
-  const UI_VERSION = "2026-08-08-e";
+  const UI_VERSION = "2026-08-08-f";
   const PAGE_SIZE = 100;
   let customerDay = "today";
   let customersCache = [];
@@ -461,12 +461,21 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     return `${cc}${phone}`;
   }
   function whatsappUrl(row) {
-    return `https://wa.me/${whatsappE164(row)}`;
+    const phone = whatsappE164(row);
+    const ua = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(ua);
+    // أندرويد: Intent يفتح واتساب بزنس (com.whatsapp.w4b) مو العادي
+    if (isAndroid) {
+      const fallback = encodeURIComponent(`https://wa.me/${phone}`);
+      return `intent://send/?phone=${phone}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url=${fallback};end`;
+    }
+    // آيفون/سطح المكتب: whatsapp:// يفتح التطبيق الافتراضي (غالبًا بزنس إن كان المثبت للعمل)
+    return `whatsapp://send?phone=${phone}`;
   }
   function phoneWhatsAppLink(row) {
     const label = escapeHtml(displayPhone(row));
     const href = escapeHtml(whatsappUrl(row));
-    return `<a class="phone-link" href="${href}" target="_blank" rel="noopener noreferrer" title="فتح واتساب">${label}</a>`;
+    return `<a class="phone-link" href="${href}" rel="noopener noreferrer" title="فتح واتساب بزنس">${label}</a>`;
   }
   function actionLabel(action) {
     return ({
@@ -620,7 +629,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       return `<tr>
         <td>
           ${phoneWhatsAppLink(row)}
-          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${fromInterakt ? ' · Interakt' : ''} · اضغط الرقم لواتساب</div>
+          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${fromInterakt ? ' · Interakt' : ''} · اضغط الرقم لواتساب بزنس</div>
         </td>
         <td>${formatTime(row.lastSeenAt)}</td>
         <td class="preview">${escapeHtml(preview)}</td>
@@ -628,7 +637,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         <td>${formatMoney(amount)}</td>
         <td>${row.inboundCount || 0}↓ / ${row.outboundCount || 0}↑</td>
         <td class="actions">
-          <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" target="_blank" rel="noopener noreferrer">واتساب</a>
+          <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
           <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
           <button class="btn secondary small" data-act="compose" data-phone="${row.phone}" type="button">رسالة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
@@ -707,7 +716,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         <td>${formatMoney(amount)}</td>
         <td>${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</td>
         <td class="actions">
-          <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" target="_blank" rel="noopener noreferrer">واتساب</a>
+          <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
           <button class="btn secondary small" data-act="menu" data-phone="${phone}" type="button">قائمة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
           <button class="btn ghost small" data-act="reset" data-phone="${phone}" type="button">تصفير</button>
