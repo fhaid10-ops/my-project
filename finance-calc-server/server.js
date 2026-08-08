@@ -71,7 +71,7 @@ function normalizeEnvValue(value) {
 }
 
 const app = express();
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "5mb" }));
 
 const PORT = Number(process.env.PORT || 5055);
 const INTERAKT_API_KEY = normalizeEnvValue(process.env.INTERAKT_API_KEY);
@@ -812,6 +812,19 @@ app.listen(PORT, () => {
   console.log(`Health: http://127.0.0.1:${PORT}/health`);
   console.log(`Webhook: http://127.0.0.1:${PORT}/webhook/interakt`);
   console.log(`Admin: http://127.0.0.1:${PORT}/admin`);
+  try {
+    const persistence = customerLedger.persistenceInfo();
+    console.log(
+      `[customers] ${persistence.count} عميل · ${persistence.durable ? "قرص دائم" : "تخزين مؤقت"} · ${persistence.dataFile}`
+    );
+    if (!persistence.durable) {
+      console.log(
+        "[customers] تنبيه: أضف Persistent Disk على /var/data واضبط CUSTOMERS_DATA_DIR=/var/data/kobri حتى لا يُمسح السجل بعد إعادة التشغيل"
+      );
+    }
+  } catch (err) {
+    console.error("[customers:persistence]", err.message);
+  }
   if (!ADMIN_TOKEN) {
     console.log("تنبيه: ضع ADMIN_TOKEN في ملف .env لتفعيل لوحة التحكم");
   } else {

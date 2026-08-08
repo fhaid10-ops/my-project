@@ -34,10 +34,19 @@ const exported = ledger.exportPayload();
 assert.strictEqual(exported.kind, "raed-customer-ledger");
 assert.ok(exported.count >= 1);
 
-ledger.flush();
+const saved = ledger.flush();
+assert.ok(saved.ok);
+assert.ok(fs.existsSync(dataFile));
 const snap = ledger.createSnapshot("test");
 assert.ok(snap.ok);
 assert.ok(fs.existsSync(snap.file));
+
+const reloaded = createCustomerLedger({ dataFile, backupDir });
+assert.ok(reloaded.summary().counts.all >= 1);
+const info = reloaded.persistenceInfo();
+assert.ok(info.exists);
+assert.ok(info.count >= 1);
+assert.ok(info.dataFile === dataFile);
 
 const ledger2 = createCustomerLedger({
   dataFile: path.join(dir, "customers2.json"),
@@ -56,4 +65,16 @@ const contact = ledger2.upsertContact({
 assert.ok(contact.created);
 assert.ok(ledger2.listByDay("today").customers.some((c) => c.phone === "533248917"));
 
-console.log("OK: customer ledger export/import/backup + interakt upsert");
+const {
+  resolveCustomersDataDir,
+  isDurableDir,
+} = require("../lib/customer-ledger");
+assert.strictEqual(isDurableDir("/var/data/kobri"), true);
+assert.strictEqual(isDurableDir(path.join(__dirname, "..", "data")), false);
+assert.ok(
+  resolveCustomersDataDir({ CUSTOMERS_DATA_DIR: "/var/data/kobri" }).endsWith(
+    `${path.sep}var${path.sep}data${path.sep}kobri`
+  ) || resolveCustomersDataDir({ CUSTOMERS_DATA_DIR: "/var/data/kobri" }) === "/var/data/kobri"
+);
+
+console.log("OK: customer ledger export/import/backup + interakt upsert + persistence");

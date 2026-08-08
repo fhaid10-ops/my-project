@@ -130,6 +130,7 @@ function createAdminRouter(deps) {
 
   router.get("/status", requireAdmin, (_req, res) => {
     const ledgerSummary = customerLedger?.summary?.() || null;
+    const persistence = customerLedger?.persistenceInfo?.() || null;
     res.json({
       ok: true,
       service: "finance-calc-server",
@@ -144,6 +145,7 @@ function createAdminRouter(deps) {
         customersAll: ledgerSummary?.counts?.all || 0,
       },
       customers: ledgerSummary,
+      persistence,
       brand: CONFIG.brand?.name || "رائد الحربي",
       followUpPreview: CONFIG.followUp?.electronicMessage || "",
       outboundDelayMs: CONFIG.outbound?.delayMs || 3500,
@@ -298,19 +300,27 @@ function createAdminRouter(deps) {
             source: "interakt",
           }),
       });
-      customerLedger.flush();
+      const saved = customerLedger.flush();
+      const persistence = customerLedger.persistenceInfo();
       pushLog({
         action: "customers-sync-interakt",
         fetched: result.fetched,
         created: result.created,
+        savedOk: Boolean(saved?.ok),
+        durable: Boolean(persistence?.durable),
       });
       res.json({
         ...result,
         days,
         since,
         summary: customerLedger.summary(),
+        persistence,
+        saved,
         // touchNow يختمهم بتاريخ اليوم فيظهرون في تبويب اليوم
         preferDay: result.fetched > 0 ? "today" : "all",
+        hint: persistence?.durable
+          ? null
+          : "تم الجلب في الذاكرة والملف المحلي — لكن بدون Persistent Disk على Render يختفي السجل بعد إعادة التشغيل أو النشر. أضف Disk على /var/data واضبط CUSTOMERS_DATA_DIR=/var/data/kobri",
       });
     } catch (err) {
       res.status(500).json({

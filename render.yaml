@@ -1,11 +1,11 @@
 # رفع الكوبري على Render — بدل جهاز البيت + Cloudflare
 # New → Blueprint → ربط GitHub → اختر هذا المستودع
 #
-# بقاء العملاء بعد كل نشر:
-# 1) الأفضل: من Render أضف Persistent Disk على /var/data ثم Environment:
-#    CUSTOMERS_DATA_DIR=/var/data/kobri
-# 2) من اللوحة قبل أي نشر: «تنزيل بكب» ثم بعده «استيراد بكب»
-# 3) «جلب من Interakt» يسترجع أرقام العملاء السابقين (آخر 7 أيام)
+# بقاء العملاء بعد تحديث الصفحة / إعادة التشغيل / النشر:
+# - هذا الملف يضيف Persistent Disk على /var/data
+# - التطبيق يحفظ سجل العملاء في /var/data/kobri
+# - إن أنشأت الخدمة يدويًا: من Render → Disks → Mount path=/var/data
+#   ثم Environment: CUSTOMERS_DATA_DIR=/var/data/kobri
 services:
   - type: web
     name: finance-calc-kobri
@@ -15,6 +15,10 @@ services:
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
+    disk:
+      name: kobri-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
@@ -24,6 +28,5 @@ services:
         generateValue: true
       - key: WEBHOOK_SECRET
         generateValue: true
-      # بعد إضافة Disk في Render، فعّل السطرين التاليين:
-      # - key: CUSTOMERS_DATA_DIR
-      #   value: /var/data/kobri
+      - key: CUSTOMERS_DATA_DIR
+        value: /var/data/kobri

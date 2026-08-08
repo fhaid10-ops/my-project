@@ -216,9 +216,14 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     </section>
 
     <section id="panel-customers" class="panel" hidden>
+      <div id="persistence-banner" class="card" style="margin-bottom:14px;display:none;border-color:rgba(157,58,45,.35);background:rgba(157,58,45,.06)">
+        <h3 style="margin-top:0;color:var(--danger)">التخزين مؤقت — يتصفر بعد إعادة التشغيل</h3>
+        <p class="muted" id="persistence-banner-text" style="margin-bottom:0">أضف Persistent Disk في Render على المسار <code>/var/data</code> ثم Environment: <code>CUSTOMERS_DATA_DIR=/var/data/kobri</code>. قبل أي نشر: نزّل بكب.</p>
+      </div>
       <div class="card" style="margin-bottom:14px">
         <h3 style="margin-top:0">النسخ الاحتياطي وجلب السابق</h3>
         <p class="muted">قبل أي نشر جديد: نزّل بكب. بعد النشر: استورد الملف. زر Interakt يجلب <strong>الأرقام والأسماء فقط</strong> — مو المسار ولا المبلغ ولا نص المحادثة (هذي تجي من رسائل البوت).</p>
+        <p class="muted" id="persistence-line" style="margin-top:8px">حالة الحفظ: —</p>
         <div class="btn-row">
           <button id="export-customers" class="btn primary" type="button">تنزيل بكب</button>
           <button id="backup-now" class="btn secondary" type="button">حفظ نسخة الآن</button>
@@ -437,6 +442,23 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     panelSub.textContent = meta[1];
   }
 
+  function updatePersistenceUi(persistence) {
+    const banner = document.getElementById("persistence-banner");
+    const line = document.getElementById("persistence-line");
+    if (!persistence) {
+      if (banner) banner.style.display = "none";
+      if (line) line.textContent = "حالة الحفظ: غير متاحة";
+      return;
+    }
+    if (banner) banner.style.display = persistence.durable ? "none" : "block";
+    if (line) {
+      line.textContent = persistence.durable
+        ? `حالة الحفظ: قرص دائم · ${persistence.count || 0} عميل محفوظ · ${persistence.dataDir || ""}`
+        : `حالة الحفظ: مؤقت (يُمسح بعد إعادة التشغيل/النشر) · ${persistence.count || 0} عميل · ${persistence.dataDir || ""}`;
+      line.style.color = persistence.durable ? "var(--accent)" : "var(--danger)";
+    }
+  }
+
   async function refreshOverview() {
     const status = await api("/status");
     statusCache = status;
@@ -452,6 +474,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     document.getElementById("dates-line").textContent = c
       ? `اليوم ${c.today} · أمس ${c.yesterday} · ${c.timezone || "Asia/Riyadh"}`
       : "سجل العملاء غير متاح";
+    updatePersistenceUi(status.persistence);
 
     const activity = await api("/activity");
     const list = document.getElementById("activity-list");
@@ -709,11 +732,15 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         method: "POST",
         body: JSON.stringify({ days: 30 }),
       });
+      updatePersistenceUi(r.persistence);
+      const savedOk = r.saved?.ok !== false;
       setBackupStatus(
         `Interakt: جلب ${r.fetched || 0} رقم · جديد ${r.created || 0} · محدّث ${r.updated || 0}` +
+          (savedOk ? " · تم الحفظ على القرص" : " · فشل الحفظ على القرص") +
+          (r.persistence?.durable ? " · تخزين دائم" : " · تخزين مؤقت") +
           (r.skippedSample ? ` · تجاهل عيّنات ${r.skippedSample}` : "") +
-          (r.hint ? ` — ${r.hint}` : "") +
-          (r.filterUsed ? ` · فلتر: ${r.filterUsed}` : "")
+          (r.filterUsed ? ` · فلتر: ${r.filterUsed}` : "") +
+          (r.hint ? ` — ${r.hint}` : "")
       );
       setCustomerTab(r.preferDay || (r.fetched > 0 ? "today" : "all"));
       switchPanel("customers");

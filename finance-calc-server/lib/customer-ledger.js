@@ -1,6 +1,7 @@
 /**
  * سجل العملاء — يحفظ نشاط الوارد/الصادر لعرض اليوم وأمس في اللوحة
- * تخزين: ذاكرة + ملف JSON (يبقى حتى إعادة التشغيل/النشر)
+ * تخزين: ذاكرة + ملف JSON
+ * على Render يلزم Persistent Disk تحت /var/data وإلا يُمسح السجل بعد إعادة التشغيل/النشر
  */
 const fs = require("fs");
 const path = require("path");
@@ -9,8 +10,72 @@ const TIMEZONE = "Asia/Riyadh";
 const MAX_CUSTOMERS = 5000;
 const MAX_EVENTS_PER_CUSTOMER = 40;
 const MAX_BACKUPS = 20;
-const DEFAULT_DATA_DIR =
-  process.env.CUSTOMERS_DATA_DIR || path.join(__dirname, "..", "data");
+const LOCAL_DATA_DIR = path.join(__dirname, "..", "data");
+const DURABLE_MARKERS = ["/var/data", "/data/kobri", "/opt/render/project/src/data-persistent"];
+
+function canWriteDir(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const probe = path.join(dir, `.write-probe-${process.pid}`);
+    fs.writeFileSync(probe, "ok", "utf8");
+    fs.unlinkSync(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isDurableDir(dir) {
+  const resolved = path.resolve(String(dir || ""));
+  return DURABLE_MARKERS.some(
+    (marker) => resolved === marker || resolved.startsWith(`${marker}${path.sep}`)
+  );
+}
+
+/** يفضّل CUSTOMERS_DATA_DIR ثم قرص Render /var/data ثم مجلد المشروع */
+function resolveCustomersDataDir(env = process.env) {
+  const fromEnv = String(env.CUSTOMERS_DATA_DIR || "").trim();
+  if (fromEnv) return path.resolve(fromEnv);
+
+  // قرص Render المثبت عادة على /var/data — لا ننشئ /var/data بأنفسنا
+  if (fs.existsSync("/var/data") && canWriteDir("/var/data/kobri")) {
+    return path.resolve("/var/data/kobri");
+  }
+  return LOCAL_DATA_DIR;
+}
+
+function migrateLegacyCustomersFile(targetDir) {
+  const targetFile = path.join(targetDir, "customers.json");
+  if (fs.existsSync(targetFile)) return { migrated: false, reason: "target-exists" };
+  const legacyFile = path.join(LOCAL_DATA_DIR, "customers.json");
+  if (!fs.existsSync(legacyFile) || path.resolve(targetDir) === path.resolve(LOCAL_DATA_DIR)) {
+    return { migrated: false, reason: "no-legacy" };
+  }
+  try {
+    fs.mkdirSync(targetDir, { recursive: true });
+    fs.copyFileSync(legacyFile, targetFile);
+    const legacyBackups = path.join(LOCAL_DATA_DIR, "backups");
+    const targetBackups = path.join(targetDir, "backups");
+    if (fs.existsSync(legacyBackups)) {
+      fs.mkdirSync(targetBackups, { recursive: true });
+      for (const name of fs.readdirSync(legacyBackups)) {
+        if (!name.endsWith(".json")) continue;
+        const dest = path.join(targetBackups, name);
+        if (!fs.existsSync(dest)) {
+          fs.copyFileSync(path.join(legacyBackups, name), dest);
+        }
+      }
+    }
+    console.log(`[customer-ledger] نُقل السجل من ${legacyFile} → ${targetFile}`);
+    return { migrated: true, from: legacyFile, to: targetFile };
+  } catch (err) {
+    console.error("[customer-ledger:migrate]", err.message);
+    return { migrated: false, reason: err.message };
+  }
+}
+
+const DEFAULT_DATA_DIR = resolveCustomersDataDir();
+migrateLegacyCustomersFile(DEFAULT_DATA_DIR);
 const DEFAULT_DATA_FILE = path.join(DEFAULT_DATA_DIR, "customers.json");
 const DEFAULT_BACKUP_DIR = path.join(DEFAULT_DATA_DIR, "backups");
 
@@ -142,14 +207,52 @@ function createCustomerLedger(options = {}) {
       if (snapshot && fs.existsSync(dataFile) && customers.size > 0) {
         createSnapshot("presave");
       }
-      fs.writeFileSync(
-        dataFile,
-        JSON.stringify(exportPayload(), null, 2),
-        "utf8"
-      );
+      const payload = JSON.stringify(exportPayload(), null, 2);
+      const tmp = `${dataFile}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, payload, "utf8");
+      fs.renameSync(tmp, dataFile);
+      return { ok: true, bytes: Buffer.byteLength(payload), count: customers.size };
     } catch (err) {
       console.error("[customer-ledger:save]", err.message);
+      try {
+        const tmp = `${dataFile}.${process.pid}.tmp`;
+        if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+      } catch {
+        /* ignore */
+      }
+      return { ok: false, error: err.message };
     }
+  }
+
+  function persistenceInfo() {
+    load();
+    let bytes = 0;
+    let mtime = null;
+    try {
+      if (fs.existsSync(dataFile)) {
+        const st = fs.statSync(dataFile);
+        bytes = st.size;
+        mtime = st.mtime.toISOString();
+      }
+    } catch {
+      /* ignore */
+    }
+    const dataDir = path.dirname(dataFile);
+    const durable = isDurableDir(dataDir);
+    const writable = canWriteDir(dataDir);
+    return {
+      dataDir,
+      dataFile,
+      durable,
+      writable,
+      exists: fs.existsSync(dataFile),
+      bytes,
+      mtime,
+      count: customers.size,
+      hint: durable
+        ? "التخزين على قرص دائم — يبقى بعد تحديث الصفحة وإعادة التشغيل"
+        : "تحذير: التخزين مؤقت على Render — أي إعادة تشغيل أو نشر تمسح العملاء حتى تضيف Persistent Disk على /var/data وتضبط CUSTOMERS_DATA_DIR=/var/data/kobri",
+    };
   }
 
   function normalizeRow(row = {}) {
@@ -333,7 +436,7 @@ function createCustomerLedger(options = {}) {
       clearTimeout(writeTimer);
       writeTimer = null;
     }
-    saveNow({ snapshot: true });
+    return saveNow({ snapshot: true });
   }
 
   /**
@@ -506,6 +609,7 @@ function createCustomerLedger(options = {}) {
     createSnapshot,
     upsertContact,
     listBackups,
+    persistenceInfo,
     calendarDayKey,
     shiftDayKey,
     TIMEZONE,
@@ -519,5 +623,7 @@ module.exports = {
   createCustomerLedger,
   calendarDayKey,
   shiftDayKey,
+  resolveCustomersDataDir,
+  isDurableDir,
   TIMEZONE,
 };
