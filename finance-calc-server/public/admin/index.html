@@ -137,7 +137,11 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 .badge.day { background: rgba(184,137,31,.14); color: #8a6714; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .form-card { max-width: 720px; }
-.phone-link { font-weight: 700; direction: ltr; unicode-bidi: plaintext; display: inline-block; }
+.phone-link {
+  font-weight: 700; direction: ltr; unicode-bidi: plaintext;
+  display: inline-block; color: var(--accent); text-decoration: none;
+}
+.phone-link:hover { text-decoration: underline; }
 .meta-line { font-size: .82rem; color: var(--muted); margin-top: 4px; }
 @media (max-width: 980px) {
   .app { grid-template-columns: 1fr; }
@@ -327,7 +331,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 <script>
 (() => {
   const TOKEN_KEY = "raed_admin_token";
-  const UI_VERSION = "2026-08-08-d";
+  const UI_VERSION = "2026-08-08-e";
   const PAGE_SIZE = 100;
   let customerDay = "today";
   let customersCache = [];
@@ -447,6 +451,22 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
   function displayPhone(row) {
     const phone = row.phone || "";
     return phone.startsWith("0") ? phone : `0${phone}`;
+  }
+  /** رقم دولي لرابط واتساب: 9665xxxxxxxx */
+  function whatsappE164(row) {
+    let phone = String(row.phone || "").replace(/\D/g, "");
+    if (phone.startsWith("0")) phone = phone.slice(1);
+    if (phone.startsWith("966")) return phone;
+    const cc = String(row.countryCode || "+966").replace(/\D/g, "") || "966";
+    return `${cc}${phone}`;
+  }
+  function whatsappUrl(row) {
+    return `https://wa.me/${whatsappE164(row)}`;
+  }
+  function phoneWhatsAppLink(row) {
+    const label = escapeHtml(displayPhone(row));
+    const href = escapeHtml(whatsappUrl(row));
+    return `<a class="phone-link" href="${href}" target="_blank" rel="noopener noreferrer" title="فتح واتساب">${label}</a>`;
   }
   function actionLabel(action) {
     return ({
@@ -599,8 +619,8 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
           : `—<div class="meta-line">${escapeHtml(step || "—")}</div>`;
       return `<tr>
         <td>
-          <span class="phone-link">${displayPhone(row)}</span>
-          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${fromInterakt ? ' · Interakt' : ''}</div>
+          ${phoneWhatsAppLink(row)}
+          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${fromInterakt ? ' · Interakt' : ''} · اضغط الرقم لواتساب</div>
         </td>
         <td>${formatTime(row.lastSeenAt)}</td>
         <td class="preview">${escapeHtml(preview)}</td>
@@ -608,6 +628,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         <td>${formatMoney(amount)}</td>
         <td>${row.inboundCount || 0}↓ / ${row.outboundCount || 0}↑</td>
         <td class="actions">
+          <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" target="_blank" rel="noopener noreferrer">واتساب</a>
           <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
           <button class="btn secondary small" data-act="compose" data-phone="${row.phone}" type="button">رسالة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
@@ -680,12 +701,13 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       const amount = row.session?.maxAmount;
       const paused = row.paused;
       return `<tr>
-        <td><span class="phone-link">${displayPhone(row)}</span></td>
+        <td>${phoneWhatsAppLink(row)}</td>
         <td>${escapeHtml(flowLabel(flow))}</td>
         <td>${escapeHtml(step)}</td>
         <td>${formatMoney(amount)}</td>
         <td>${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</td>
         <td class="actions">
+          <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" target="_blank" rel="noopener noreferrer">واتساب</a>
           <button class="btn secondary small" data-act="menu" data-phone="${phone}" type="button">قائمة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
           <button class="btn ghost small" data-act="reset" data-phone="${phone}" type="button">تصفير</button>
