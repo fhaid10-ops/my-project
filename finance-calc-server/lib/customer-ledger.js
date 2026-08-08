@@ -122,19 +122,58 @@ function createCustomerLedger(options = {}) {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
 
+  function readCustomersFile(file) {
+    const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+    const rows = Array.isArray(raw?.customers) ? raw.customers : [];
+    let n = 0;
+    for (const row of rows) {
+      if (!row?.key) continue;
+      customers.set(row.key, normalizeRow(row));
+      n += 1;
+    }
+    return n;
+  }
+
+  function latestBackupFile() {
+    try {
+      if (!fs.existsSync(backupDir)) return null;
+      const files = fs
+        .readdirSync(backupDir)
+        .filter((f) => f.startsWith("customers-") && f.endsWith(".json"))
+        .map((f) => ({
+          f,
+          t: fs.statSync(path.join(backupDir, f)).mtimeMs,
+        }))
+        .sort((a, b) => b.t - a.t);
+      return files[0] ? path.join(backupDir, files[0].f) : null;
+    } catch {
+      return null;
+    }
+  }
+
   function load() {
     if (loaded) return;
     loaded = true;
     try {
-      if (!fs.existsSync(dataFile)) return;
-      const raw = JSON.parse(fs.readFileSync(dataFile, "utf8"));
-      const rows = Array.isArray(raw?.customers) ? raw.customers : [];
-      for (const row of rows) {
-        if (!row?.key) continue;
-        customers.set(row.key, normalizeRow(row));
+      if (fs.existsSync(dataFile)) {
+        const n = readCustomersFile(dataFile);
+        console.log(`[customer-ledger:load] ${n} عميل من ${dataFile}`);
+        return;
       }
     } catch (err) {
       console.error("[customer-ledger:load]", err.message);
+      customers.clear();
+      const backup = latestBackupFile();
+      if (backup) {
+        try {
+          const n = readCustomersFile(backup);
+          console.log(`[customer-ledger:load] استرجاع ${n} من بكب ${backup}`);
+          return;
+        } catch (err2) {
+          console.error("[customer-ledger:load-backup]", err2.message);
+          customers.clear();
+        }
+      }
     }
   }
 
@@ -200,9 +239,28 @@ function createCustomerLedger(options = {}) {
     }
   }
 
-  function saveNow({ snapshot = false } = {}) {
+  function saveNow({ snapshot = false, force = false } = {}) {
     try {
       ensureDir();
+      // لا نكتب ملف فارغ فوق سجل موجود — هذا سبب شائع لـ«يتصفر بعد التحديث»
+      if (!force && customers.size === 0 && fs.existsSync(dataFile)) {
+        const st = fs.statSync(dataFile);
+        if (st.size > 200) {
+          console.error(
+            `[customer-ledger:save] رفض حفظ فارغ فوق ملف (${st.size} بايت) — إعادة تحميل`
+          );
+          loaded = false;
+          customers.clear();
+          load();
+          if (customers.size === 0) {
+            return {
+              ok: false,
+              error: "رفض الكتابة الفارغة فوق سجل موجود",
+              bytes: st.size,
+            };
+          }
+        }
+      }
       // Snapshot فقط عند الطلب الصريح (قبل استيراد / إيقاف السيرفر / زر بكب)
       if (snapshot && fs.existsSync(dataFile) && customers.size > 0) {
         createSnapshot("presave");

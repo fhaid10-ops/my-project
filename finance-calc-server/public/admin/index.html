@@ -190,6 +190,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       <div>
         <h2 id="panel-title">نظرة عامة</h2>
         <p id="panel-sub">ملخص السيرفر وعدد العملاء</p>
+        <p id="live-counts" class="muted" style="margin:8px 0 0;font-weight:700;color:var(--accent)">العدد المحفوظ: —</p>
       </div>
       <button id="refresh-btn" class="btn secondary" type="button">تحديث</button>
     </header>
@@ -325,12 +326,23 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 <script>
 (() => {
   const TOKEN_KEY = "raed_admin_token";
+  const UI_VERSION = "2026-08-08-c";
   const PAGE_SIZE = 100;
   let customerDay = "today";
   let customersCache = [];
   let customersTotal = 0;
   let customersHasMore = false;
   let statusCache = null;
+
+  // كسر كاش الجوال لنسخة اللوحة القديمة
+  try {
+    const url = new URL(location.href);
+    if (url.searchParams.get("v") !== UI_VERSION) {
+      url.searchParams.set("v", UI_VERSION);
+      location.replace(url.toString());
+      return;
+    }
+  } catch {}
 
   const loginView = document.getElementById("login-view");
   const appView = document.getElementById("app-view");
@@ -448,6 +460,17 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
     panelSub.textContent = meta[1];
   }
 
+  function updateLiveCounts(counts, persistence) {
+    const el = document.getElementById("live-counts");
+    if (!el) return;
+    const all = counts?.customersAll ?? counts?.all ?? persistence?.count ?? 0;
+    const today = counts?.customersToday ?? counts?.today ?? "—";
+    const yesterday = counts?.customersYesterday ?? counts?.yesterday ?? "—";
+    const disk = persistence?.durable ? "قرص دائم" : "تخزين مؤقت";
+    el.textContent = `العدد المحفوظ: ${all} · اليوم ${today} · أمس ${yesterday} · ${disk} · v${UI_VERSION}`;
+    el.style.color = Number(all) > 0 ? "var(--accent)" : "var(--danger)";
+  }
+
   function updatePersistenceUi(persistence) {
     const banner = document.getElementById("persistence-banner");
     const line = document.getElementById("persistence-line");
@@ -481,6 +504,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       ? `اليوم ${c.today} · أمس ${c.yesterday} · ${c.timezone || "Asia/Riyadh"}`
       : "سجل العملاء غير متاح";
     updatePersistenceUi(status.persistence);
+    updateLiveCounts(status.counts, status.persistence);
 
     const activity = await api("/activity");
     const list = document.getElementById("activity-list");

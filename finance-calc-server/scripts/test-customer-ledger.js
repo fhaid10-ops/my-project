@@ -41,6 +41,28 @@ const snap = ledger.createSnapshot("test");
 assert.ok(snap.ok);
 assert.ok(fs.existsSync(snap.file));
 
+// لا يسمح بحفظ فارغ فوق سجل موجود بحجم معتبر
+const guardFile = path.join(dir, "customers-empty-guard.json");
+const guardBackup = path.join(dir, "backups-empty-guard");
+const fatPayload = {
+  customers: Array.from({ length: 20 }, (_, i) => ({
+    key: `+966:5000000${String(i).padStart(2, "0")}`,
+    phone: `5000000${String(i).padStart(2, "0")}`,
+    countryCode: "+966",
+    lastSeenAt: new Date().toISOString(),
+  })),
+};
+fs.writeFileSync(guardFile, JSON.stringify(fatPayload, null, 2));
+const blank = createCustomerLedger({
+  dataFile: guardFile,
+  backupDir: guardBackup,
+});
+assert.ok(blank.summary().counts.all >= 20);
+blank._customers.clear();
+const refused = blank.flush();
+assert.ok(blank.summary().counts.all >= 20, "يجب استرجاع السجل بدل الكتابة الفارغة");
+assert.ok(refused.ok !== false || refused.error);
+
 const reloaded = createCustomerLedger({ dataFile, backupDir });
 assert.ok(reloaded.summary().counts.all >= 1);
 const info = reloaded.persistenceInfo();
