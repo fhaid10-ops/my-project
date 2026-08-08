@@ -55,6 +55,7 @@ const { extractIncomingMessage } = require("./lib/webhook-parse");
 const { normalizeDigits } = require("./lib/digits");
 const { mountAdmin } = require("./lib/admin-routes");
 const { createCustomerLedger } = require("./lib/customer-ledger");
+const { detectCustomerOutcome } = require("./lib/customer-outcome");
 const {
   looksLikeApplicationOrderNumber,
   parseApplicationOrderNumber,
@@ -786,6 +787,12 @@ app.post("/webhook/interakt", async (req, res) => {
           latestSession?.civilianSubtype ||
           null,
       });
+      // تحديث «وش صار» تلقائياً: رابط تمويل / باقة / مستنفذ حد
+      const outcome = detectCustomerOutcome(result);
+      if (outcome) {
+        customerLedger.setOutcomeNotes(countryCode, phone, outcome);
+        console.log("[outcome:auto]", phone, outcome);
+      }
       console.log(
         "[reply:ok]",
         phone,

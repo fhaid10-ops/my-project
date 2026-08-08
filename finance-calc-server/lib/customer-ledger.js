@@ -430,6 +430,30 @@ function createCustomerLedger(options = {}) {
     return row;
   }
 
+  /**
+   * تحديث ملاحظة النتيجة من مسار البوت (رابط / باقة / مستنفذ حد)
+   * لا يستبدل ملاحظة يدوية خارج الحالات التلقائية
+   */
+  function setOutcomeNotes(countryCode, phone, outcome, { force = false } = {}) {
+    const label = String(outcome || "").trim();
+    if (!label) return null;
+    const row = getOrCreate(countryCode, phone);
+    if (!row) return null;
+    const current = String(row.notes || "").trim();
+    if (!force && current && current !== label) {
+      const autoLabels = new Set([
+        "أخذ رابط التمويل",
+        "أخذ باقة",
+        "مستنفذ حد",
+      ]);
+      if (!autoLabels.has(current)) return row;
+    }
+    if (current === label) return row;
+    row.notes = label.slice(0, 500);
+    scheduleSave();
+    return row;
+  }
+
   function setOrderNumber(countryCode, phone, orderNumber) {
     const row = getOrCreate(countryCode, phone);
     if (!row) return null;
@@ -775,6 +799,7 @@ function createCustomerLedger(options = {}) {
     recordOutbound,
     updateState,
     setNotes,
+    setOutcomeNotes,
     setOrderNumber,
     setWorkplace,
     listByDay,
