@@ -134,6 +134,19 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(militaryWp.json.jobCategory, "military");
 
+  const order = await req("POST", "/customers/order-number", {
+    phone: "0551234567",
+    orderNumber: "10171234",
+  });
+  assert.strictEqual(order.status, 200);
+  assert.strictEqual(order.json.orderNumber, "10171234");
+  const afterOrder = await req("GET", "/customers?day=today");
+  assert.ok(
+    afterOrder.json.customers.some(
+      (c) => c.phone === "551234567" && c.orderNumber === "10171234"
+    )
+  );
+
   const exported = await req("GET", "/customers/export");
   assert.strictEqual(exported.status, 200);
   assert.ok((exported.json.customers || []).length >= 1);

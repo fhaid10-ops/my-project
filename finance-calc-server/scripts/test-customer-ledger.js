@@ -38,6 +38,10 @@ assert.strictEqual(wp.row.civilianSubtype, "government");
 const cleared = ledger.setWorkplace("+966", "508031055", "clear");
 assert.ok(cleared.ok);
 assert.strictEqual(cleared.row.jobCategory, null);
+const ordered = ledger.setOrderNumber("+966", "508031055", "10171234");
+assert.ok(ordered);
+assert.strictEqual(ordered.orderNumber, "10171234");
+assert.ok(ordered.orderNumberAt);
 
 const todayPack = ledger.listByDay("today");
 assert.ok(todayPack.count >= 1);

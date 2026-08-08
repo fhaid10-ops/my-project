@@ -366,6 +366,8 @@ function createCustomerLedger(options = {}) {
       jobCategory: row.jobCategory || null,
       civilianSubtype: row.civilianSubtype || null,
       notes: row.notes || "",
+      orderNumber: row.orderNumber || null,
+      orderNumberAt: row.orderNumberAt || null,
       dayKey: row.dayKey || calendarDayKey(new Date(row.lastSeenAt || Date.now())),
       source: row.source || null,
       syncedAt: row.syncedAt || null,
@@ -414,12 +416,32 @@ function createCustomerLedger(options = {}) {
       row.civilianSubtype = String(patch.civilianSubtype).trim();
     }
     if (patch.notes != null) row.notes = String(patch.notes);
+    if (patch.orderNumber != null && String(patch.orderNumber).trim()) {
+      row.orderNumber = String(patch.orderNumber).replace(/\D/g, "").slice(0, 8);
+      row.orderNumberAt = patch.orderNumberAt || iso;
+    }
   }
 
   function setNotes(countryCode, phone, notes) {
     const row = getOrCreate(countryCode, phone);
     if (!row) return null;
     row.notes = String(notes || "").slice(0, 500);
+    scheduleSave();
+    return row;
+  }
+
+  function setOrderNumber(countryCode, phone, orderNumber) {
+    const row = getOrCreate(countryCode, phone);
+    if (!row) return null;
+    const digits = String(orderNumber || "").replace(/\D/g, "");
+    if (!digits) {
+      row.orderNumber = null;
+      row.orderNumberAt = null;
+      scheduleSave();
+      return row;
+    }
+    row.orderNumber = digits.slice(0, 8);
+    row.orderNumberAt = new Date().toISOString();
     scheduleSave();
     return row;
   }
@@ -648,6 +670,9 @@ function createCustomerLedger(options = {}) {
           civilianSubtype:
             existing.civilianSubtype || incoming.civilianSubtype || null,
           notes: existing.notes || incoming.notes || "",
+          orderNumber: existing.orderNumber || incoming.orderNumber || null,
+          orderNumberAt:
+            existing.orderNumberAt || incoming.orderNumberAt || null,
           source: existing.source || incoming.source || null,
           events: [...(existing.events || []), ...(incoming.events || [])].slice(
             0,
@@ -750,6 +775,7 @@ function createCustomerLedger(options = {}) {
     recordOutbound,
     updateState,
     setNotes,
+    setOrderNumber,
     setWorkplace,
     listByDay,
     summary,

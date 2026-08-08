@@ -287,6 +287,12 @@ function createAdminRouter(deps) {
         jobCategory: row.jobCategory || liveJob || null,
         civilianSubtype: row.civilianSubtype || liveSubtype || null,
         notes: row.notes || "",
+        orderNumber:
+          row.orderNumber ||
+          sessionRow?.data?.orderNumber ||
+          null,
+        orderNumberAt:
+          row.orderNumberAt || sessionRow?.data?.orderNumberAt || null,
         source: row.source || null,
         syncedAt: row.syncedAt || null,
         dayKey: row.dayKey || null,
@@ -385,6 +391,42 @@ function createAdminRouter(deps) {
       return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
     }
     res.json({ ok: true, backups: customerLedger.listBackups() });
+  });
+
+  /** تحديث رقم الطلب يدويًا من اللوحة */
+  router.post("/customers/order-number", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const { phone, countryCode } = normalizePhoneParts(req.body || {});
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: "رقم الجوال مطلوب" });
+    }
+    const raw = String(req.body?.orderNumber ?? "").replace(/\D/g, "");
+    if (raw && !/^101\d{5}$/.test(raw)) {
+      return res.status(400).json({
+        ok: false,
+        error: "رقم الطلب يجب أن يكون 8 أرقام ويبدأ بـ 101",
+      });
+    }
+    const row = customerLedger.setOrderNumber(countryCode, phone, raw || "");
+    if (!row) {
+      return res.status(400).json({ ok: false, error: "تعذر حفظ رقم الطلب" });
+    }
+    customerLedger.flush();
+    pushLog({
+      action: "customers-order-number",
+      phone,
+      countryCode,
+      orderNumber: row.orderNumber,
+    });
+    res.json({
+      ok: true,
+      phone,
+      countryCode,
+      orderNumber: row.orderNumber,
+      orderNumberAt: row.orderNumberAt,
+    });
   });
 
   /** تحديث ملاحظات عميل */
@@ -563,7 +605,7 @@ function createAdminRouter(deps) {
         CONFIG.followUp?.electronicMessage ||
         `السلام عليكم
 هل قدمت تمويل؟
-أرسل رقم الطلب (8 أرقام ويبدأ بـ 1016 أو 1017).`;
+أرسل رقم الطلب (8 أرقام ويبدأ بـ 101).`;
       await sendInteraktText(countryCode, phone, message);
       customerLedger?.recordOutbound?.(countryCode, phone, message, {
         mode: "admin-followup",

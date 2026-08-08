@@ -688,14 +688,22 @@ app.post("/webhook/interakt", async (req, res) => {
         saveSession(countryCode, phone, result.data);
       }
     } else if (looksLikeApplicationOrderNumber(text)) {
-      // رقم طلب التقديم (1016/1017 وطوله 8) — قبل اختيار المبلغ حتى ما ينحسب كمبلغ تمويل
+      // رقم طلب التقديم (يبدأ بـ 101 وطوله 8) — قبل اختيار المبلغ حتى ما ينحسب كمبلغ تمويل
       const orderNumber = parseApplicationOrderNumber(text);
       const prev = getSession(countryCode, phone) || {};
+      const orderNumberAt = new Date().toISOString();
       saveSession(countryCode, phone, {
         ...prev,
         orderNumber,
-        orderNumberAt: new Date().toISOString(),
+        orderNumberAt,
         awaitingAmountChoice: false,
+      });
+      customerLedger.setOrderNumber(countryCode, phone, orderNumber);
+      customerLedger.updateState(countryCode, phone, {
+        orderNumber,
+        orderNumberAt,
+        flow: "order_number",
+        step: "received",
       });
       result = {
         ok: true,

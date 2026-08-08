@@ -1,23 +1,23 @@
 /**
- * رقم طلب التقديم الإلكتروني — يبدأ بـ 1017 أو 1016 ويتكون من 8 أرقام
+ * رقم طلب التقديم الإلكتروني — يبدأ بـ 101 ويتكون من 8 أرقام
  */
 const { normalizeDigits } = require("./digits");
 
-const ORDER_PREFIXES = ["1017", "1016"];
+const ORDER_PREFIX = "101";
 const ORDER_DIGITS = 8;
-const ORDER_NUMBER_RE = /^(1017|1016)\d{4}$/;
+const ORDER_NUMBER_RE = /^101\d{5}$/;
 
 function extractOrderCandidate(raw) {
   const digitsOnly = String(raw || "").replace(/\D/g, "");
   if (ORDER_NUMBER_RE.test(digitsOnly)) return digitsOnly;
 
-  // «رقم الطلب: 1017xxxx» داخل نص أطول
+  // «رقم الطلب: 101xxxxx» داخل نص أطول
   const labeled = String(raw || "").match(
-    /(?:رقم\s*الطلب|طلب(?:ي)?)\s*[:：\-]?\s*((?:1017|1016)\d{4})\b/i
+    /(?:رقم\s*الطلب|طلب(?:ي)?)\s*[:：\-]?\s*(101\d{5})\b/i
   );
   if (labeled) return labeled[1];
 
-  const embedded = String(raw || "").match(/\b((?:1017|1016)\d{4})\b/);
+  const embedded = String(raw || "").match(/\b(101\d{5})\b/);
   if (embedded) return embedded[1];
 
   return null;
@@ -70,8 +70,9 @@ function buildOrderNumberAckReply(configMessages = {}) {
 }
 
 module.exports = {
-  ORDER_PREFIXES,
+  ORDER_PREFIX,
   ORDER_DIGITS,
+  ORDER_NUMBER_RE,
   parseApplicationOrderNumber,
   looksLikeApplicationOrderNumber,
   buildOrderNumberAckReply,
