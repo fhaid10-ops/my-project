@@ -362,6 +362,10 @@ function createCustomerLedger(options = {}) {
       flow: row.flow || null,
       step: row.step || null,
       maxAmount: row.maxAmount ?? null,
+      companyName: row.companyName || null,
+      jobCategory: row.jobCategory || null,
+      civilianSubtype: row.civilianSubtype || null,
+      notes: row.notes || "",
       dayKey: row.dayKey || calendarDayKey(new Date(row.lastSeenAt || Date.now())),
       source: row.source || null,
       syncedAt: row.syncedAt || null,
@@ -400,6 +404,24 @@ function createCustomerLedger(options = {}) {
     if (patch.flow != null) row.flow = patch.flow;
     if (patch.step != null) row.step = patch.step;
     if (patch.maxAmount != null) row.maxAmount = patch.maxAmount;
+    if (patch.companyName != null && String(patch.companyName).trim()) {
+      row.companyName = String(patch.companyName).trim();
+    }
+    if (patch.jobCategory != null && String(patch.jobCategory).trim()) {
+      row.jobCategory = String(patch.jobCategory).trim();
+    }
+    if (patch.civilianSubtype != null && String(patch.civilianSubtype).trim()) {
+      row.civilianSubtype = String(patch.civilianSubtype).trim();
+    }
+    if (patch.notes != null) row.notes = String(patch.notes);
+  }
+
+  function setNotes(countryCode, phone, notes) {
+    const row = getOrCreate(countryCode, phone);
+    if (!row) return null;
+    row.notes = String(notes || "").slice(0, 500);
+    scheduleSave();
+    return row;
   }
 
   function pushEvent(row, event) {
@@ -591,6 +613,11 @@ function createCustomerLedger(options = {}) {
           maxAmount: existing.maxAmount ?? incoming.maxAmount,
           flow: existing.flow || incoming.flow,
           step: existing.step || incoming.step,
+          companyName: existing.companyName || incoming.companyName || null,
+          jobCategory: existing.jobCategory || incoming.jobCategory || null,
+          civilianSubtype:
+            existing.civilianSubtype || incoming.civilianSubtype || null,
+          notes: existing.notes || incoming.notes || "",
           source: existing.source || incoming.source || null,
           events: [...(existing.events || []), ...(incoming.events || [])].slice(
             0,
@@ -692,6 +719,7 @@ function createCustomerLedger(options = {}) {
     recordInbound,
     recordOutbound,
     updateState,
+    setNotes,
     listByDay,
     summary,
     flush,

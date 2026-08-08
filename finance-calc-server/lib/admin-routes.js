@@ -260,12 +260,22 @@ function createAdminRouter(deps) {
       const key = sessionKey(row.countryCode, row.phone);
       const sessionRow = sessions.get(key);
       const draftRow = drafts.get(key);
+      const liveCompany =
+        draftRow?.data?.companyName || sessionRow?.data?.companyName || null;
+      const liveJob =
+        draftRow?.data?.jobCategory || sessionRow?.data?.jobCategory || null;
+      const liveSubtype =
+        draftRow?.data?.civilianSubtype ||
+        sessionRow?.data?.civilianSubtype ||
+        null;
       return {
         key: row.key,
         phone: row.phone,
         countryCode: row.countryCode,
         firstSeenAt: row.firstSeenAt,
         lastSeenAt: row.lastSeenAt,
+        lastInboundAt: row.lastInboundAt || null,
+        lastOutboundAt: row.lastOutboundAt || null,
         lastInboundText: row.lastInboundText || "",
         lastOutboundPreview: row.lastOutboundPreview || "",
         inboundCount: row.inboundCount || 0,
@@ -273,6 +283,10 @@ function createAdminRouter(deps) {
         flow: row.flow || null,
         step: row.step || null,
         maxAmount: row.maxAmount ?? null,
+        companyName: row.companyName || liveCompany || null,
+        jobCategory: row.jobCategory || liveJob || null,
+        civilianSubtype: row.civilianSubtype || liveSubtype || null,
+        notes: row.notes || "",
         source: row.source || null,
         syncedAt: row.syncedAt || null,
         dayKey: row.dayKey || null,
@@ -371,6 +385,25 @@ function createAdminRouter(deps) {
       return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
     }
     res.json({ ok: true, backups: customerLedger.listBackups() });
+  });
+
+  /** تحديث ملاحظات عميل */
+  router.post("/customers/notes", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const { phone, countryCode } = normalizePhoneParts(req.body || {});
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: "رقم الجوال مطلوب" });
+    }
+    const notes = String(req.body?.notes ?? "");
+    const row = customerLedger.setNotes(countryCode, phone, notes);
+    if (!row) {
+      return res.status(400).json({ ok: false, error: "تعذر حفظ الملاحظة" });
+    }
+    customerLedger.flush();
+    pushLog({ action: "customers-notes", phone, countryCode });
+    res.json({ ok: true, phone, countryCode, notes: row.notes });
   });
 
   /**

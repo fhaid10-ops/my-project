@@ -248,7 +248,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
           <button class="tab" data-day="yesterday" type="button">أمس</button>
           <button class="tab" data-day="all" type="button">الكل</button>
         </div>
-        <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو نص الرسالة" />
+        <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو جهة العمل أو ملاحظة" />
       </div>
       <div class="card">
         <div class="toolbar">
@@ -262,17 +262,15 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
           <table>
             <thead>
               <tr>
-                <th>الجوال</th>
-                <th>آخر ظهور</th>
-                <th>آخر رسالة</th>
-                <th>المسار</th>
-                <th>المبلغ</th>
-                <th>رسائل</th>
+                <th>رقم الجوال</th>
+                <th>تاريخ الإرسال</th>
+                <th>جهة العمل</th>
+                <th>ملاحظات</th>
                 <th>إجراءات</th>
               </tr>
             </thead>
             <tbody id="customers-body">
-              <tr><td colspan="7" class="empty">لا يوجد عملاء بعد</td></tr>
+              <tr><td colspan="5" class="empty">لا يوجد عملاء بعد</td></tr>
             </tbody>
           </table>
         </div>
@@ -331,7 +329,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 <script>
 (() => {
   const TOKEN_KEY = "raed_admin_token";
-  const UI_VERSION = "2026-08-08-f";
+  const UI_VERSION = "2026-08-08-g";
   const PAGE_SIZE = 100;
   let customerDay = "today";
   let customersCache = [];
@@ -497,6 +495,22 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       property_combo: "عقاري+شخصي",
     })[flow] || flow || "—";
   }
+  function workplaceLabel(row) {
+    if (row.companyName) return String(row.companyName);
+    const job = row.jobCategory;
+    const sub = row.civilianSubtype;
+    if (job === "military") return "عسكري";
+    if (job === "retired") return "متقاعد";
+    if (job === "civilian") {
+      if (sub === "government" || sub === "gov") return "مدني — حكومي";
+      if (sub === "private") return "مدني — قطاع خاص";
+      return "مدني";
+    }
+    return "";
+  }
+  function sendDateOf(row) {
+    return row.lastInboundAt || row.lastSeenAt || row.syncedAt || row.firstSeenAt || null;
+  }
 
   function switchPanel(name) {
     document.querySelectorAll(".panel").forEach((p) => { p.hidden = true; });
@@ -593,10 +607,9 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
           const hay = [
             r.phone,
             displayPhone(r),
+            workplaceLabel(r),
+            r.notes,
             r.lastInboundText,
-            r.lastOutboundPreview,
-            r.flow,
-            r.step,
           ].join(" ").toLowerCase();
           return hay.includes(q);
         });
@@ -606,38 +619,28 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       const tip = all
         ? " جرّب تبويب «الكل»."
         : " اضغط «جلب من Interakt» أو انتظر رسائل واتساب، أو استورد بكب.";
-      body.innerHTML = `<tr><td colspan="7" class="empty">لا يوجد عملاء في هذا التبويب.${tip}</td></tr>`;
+      body.innerHTML = `<tr><td colspan="5" class="empty">لا يوجد عملاء في هذا التبويب.${tip}</td></tr>`;
       return;
     }
 
     body.innerHTML = filtered.map((row) => {
-      const amount = row.maxAmount ?? row.live?.session?.maxAmount;
-      const flow = row.live?.draft?.flow || row.flow;
-      const step = row.live?.draft?.step || row.step;
       const paused = row.paused;
-      const fromInterakt = row.source === "interakt" && !flow && !(row.inboundCount || 0);
-      const preview = fromInterakt
-        ? (row.lastInboundText && row.lastInboundText !== "من Interakt"
-            ? `اسم: ${row.lastInboundText}`
-            : "جهة من Interakt (بدون محادثة بعد)")
-        : (row.lastInboundText || "—");
-      const pathCell = flow
-        ? `${escapeHtml(flowLabel(flow))}<div class="meta-line">${escapeHtml(step || "—")}</div>`
-        : fromInterakt
-          ? `جهة Interakt<div class="meta-line">بانتظار رسالة</div>`
-          : `—<div class="meta-line">${escapeHtml(step || "—")}</div>`;
+      const work = workplaceLabel(row) || "—";
+      const notes = row.notes || "";
+      const notesPreview = notes
+        ? escapeHtml(notes)
+        : `<span class="muted">بدون ملاحظة</span>`;
       return `<tr>
         <td>
           ${phoneWhatsAppLink(row)}
-          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${fromInterakt ? ' · Interakt' : ''} · اضغط الرقم لواتساب بزنس</div>
+          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</div>
         </td>
-        <td>${formatTime(row.lastSeenAt)}</td>
-        <td class="preview">${escapeHtml(preview)}</td>
-        <td>${pathCell}</td>
-        <td>${formatMoney(amount)}</td>
-        <td>${row.inboundCount || 0}↓ / ${row.outboundCount || 0}↑</td>
+        <td>${formatTime(sendDateOf(row))}</td>
+        <td>${escapeHtml(work)}</td>
+        <td class="preview">${notesPreview}</td>
         <td class="actions">
           <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
+          <button class="btn secondary small" data-act="notes" data-phone="${row.phone}" type="button">ملاحظة</button>
           <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
           <button class="btn secondary small" data-act="compose" data-phone="${row.phone}" type="button">رسالة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
@@ -669,7 +672,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
   async function refreshCustomers({ append = false } = {}) {
     const body = document.getElementById("customers-body");
     if (!append) {
-      body.innerHTML = `<tr><td colspan="7" class="empty">جاري تحميل العملاء...</td></tr>`;
+      body.innerHTML = `<tr><td colspan="5" class="empty">جاري تحميل العملاء...</td></tr>`;
     }
     const offset = append ? customersCache.length : 0;
     let pack = await api(
@@ -737,6 +740,17 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       switchPanel("compose");
       return;
     }
+    if (act === "notes") {
+      const current = (customersCache.find((r) => r.phone === phone) || {}).notes || "";
+      const next = window.prompt("ملاحظة عن العميل:", current);
+      if (next == null) return;
+      await api("/customers/notes", {
+        method: "POST",
+        body: JSON.stringify({ phone, notes: next }),
+      });
+      await refreshCustomers({ append: false });
+      return;
+    }
     if (act === "menu") await api("/send-menu", { method: "POST", body: JSON.stringify({ phone }) });
     if (act === "pause") await api("/pause", { method: "POST", body: JSON.stringify({ phone }) });
     if (act === "resume") await api("/resume", { method: "POST", body: JSON.stringify({ phone }) });
@@ -779,7 +793,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         if (loadErr.message === "unauthorized") throw loadErr;
         const body = document.getElementById("customers-body");
         const total = status.counts?.customersAll ?? login.counts?.all ?? 0;
-        body.innerHTML = `<tr><td colspan="7" class="empty">العدد ${total} محفوظ على السيرفر، لكن فشل عرض القائمة: ${escapeHtml(loadErr.message)}. اضغط تحديث.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="5" class="empty">العدد ${total} محفوظ على السيرفر، لكن فشل عرض القائمة: ${escapeHtml(loadErr.message)}. اضغط تحديث.</td></tr>`;
         setBackupStatus(`تعذر تحميل الجدول: ${loadErr.message}`);
       }
     } catch (err) {

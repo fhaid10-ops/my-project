@@ -412,6 +412,10 @@ app.post("/webhook/interakt", async (req, res) => {
       flow: draft?.flow || currentSession?.offer || null,
       step: draft?.step || null,
       maxAmount: currentSession?.maxAmount || currentSession?.rounded || null,
+      companyName: draft?.companyName || currentSession?.companyName || null,
+      jobCategory: draft?.jobCategory || currentSession?.jobCategory || null,
+      civilianSubtype:
+        draft?.civilianSubtype || currentSession?.civilianSubtype || null,
     });
 
     // داخل مسار/اختيار قائمة: الرقم 1 له معنى ثاني (لا نعيد القائمة)
@@ -757,6 +761,21 @@ app.post("/webhook/interakt", async (req, res) => {
           result.data?.rounded ||
           latestSession?.maxAmount ||
           latestSession?.rounded ||
+          null,
+        companyName:
+          result.data?.companyName ||
+          latestDraft?.companyName ||
+          latestSession?.companyName ||
+          null,
+        jobCategory:
+          result.data?.jobCategory ||
+          latestDraft?.jobCategory ||
+          latestSession?.jobCategory ||
+          null,
+        civilianSubtype:
+          result.data?.civilianSubtype ||
+          latestDraft?.civilianSubtype ||
+          latestSession?.civilianSubtype ||
           null,
       });
       console.log(

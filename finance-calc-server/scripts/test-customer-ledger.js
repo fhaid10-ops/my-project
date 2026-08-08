@@ -22,8 +22,15 @@ ledger.recordInbound("+966", "508031055", "السلام", {
 });
 ledger.recordOutbound("+966", "508031055", "مرحبا معاك رائد", {
   mode: "text+interactive",
-  flow: "main_menu",
+  flow: "personal_chat",
+  companyName: "شركة اختبار",
+  jobCategory: "civilian",
+  civilianSubtype: "private",
 });
+const noted = ledger.setNotes("+966", "508031055", "يتابع العرض");
+assert.ok(noted);
+assert.strictEqual(noted.companyName, "شركة اختبار");
+assert.strictEqual(noted.notes, "يتابع العرض");
 
 const todayPack = ledger.listByDay("today");
 assert.ok(todayPack.count >= 1);
@@ -87,21 +94,21 @@ const contact = ledger2.upsertContact({
 assert.ok(contact.created);
 assert.ok(ledger2.listByDay("today").customers.some((c) => c.phone === "533248917"));
 
-// hydrate: ذاكرة فارغة + ملف على القرص
-const hydrateFile = path.join(dir, "customers-hydrate.json");
-const hydrateBackup = path.join(dir, "backups-hydrate");
+// hydrate: ذاكرة فارغة + ملف على القرص (مجلد مستقل لتفادي مؤقتات الحفظ)
+const hydDir = fs.mkdtempSync(path.join(os.tmpdir(), "ledger-hyd-"));
+const hydrateFile = path.join(hydDir, "customers-hydrate.json");
+const hydrateBackup = path.join(hydDir, "backups-hydrate");
 fs.writeFileSync(
   hydrateFile,
   JSON.stringify(
     {
-      customers: [
-        {
-          key: "+966:511111111",
-          phone: "511111111",
-          countryCode: "+966",
-          lastSeenAt: new Date().toISOString(),
-        },
-      ],
+      customers: Array.from({ length: 5 }, (_, i) => ({
+        key: `+966:51111111${i}`,
+        phone: `51111111${i}`,
+        countryCode: "+966",
+        lastSeenAt: new Date().toISOString(),
+        notes: "x".repeat(40),
+      })),
     },
     null,
     2
@@ -111,11 +118,11 @@ const hydra = createCustomerLedger({
   dataFile: hydrateFile,
   backupDir: hydrateBackup,
 });
-assert.ok(hydra.summary().counts.all >= 1);
+assert.ok(hydra.summary().counts.all >= 5);
 hydra._customers.clear();
 assert.strictEqual(hydra._customers.size, 0);
 assert.ok(hydra.hydrateFromDiskIfNeeded());
-assert.ok(hydra.summary().counts.all >= 1);
+assert.ok(hydra.summary().counts.all >= 5);
 
 const {
   resolveCustomersDataDir,
