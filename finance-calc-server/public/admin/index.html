@@ -75,6 +75,7 @@ textarea { min-height: 110px; resize: vertical; }
   padding: 22px 16px; display: flex; flex-direction: column; gap: 18px;
 }
 .sidebar-brand { display: grid; gap: 4px; }
+.sidebar-brand > div { display: grid; gap: 4px; }
 .sidebar-brand strong { font-size: 1.05rem; }
 .nav { display: grid; gap: 8px; }
 .nav-btn {
@@ -163,16 +164,126 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 }
 .phone-link:hover { text-decoration: underline; }
 .meta-line { font-size: .82rem; color: var(--muted); margin-top: 4px; }
+.backup-panel > summary {
+  cursor: pointer; list-style: none; font-weight: 700; font-size: 1.05rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.backup-panel > summary::-webkit-details-marker { display: none; }
+.backup-panel > summary::after {
+  content: "▾"; color: var(--muted); font-size: .9rem; transition: transform .15s ease;
+}
+.backup-panel[open] > summary::after { transform: rotate(180deg); }
+.backup-panel > summary + * { margin-top: 12px; }
+.mobile-only { display: none; }
 @media (max-width: 980px) {
   .app { grid-template-columns: 1fr; }
-  .sidebar { border-left: 0; border-bottom: 1px solid var(--line); }
-  .nav { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .sidebar {
+    position: sticky; top: 0; z-index: 50;
+    border-left: 0; border-bottom: 1px solid var(--line);
+    background: rgba(255,255,255,.94); backdrop-filter: blur(12px);
+    padding: 12px 14px; gap: 10px;
+  }
+  .sidebar-brand {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .sidebar-brand strong { font-size: .98rem; }
+  .nav {
+    display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding-bottom: 2px;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-btn {
+    flex: 0 0 auto; white-space: nowrap; text-align: center;
+    padding: 10px 14px; font-size: .9rem;
+  }
+  .sidebar-foot { margin-top: 0; }
+  .sidebar-foot .btn { padding: 8px 12px; font-size: .85rem; }
+  .mobile-only { display: inline-flex; align-items: center; justify-content: center; }
+  .desktop-logout { display: none; }
   .stat-grid, .card-row { grid-template-columns: 1fr 1fr; }
 }
-@media (max-width: 640px) {
-  .main { padding: 16px; }
-  .stat-grid, .card-row, .field.inline, .nav { grid-template-columns: 1fr; }
-  .topbar { flex-direction: column; }
+@media (max-width: 720px) {
+  .main { padding: 14px 12px 88px; }
+  .topbar { flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .topbar h2 { font-size: 1.35rem; margin: 4px 0; }
+  .topbar .btn, .btn-row .btn, .toolbar .btn { width: 100%; }
+  .btn-row { width: 100%; }
+  .btn-row .btn { flex: 1 1 calc(50% - 6px); min-width: 140px; }
+  .stat-grid, .card-row, .field.inline { grid-template-columns: 1fr; }
+  .search { min-width: 100%; width: 100%; }
+  .tabs { width: 100%; }
+  .tab { flex: 1 1 auto; text-align: center; min-height: 42px; }
+  .toolbar { align-items: stretch; }
+  .card { padding: 14px; }
+  .notes-input, .order-input { max-width: none; min-width: 0; width: 100%; }
+  .form-card { max-width: none; }
+
+  /* جداول → بطاقات على الجوال */
+  .table-wrap { overflow: visible; margin: 0 -2px; }
+  table { border-collapse: separate; border-spacing: 0; }
+  thead { display: none; }
+  tbody tr {
+    display: block;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 12px 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 8px 22px rgba(18,32,25,.05);
+  }
+  tbody tr:has(.empty) {
+    background: transparent; border: 0; box-shadow: none; padding: 8px 0; margin: 0;
+  }
+  tbody td {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 8px 10px;
+    align-items: start;
+    border-bottom: 0;
+    padding: 8px 0;
+  }
+  tbody td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: .78rem;
+    font-weight: 700;
+    padding-top: 6px;
+    line-height: 1.3;
+  }
+  tbody td.empty {
+    display: block;
+    text-align: center;
+    padding: 24px 8px !important;
+  }
+  tbody td.empty::before { content: none; }
+  tbody td.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 10px;
+    margin-top: 4px;
+    border-top: 1px dashed var(--line);
+  }
+  tbody td.actions::before {
+    flex: 1 0 100%;
+    padding-top: 0;
+    margin-bottom: 0;
+  }
+  tbody td.actions .btn,
+  tbody td.actions a.btn {
+    flex: 1 1 calc(50% - 6px);
+    min-height: 42px;
+    display: inline-flex; align-items: center; justify-content: center;
+    text-align: center; text-decoration: none;
+  }
+  .work-choices { width: 100%; }
+  .work-choice { flex: 1 1 calc(33% - 6px); min-height: 40px; }
+  .phone-link { font-size: 1.05rem; padding: 4px 0; }
+}
+@media (max-width: 420px) {
+  .btn-row .btn { flex: 1 1 100%; }
+  tbody td.actions .btn, tbody td.actions a.btn { flex: 1 1 100%; }
+  tbody td { grid-template-columns: 78px minmax(0, 1fr); }
 }
 </style>
 </head>
@@ -195,17 +306,20 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 <div id="app-view" class="app" hidden>
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <span class="brand-mark">رائد الحربي</span>
-      <strong>لوحة التحكم</strong>
+      <div>
+        <span class="brand-mark">رائد الحربي</span>
+        <strong>لوحة التحكم</strong>
+      </div>
+      <button id="logout-btn-mobile" class="btn ghost mobile-only" type="button">خروج</button>
     </div>
-    <nav class="nav">
+    <nav class="nav" aria-label="أقسام اللوحة">
       <button class="nav-btn active" data-panel="overview" type="button">نظرة عامة</button>
-      <button class="nav-btn" data-panel="customers" type="button">عملاء اليوم وأمس</button>
-      <button class="nav-btn" data-panel="conversations" type="button">الجلسات الحية</button>
-      <button class="nav-btn" data-panel="compose" type="button">إرسال رسالة</button>
-      <button class="nav-btn" data-panel="followup" type="button">متابعة التقديم</button>
+      <button class="nav-btn" data-panel="customers" type="button">العملاء</button>
+      <button class="nav-btn" data-panel="conversations" type="button">الجلسات</button>
+      <button class="nav-btn" data-panel="compose" type="button">إرسال</button>
+      <button class="nav-btn" data-panel="followup" type="button">متابعة</button>
     </nav>
-    <div class="sidebar-foot">
+    <div class="sidebar-foot desktop-logout">
       <button id="logout-btn" class="btn ghost" type="button">خروج</button>
     </div>
   </aside>
@@ -246,22 +360,24 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
         <h3 style="margin-top:0;color:var(--danger)">التخزين مؤقت — يتصفر بعد إعادة التشغيل</h3>
         <p class="muted" id="persistence-banner-text" style="margin-bottom:0">أضف Persistent Disk في Render على المسار <code>/var/data</code> ثم Environment: <code>CUSTOMERS_DATA_DIR=/var/data/kobri</code>. قبل أي نشر: نزّل بكب.</p>
       </div>
-      <div class="card" style="margin-bottom:14px">
-        <h3 style="margin-top:0">النسخ الاحتياطي وجلب السابق</h3>
-        <p class="muted">قبل أي نشر جديد: نزّل بكب. بعد النشر: استورد الملف. زر Interakt يجلب <strong>الأرقام والأسماء فقط</strong> — مو المسار ولا المبلغ ولا نص المحادثة (هذي تجي من رسائل البوت).</p>
-        <p class="muted" id="persistence-line" style="margin-top:8px">حالة الحفظ: —</p>
-        <div class="btn-row">
-          <button id="export-customers" class="btn primary" type="button">تنزيل بكب</button>
-          <button id="backup-now" class="btn secondary" type="button">حفظ نسخة الآن</button>
-          <button id="sync-interakt" class="btn secondary" type="button">جلب من Interakt (30 يوم)</button>
+      <details class="card backup-panel" id="backup-panel" style="margin-bottom:14px" open>
+        <summary>النسخ الاحتياطي وجلب السابق</summary>
+        <div>
+          <p class="muted">قبل أي نشر جديد: نزّل بكب. بعد النشر: استورد الملف. زر Interakt يجلب <strong>الأرقام والأسماء فقط</strong> — مو المسار ولا المبلغ ولا نص المحادثة (هذي تجي من رسائل البوت).</p>
+          <p class="muted" id="persistence-line" style="margin-top:8px">حالة الحفظ: —</p>
+          <div class="btn-row">
+            <button id="export-customers" class="btn primary" type="button">تنزيل بكب</button>
+            <button id="backup-now" class="btn secondary" type="button">حفظ نسخة الآن</button>
+            <button id="sync-interakt" class="btn secondary" type="button">جلب من Interakt (30 يوم)</button>
+          </div>
+          <label class="field" style="margin-top:14px">
+            <span>استيراد بكب (الصق محتوى ملف JSON)</span>
+            <textarea id="import-json" rows="4" placeholder='{"customers":[...]}'></textarea>
+          </label>
+          <button id="import-customers" class="btn secondary" type="button">استيراد ودمج</button>
+          <p id="backup-status" class="status" hidden></p>
         </div>
-        <label class="field" style="margin-top:14px">
-          <span>استيراد بكب (الصق محتوى ملف JSON)</span>
-          <textarea id="import-json" rows="4" placeholder='{"customers":[...]}'></textarea>
-        </label>
-        <button id="import-customers" class="btn secondary" type="button">استيراد ودمج</button>
-        <p id="backup-status" class="status" hidden></p>
-      </div>
+      </details>
       <div class="toolbar">
         <div class="tabs" id="customer-tabs">
           <button class="tab active" data-day="today" type="button">اليوم</button>
@@ -350,7 +466,7 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
 <script>
 (() => {
   const TOKEN_KEY = "raed_admin_token";
-  const UI_VERSION = "2026-08-08-j";
+  const UI_VERSION = "2026-08-08-k";
   const PAGE_SIZE = 100;
   let customerDay = "today";
   let customersCache = [];
@@ -672,13 +788,13 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       const notes = escapeHtml(row.notes || "");
       const orderNumber = escapeHtml(row.orderNumber || "");
       return `<tr>
-        <td>
+        <td data-label="الجوال">
           ${phoneWhatsAppLink(row)}
           <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</div>
         </td>
-        <td>${formatTime(sendDateOf(row))}</td>
-        <td>${workplaceChoicesHtml(row)}</td>
-        <td>
+        <td data-label="تاريخ الإرسال">${formatTime(sendDateOf(row))}</td>
+        <td data-label="جهة العمل">${workplaceChoicesHtml(row)}</td>
+        <td data-label="رقم الطلب">
           <input
             class="order-input"
             data-order-phone="${row.phone}"
@@ -689,15 +805,15 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
             value="${orderNumber}"
           />
         </td>
-        <td>
+        <td data-label="ملاحظات">
           <textarea
             class="notes-input"
             data-notes-phone="${row.phone}"
-            rows="1"
+            rows="2"
             placeholder="اكتب ملاحظة..."
           >${notes}</textarea>
         </td>
-        <td class="actions">
+        <td class="actions" data-label="إجراءات">
           <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
           <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
           <button class="btn secondary small" data-act="compose" data-phone="${row.phone}" type="button">رسالة</button>
@@ -771,12 +887,12 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
       const amount = row.session?.maxAmount;
       const paused = row.paused;
       return `<tr>
-        <td>${phoneWhatsAppLink(row)}</td>
-        <td>${escapeHtml(flowLabel(flow))}</td>
-        <td>${escapeHtml(step)}</td>
-        <td>${formatMoney(amount)}</td>
-        <td>${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</td>
-        <td class="actions">
+        <td data-label="الجوال">${phoneWhatsAppLink(row)}</td>
+        <td data-label="المسار">${escapeHtml(flowLabel(flow))}</td>
+        <td data-label="الخطوة">${escapeHtml(step)}</td>
+        <td data-label="المبلغ">${formatMoney(amount)}</td>
+        <td data-label="الحالة">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</td>
+        <td class="actions" data-label="إجراءات">
           <a class="btn secondary small" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
           <button class="btn secondary small" data-act="menu" data-phone="${phone}" type="button">قائمة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
@@ -867,14 +983,26 @@ td.preview { max-width: 220px; white-space: normal; color: var(--muted); font-si
   tokenInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") tryEnter();
   });
-  logoutBtn.addEventListener("click", async () => {
+  // على الجوال: طي قسم النسخ الاحتياطي حتى لا يغطي قائمة العملاء
+  try {
+    const backupPanel = document.getElementById("backup-panel");
+    if (backupPanel && window.matchMedia("(max-width: 720px)").matches) {
+      backupPanel.open = false;
+    }
+  } catch (_) {}
+
+  async function doLogout() {
     clearToken();
     try {
       await fetch("/admin/api/logout", { method: "POST", credentials: "same-origin" });
     } catch {}
     showLogin("");
     await refreshLoginHealth();
-  });
+  }
+
+  logoutBtn.addEventListener("click", () => { doLogout(); });
+  const logoutBtnMobile = document.getElementById("logout-btn-mobile");
+  if (logoutBtnMobile) logoutBtnMobile.addEventListener("click", () => { doLogout(); });
   refreshBtn.addEventListener("click", () => refreshAll().catch((e) => alert(e.message)));
 
   document.querySelectorAll(".nav-btn").forEach((btn) => {
