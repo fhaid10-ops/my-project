@@ -455,7 +455,11 @@ function calculatePersonalFinance(input) {
 
 ${resultReply}`
     : resultReply;
-  const interactive = buildLowerAmountInteractive(lowerTiers);
+  // أول نتيجة: زر «مبلغ أقل» فقط — قائمة المبالغ بعد اختيار السنوات
+  const showLowerList = Boolean(input.forLowerAmount || input.showLowerAmountList);
+  const interactive = showLowerList
+    ? buildLowerAmountInteractive(lowerTiers)
+    : buildWantLowerAmountInteractive();
   const followUpReply = buildPersonalApplyFollowUp();
 
   return {
@@ -463,7 +467,7 @@ ${resultReply}`
     reply,
     followUpReply,
     interactive,
-    // نص النتيجة أولًا، ثم رسالة التقديم، ثم قائمة المبالغ الأقل
+    // نص النتيجة أولًا، ثم رسالة التقديم، ثم زر/قائمة المبالغ الأقل
     sendTextThenInteractive: Boolean(interactive),
     data: {
       jobCategory,
@@ -483,7 +487,9 @@ ${resultReply}`
       loanTermYears: Math.round(loanTermMonths / 12),
       requestedLoanTermMonths: requestedMonths,
       forcedToFallbackTerm,
-      awaitingAmountChoice: true,
+      awaitingLowerAmountEntry: !showLowerList,
+      awaitingLowerAmountTerm: false,
+      awaitingAmountChoice: Boolean(showLowerList),
     },
   };
 }
@@ -721,6 +727,96 @@ function selectTiersForWhatsAppList(tiers, maxRows = 10) {
   unique[0] = first;
   unique[unique.length - 1] = last;
   return unique;
+}
+
+/** زر الدخول لمسار المبلغ الأقل → بعده نسأل عن السنوات */
+function buildWantLowerAmountInteractive() {
+  return {
+    kind: "buttons",
+    body: "اذا ترغب بمبلغ اقل اضغط هنا",
+    buttons: [{ id: "want_lower_amount", title: "مبلغ أقل" }],
+  };
+}
+
+function looksLikeWantLowerAmount(text) {
+  const t = normalizeDigits(String(text || "")).trim();
+  if (!t || t.length > 60) return false;
+  if (/^want_lower_amount$/i.test(t)) return true;
+  if (/^مبلغ\s*أقل$/i.test(t)) return true;
+  if (/^مبلغ\s*اقل$/i.test(t)) return true;
+  if (/اذا\s*ترغب\s*بمبلغ\s*اقل/i.test(t)) return true;
+  return false;
+}
+
+function beginLowerAmountFlow(sessionData = {}) {
+  return {
+    ok: true,
+    reply: "ترغب المبلغ على كم سنة؟",
+    interactive: loanTermChoiceInteractive(),
+    data: {
+      ...sessionData,
+      awaitingLowerAmountEntry: false,
+      awaitingLowerAmountTerm: true,
+      awaitingAmountChoice: false,
+    },
+  };
+}
+
+function applyLowerAmountTerm(sessionData = {}, years) {
+  const termYears = Number(years);
+  if (!Number.isFinite(termYears) || termYears <= 0) {
+    return {
+      ok: false,
+      reply: "اختر مدة التمويل من الأزرار.",
+      interactive: loanTermChoiceInteractive(),
+      data: {
+        ...sessionData,
+        awaitingLowerAmountTerm: true,
+        awaitingAmountChoice: false,
+      },
+    };
+  }
+
+  const result = calculatePersonalFinance({
+    jobCategory: sessionData.jobCategory,
+    civilianSubtype: sessionData.civilianSubtype,
+    salary: sessionData.salary,
+    commitments: sessionData.commitments,
+    realEstateType: sessionData.realEstateType || "none",
+    supportAmount: sessionData.supportAmount || 0,
+    companyName: sessionData.companyName,
+    loanTermYears: termYears,
+    loanTermMonths: termYears * 12,
+    forLowerAmount: true,
+  });
+
+  if (!result.ok) {
+    return {
+      ...result,
+      data: {
+        ...sessionData,
+        ...(result.data || {}),
+        awaitingLowerAmountTerm: false,
+        awaitingLowerAmountEntry: true,
+        awaitingAmountChoice: false,
+      },
+    };
+  }
+
+  return {
+    ...result,
+    data: {
+      ...result.data,
+      // نحافظ على أعلى مبلغ أول عرض (5 سنوات) للمقارنة إن احتجنا
+      initialMaxAmount:
+        sessionData.initialMaxAmount ||
+        sessionData.maxAmount ||
+        result.data?.maxAmount,
+      awaitingLowerAmountEntry: false,
+      awaitingLowerAmountTerm: false,
+      awaitingAmountChoice: true,
+    },
+  };
 }
 
 /**
@@ -1021,6 +1117,10 @@ module.exports = {
   loanTermChoiceInteractive,
   loanTermOptionsYears,
   resolveLoanTermMonths,
+  looksLikeWantLowerAmount,
+  beginLowerAmountFlow,
+  applyLowerAmountTerm,
+  buildWantLowerAmountInteractive,
   replyPropertyComboDecision,
   replyPropertyComboInterestDecision,
   buildMaxAmountReply,

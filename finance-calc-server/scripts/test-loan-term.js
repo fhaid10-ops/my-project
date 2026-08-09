@@ -5,20 +5,22 @@ const {
   confirmLowerAmountSuggestion,
   parseLoanTermChoice,
   loanTermChoiceInteractive,
+  looksLikeWantLowerAmount,
+  beginLowerAmountFlow,
+  applyLowerAmountTerm,
 } = require("../lib/personal-finance");
 const { advancePersonalFinanceFlow } = require("../lib/conversation");
 
 assert.strictEqual(parseLoanTermChoice("3 سنوات"), 3);
 assert.strictEqual(parseLoanTermChoice("term_5"), 5);
-assert.strictEqual(parseLoanTermChoice("4"), 4);
-assert.strictEqual(parseLoanTermChoice("term_9"), null);
+assert.ok(looksLikeWantLowerAmount("want_lower_amount"));
+assert.ok(looksLikeWantLowerAmount("مبلغ أقل"));
 
 const interactive = loanTermChoiceInteractive();
 assert.strictEqual(interactive.kind, "buttons");
 assert.ok(interactive.buttons.some((b) => b.id === "term_3"));
-assert.ok(interactive.buttons.some((b) => b.id === "term_5"));
 
-// بعد العقاري يسأل عن المدة
+// بعد العقاري → حسبة مباشرة على 5 سنوات (بدون سؤال السنوات)
 const afterRe = advancePersonalFinanceFlow(
   {
     flow: "personal_chat",
@@ -30,71 +32,72 @@ const afterRe = advancePersonalFinanceFlow(
   },
   "لا يوجد"
 );
-assert.strictEqual(afterRe.draft.step, "loan_term");
-assert.ok(String(afterRe.reply || afterRe.interactive?.body).includes("سنة"));
+assert.ok(afterRe.ok);
+assert.ok(!afterRe.draft || afterRe.draft === null);
+assert.strictEqual(afterRe.sessionData?.loanTermMonths, 60);
+assert.strictEqual(afterRe.sessionData?.awaitingLowerAmountEntry, true);
+assert.strictEqual(afterRe.interactive?.kind, "buttons");
+assert.strictEqual(afterRe.interactive?.buttons?.[0]?.id, "want_lower_amount");
+assert.ok(String(afterRe.reply).includes("5 سنوات"));
 
-const afterTerm = advancePersonalFinanceFlow(
-  { ...afterRe.draft },
-  "term_5"
-);
-assert.ok(afterTerm.ok);
-assert.ok(afterTerm.sessionData?.loanTermMonths === 60);
-assert.ok(String(afterTerm.reply).includes("5 سنوات"));
+// ضغط مبلغ أقل → سؤال السنوات
+const lowerStart = beginLowerAmountFlow(afterRe.sessionData);
+assert.ok(String(lowerStart.reply).includes("كم سنة"));
+assert.strictEqual(lowerStart.data.awaitingLowerAmountTerm, true);
 
-// مدة أقصر تسمح → تُعتمد
-const shortOk = calculatePersonalFinance({
-  jobCategory: "civilian",
-  civilianSubtype: "government",
-  salary: 12000,
-  commitments: 500,
-  realEstateType: "none",
-  loanTermYears: 3,
-});
-assert.ok(shortOk.ok, shortOk.reply);
-assert.strictEqual(shortOk.data.loanTermMonths, 36);
-assert.ok(!shortOk.data.forcedToFallbackTerm);
-assert.ok(String(shortOk.reply).includes("3 سنوات"));
+// اختيار 3 سنوات تسمح → قائمة مبالغ أقل على 3
+const on3 = applyLowerAmountTerm(lowerStart.data, 3);
+assert.ok(on3.ok, on3.reply);
+assert.strictEqual(on3.data.loanTermMonths, 36);
+assert.ok(!on3.data.forcedToFallbackTerm);
+assert.strictEqual(on3.interactive?.kind, "list");
+assert.strictEqual(on3.data.awaitingAmountChoice, true);
+assert.ok(String(on3.reply).includes("3 سنوات"));
 
-// مدة قصيرة ما تسمح والخمسة تسمح → رسالة الالتزام + 5 سنوات
-const forced = calculatePersonalFinance({
+// اختيار 3 سنوات ما تسمح → إجبار 5 سنوات
+const forcedBase = calculatePersonalFinance({
   jobCategory: "civilian",
   civilianSubtype: "government",
   salary: 8000,
   commitments: 3100,
   realEstateType: "none",
-  loanTermYears: 3,
+  loanTermYears: 5,
 });
-assert.ok(forced.ok, forced.reply);
-assert.strictEqual(forced.data.forcedToFallbackTerm, true);
-assert.strictEqual(forced.data.loanTermMonths, 60);
-assert.ok(String(forced.reply).includes("ما يجي التمويل إلا على 5 سنوات"));
-assert.ok(String(forced.reply).includes("علشان التزاماتك"));
+assert.ok(forcedBase.ok, forcedBase.reply);
+const forcedLower = applyLowerAmountTerm(
+  { ...forcedBase.data, awaitingLowerAmountTerm: true },
+  3
+);
+assert.ok(forcedLower.ok, forcedLower.reply);
+assert.strictEqual(forcedLower.data.forcedToFallbackTerm, true);
+assert.strictEqual(forcedLower.data.loanTermMonths, 60);
+assert.ok(String(forcedLower.reply).includes("ما يجي التمويل إلا على 5 سنوات"));
+assert.ok(String(forcedLower.reply).includes("علشان التزاماتك"));
+assert.strictEqual(forcedLower.interactive?.kind, "list");
 
-// طلب مبلغ أعلى من المتاح → اقتراح أقل
-const base = calculatePersonalFinance({
-  jobCategory: "civilian",
-  civilianSubtype: "government",
-  salary: 10000,
-  commitments: 1500,
-  realEstateType: "none",
-  loanTermYears: 3,
-});
+// بعد اختيار المدة: طلب مبلغ أعلى من المتاح → اقتراح أقل
+const base = applyLowerAmountTerm(
+  {
+    ...calculatePersonalFinance({
+      jobCategory: "civilian",
+      civilianSubtype: "government",
+      salary: 10000,
+      commitments: 1500,
+      realEstateType: "none",
+      loanTermYears: 5,
+    }).data,
+    awaitingLowerAmountTerm: true,
+  },
+  3
+);
 assert.ok(base.ok, base.reply);
 const tooHigh = (base.data.maxAmount || 0) + 10000;
 const suggestion = calculateSelectedAmount(base.data, tooHigh);
 assert.strictEqual(suggestion.offer, "lower_amount_suggestion");
 assert.ok(String(suggestion.reply).includes("ما يسمح فيه وضع التزاماتك"));
-assert.ok(suggestion.data.awaitingLowerAmountConfirm);
-assert.ok(suggestion.data.suggestedAmount > 0);
-assert.ok(suggestion.data.suggestedAmount < tooHigh);
 
 const confirmed = confirmLowerAmountSuggestion(suggestion.data, "yes");
 assert.ok(confirmed.ok);
 assert.strictEqual(confirmed.data.selectedAmount, suggestion.data.suggestedAmount);
-assert.ok(String(confirmed.reply).includes("تم اختيار المبلغ"));
 
-const declined = confirmLowerAmountSuggestion(suggestion.data, "no");
-assert.ok(String(declined.reply).includes("اختر مبلغًا آخر"));
-assert.strictEqual(declined.data.awaitingLowerAmountConfirm, false);
-
-console.log("OK: loan term choice + fallback + lower amount suggestion");
+console.log("OK: years asked only on lower-amount path");

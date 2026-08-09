@@ -18,6 +18,11 @@ const {
   parseAmountChoice,
   calculateSelectedAmount,
   confirmLowerAmountSuggestion,
+  looksLikeWantLowerAmount,
+  beginLowerAmountFlow,
+  applyLowerAmountTerm,
+  parseLoanTermChoice,
+  loanTermChoiceInteractive,
   replyPropertyComboDecision,
   replyPropertyComboInterestDecision,
   mapSector,
@@ -438,6 +443,8 @@ app.post("/webhook/interakt", async (req, res) => {
       currentSession?.awaitingComboInterest ||
       currentSession?.awaitingDebtContinue ||
       currentSession?.awaitingLowerAmountConfirm ||
+      currentSession?.awaitingLowerAmountEntry ||
+      currentSession?.awaitingLowerAmountTerm ||
       draft?.awaitingCombo ||
       draft?.awaitingComboInterest ||
       draft?.awaitingDebtContinue;
@@ -613,6 +620,26 @@ app.post("/webhook/interakt", async (req, res) => {
       result = confirmLowerAmountSuggestion(currentSession, yesNo);
       if (result?.data) {
         saveSession(countryCode, phone, result.data);
+      }
+    } else if (
+      looksLikeWantLowerAmount(text) &&
+      (currentSession?.awaitingLowerAmountEntry ||
+        currentSession?.maxAmount ||
+        currentSession?.rounded)
+    ) {
+      result = beginLowerAmountFlow(currentSession || {});
+      if (result?.data) saveSession(countryCode, phone, result.data);
+    } else if (currentSession?.awaitingLowerAmountTerm) {
+      const years = parseLoanTermChoice(text);
+      if (!years) {
+        result = {
+          ok: false,
+          reply: "اختر مدة التمويل من الأزرار.",
+          interactive: loanTermChoiceInteractive(),
+        };
+      } else {
+        result = applyLowerAmountTerm(currentSession, years);
+        if (result?.data) saveSession(countryCode, phone, result.data);
       }
     } else if (
       looksLikeDebtContinueReply(text) &&
