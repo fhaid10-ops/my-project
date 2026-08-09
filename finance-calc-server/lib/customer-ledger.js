@@ -5,7 +5,11 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { AUTO_OUTCOME_LABELS } = require("./customer-outcome");
+const {
+  AUTO_OUTCOME_LABELS,
+  OUTCOME_TAB_FILTERS,
+  outcomeLabelForTab,
+} = require("./customer-outcome");
 
 const TIMEZONE = "Asia/Riyadh";
 const MAX_CUSTOMERS = 5000;
@@ -600,16 +604,22 @@ function createCustomerLedger(options = {}) {
     const today = calendarDayKey();
     const yesterday = shiftDayKey(today, -1);
     const wantArchive = day === "archive" || day === "archived";
+    const outcomeLabel = outcomeLabelForTab(day);
     let target = null;
-    if (day === "today") target = today;
-    else if (day === "yesterday") target = yesterday;
-    else if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) target = day;
+    if (!wantArchive && !outcomeLabel) {
+      if (day === "today") target = today;
+      else if (day === "yesterday") target = yesterday;
+      else if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) target = day;
+    }
 
     const rows = [...customers.values()]
       .filter((row) => {
         const isArchived = Boolean(row.archived);
         if (wantArchive) return isArchived;
         if (isArchived) return false;
+        if (outcomeLabel) {
+          return String(row.outcome || "").trim() === outcomeLabel;
+        }
         if (!target) return true; // الكل (غير المؤرشف)
         const lastDay = calendarDayKey(new Date(row.lastSeenAt));
         const firstDay = calendarDayKey(new Date(row.firstSeenAt));
@@ -631,11 +641,17 @@ function createCustomerLedger(options = {}) {
         return Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt);
       });
 
+    let dayKey = "all";
+    if (wantArchive) dayKey = "archive";
+    else if (outcomeLabel) dayKey = String(day);
+    else if (target) dayKey = target;
+
     return {
       timezone: TIMEZONE,
       today,
       yesterday,
-      day: wantArchive ? "archive" : target || "all",
+      day: dayKey,
+      outcome: outcomeLabel || null,
       count: rows.length,
       customers: rows,
     };
@@ -646,7 +662,13 @@ function createCustomerLedger(options = {}) {
     const todayPack = listByDay("today");
     const yesterdayPack = listByDay("yesterday");
     const archivePack = listByDay("archive");
-    const activeAll = [...customers.values()].filter((r) => !r.archived).length;
+    const activeRows = [...customers.values()].filter((r) => !r.archived);
+    const outcomeCounts = {};
+    for (const [key, label] of Object.entries(OUTCOME_TAB_FILTERS)) {
+      outcomeCounts[key] = activeRows.filter(
+        (r) => String(r.outcome || "").trim() === label
+      ).length;
+    }
     return {
       timezone: TIMEZONE,
       today: todayPack.today,
@@ -654,8 +676,9 @@ function createCustomerLedger(options = {}) {
       counts: {
         today: todayPack.count,
         yesterday: yesterdayPack.count,
-        all: activeAll,
+        all: activeRows.length,
         archive: archivePack.count,
+        ...outcomeCounts,
       },
     };
   }

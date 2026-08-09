@@ -48,15 +48,30 @@ assert.ok(todayPack.count >= 1);
 assert.strictEqual(todayPack.today, today);
 assert.strictEqual(todayPack.yesterday, yesterday);
 
+ledger.setOutcomeNotes("+966", "508031055", "رقم طلب");
+assert.ok(ledger.listByDay("order_number").count >= 1);
+assert.strictEqual(ledger.listByDay("order_number").outcome, "رقم طلب");
+assert.strictEqual(ledger.summary().counts.order_number, 1);
+ledger.setOutcomeNotes("+966", "508031055", "أخذ باقة");
+assert.strictEqual(ledger.listByDay("order_number").count, 0);
+assert.ok(ledger.listByDay("package").count >= 1);
+assert.strictEqual(ledger.summary().counts.package, 1);
+ledger.setOutcomeNotes("+966", "508031055", "مستنفذ حد");
+assert.ok(ledger.listByDay("limit_exhausted").count >= 1);
+ledger.setOutcomeNotes("+966", "508031055", "إيقاف خدمات");
+assert.ok(ledger.listByDay("service_stop").count >= 1);
+
 const archived = ledger.setArchived("+966", "508031055", true);
 assert.ok(archived.archived);
 assert.ok(archived.archivedAt);
 assert.strictEqual(ledger.listByDay("today").count, 0);
+assert.strictEqual(ledger.listByDay("service_stop").count, 0, "المؤرشف لا يظهر في تبويب وش صار");
 assert.strictEqual(ledger.listByDay("archive").count, 1);
 assert.strictEqual(ledger.summary().counts.archive, 1);
 assert.strictEqual(ledger.summary().counts.all, 0);
 ledger.setArchived("+966", "508031055", false);
 assert.ok(ledger.listByDay("today").count >= 1);
+assert.ok(ledger.listByDay("service_stop").count >= 1);
 assert.strictEqual(ledger.listByDay("archive").count, 0);
 // أرشفة ثم رسالة واردة تُخرج من الأرشيف
 ledger.setArchived("+966", "508031055", true);

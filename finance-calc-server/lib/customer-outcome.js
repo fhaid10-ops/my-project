@@ -70,9 +70,24 @@ function canAutoUpdateNotes(currentNotes) {
   return !notes || AUTO_OUTCOME_LABELS.has(notes);
 }
 
+/** مفاتيح تبويبات الأدمن → نص «وش صار» */
+const OUTCOME_TAB_FILTERS = {
+  order_number: OUTCOMES.ORDER_NUMBER,
+  package: OUTCOMES.PACKAGE,
+  limit_exhausted: OUTCOMES.LIMIT_EXHAUSTED,
+  service_stop: OUTCOMES.SERVICE_STOP,
+};
+
+function outcomeLabelForTab(day) {
+  const key = String(day || "").trim();
+  return OUTCOME_TAB_FILTERS[key] || null;
+}
+
 module.exports = {
   OUTCOMES,
   AUTO_OUTCOME_LABELS,
+  OUTCOME_TAB_FILTERS,
+  outcomeLabelForTab,
   detectCustomerOutcome,
   canAutoUpdateNotes,
 };

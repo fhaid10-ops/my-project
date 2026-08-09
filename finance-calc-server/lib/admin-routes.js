@@ -200,6 +200,10 @@ function createAdminRouter(deps) {
         customersYesterday: ledgerSummary?.counts?.yesterday || 0,
         customersAll: ledgerSummary?.counts?.all || 0,
         customersArchive: ledgerSummary?.counts?.archive || 0,
+        customersOrderNumber: ledgerSummary?.counts?.order_number || 0,
+        customersPackage: ledgerSummary?.counts?.package || 0,
+        customersLimitExhausted: ledgerSummary?.counts?.limit_exhausted || 0,
+        customersServiceStop: ledgerSummary?.counts?.service_stop || 0,
       },
       customers: ledgerSummary,
       persistence,
@@ -214,8 +218,8 @@ function createAdminRouter(deps) {
   });
 
   /**
-   * عملاء اليوم / أمس / الكل / الأرشيف
-   * ?day=today|yesterday|all|archive|YYYY-MM-DD
+   * عملاء اليوم / أمس / الكل / حسب «وش صار» / الأرشيف
+   * ?day=today|yesterday|all|archive|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
    * ?limit=&offset= للصفحات (افتراضي 100) — يقلل ثقل الجوال
    * ?phonesOnly=1 لنسخ الأرقام فقط
    */
