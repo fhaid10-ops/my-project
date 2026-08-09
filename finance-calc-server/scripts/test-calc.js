@@ -5,6 +5,7 @@ const {
   parseAmountChoice,
   selectTiersForWhatsAppList,
   applyLowerAmountTerm,
+  getAvailableYearsForAmount,
 } = require("../lib/personal-finance");
 const { buildLowerAmountTiers } = require("../lib/calculations");
 
@@ -44,30 +45,15 @@ if (!result.sendTextThenInteractive) {
 
 if (
   !result.interactive ||
-  result.interactive.kind !== "buttons" ||
-  result.interactive.buttons?.[0]?.id !== "want_lower_amount"
+  result.interactive.kind !== "list" ||
+  result.interactive.body !== "اختر مبلغ أقل هنا"
 ) {
-  console.error("FAIL: لازم زر مبلغ أقل أولًا", result.interactive);
+  console.error("FAIL: لازم قائمة اختر مبلغ أقل هنا أولًا", result.interactive);
   process.exitCode = 1;
 } else {
-  console.log("OK: أول نتيجة تعرض زر مبلغ أقل قبل اختيار السنوات");
-}
-
-// بعد مبلغ أقل + اختيار 5 سنوات تظهر قائمة المبالغ
-const lowerFlow = applyLowerAmountTerm(result.data, 5);
-if (!lowerFlow.ok || lowerFlow.interactive?.kind !== "list") {
-  console.error("FAIL: لازم قائمة مبالغ أقل بعد اختيار السنوات", lowerFlow);
-  process.exitCode = 1;
-} else if (lowerFlow.interactive.body !== "اذا ترغب بمبلغ اقل اختر هنا") {
-  console.error("FAIL: نص قائمة المبالغ الأقل", lowerFlow.interactive.body);
-  process.exitCode = 1;
-} else if (lowerFlow.interactive.button !== "اختر هنا") {
-  console.error("FAIL: زر القائمة", lowerFlow.interactive.button);
-  process.exitCode = 1;
-} else {
-  const first = lowerFlow.interactive.rows[0];
-  const last = lowerFlow.interactive.rows[lowerFlow.interactive.rows.length - 1];
-  const max = lowerFlow.data.maxAmount;
+  const first = result.interactive.rows[0];
+  const last = result.interactive.rows[result.interactive.rows.length - 1];
+  const max = result.data.maxAmount;
   if (first?.id === `amt_${max}`) {
     console.error("FAIL: أعلى مبلغ ما يكون داخل قائمة الأقل");
     process.exitCode = 1;
@@ -75,10 +61,11 @@ if (!lowerFlow.ok || lowerFlow.interactive?.kind !== "list") {
     console.error("FAIL: آخر خيار لازم 10,000", last);
     process.exitCode = 1;
   } else {
-    console.log("OK: بعد السنوات تظهر قائمة أقل تنتهي بـ 10,000");
+    console.log("OK: أول نتيجة تعرض قائمة أقل تنتهي بـ 10,000");
   }
 }
-const amountSession = lowerFlow.data || result.data;
+
+const amountSession = result.data;
 
 // محاكاة مبلغ عالي مثل الشاشة (حوالي 126 ألف) — خطوة 5,000
 const highTiers = buildLowerAmountTiers(126000, 5000, 10000);
@@ -105,17 +92,41 @@ if (
 }
 
 if (amountSession?.lowerTiers?.length) {
-  const pick = amountSession.lowerTiers[0];
+  const pick = amountSession.lowerTiers[amountSession.lowerTiers.length - 1]; // 10,000
   const selected = calculateSelectedAmount(amountSession, pick);
   console.log(`\n--- بعد اختيار ${pick} ---`);
   console.log(selected.reply);
-  console.log("\n--- follow-up بعد الاختيار ---");
-  console.log(selected.followUpReply);
-  if (
+  const years = getAvailableYearsForAmount(amountSession, pick);
+  if (!selected.ok) {
+    console.error("FAIL: اختيار المبلغ", selected.reply);
+    process.exitCode = 1;
+  } else if (years.length > 1) {
+    if (
+      !selected.data?.awaitingLowerAmountTerm ||
+      selected.data.pendingSelectedAmount !== pick
+    ) {
+      console.error("FAIL: لازم سؤال السنوات بعد المبلغ", selected.data);
+      process.exitCode = 1;
+    } else {
+      console.log("OK: بعد المبلغ نسأل السنوات المتاحة:", years.join(", "));
+      const finalized = applyLowerAmountTerm(selected.data, years[0]);
+      console.log("\n--- بعد اختيار السنوات ---");
+      console.log(finalized.reply);
+      console.log("\n--- follow-up بعد الاختيار ---");
+      console.log(finalized.followUpReply);
+      if (
+        !finalized.followUpReply ||
+        !String(finalized.followUpReply).includes("SF1695")
+      ) {
+        console.error("FAIL: اختيار المدة لازم followUpReply برمز SF1695");
+        process.exitCode = 1;
+      }
+    }
+  } else if (
     !selected.followUpReply ||
     !String(selected.followUpReply).includes("SF1695")
   ) {
-    console.error("FAIL: اختيار المبلغ لازم followUpReply برمز SF1695");
+    console.error("FAIL: اختيار المبلغ (مدة واحدة) لازم followUpReply برمز SF1695");
     process.exitCode = 1;
   }
 }
@@ -147,29 +158,32 @@ if (
   console.log("OK: اختيار «15,000 ريال مبلغ أقل» من قائمة المبالغ");
 }
 
-// تغيير الرأي: بعد 15,000 يختار 10,000
+// تغيير الرأي: بعد مسار 15,000 يختار 10,000
 const firstPick = calculateSelectedAmount(amountSession, 15000);
-const secondPick = calculateSelectedAmount(
-  { ...amountSession, ...firstPick.data },
-  10000
-);
-if (
-  !firstPick.ok ||
-  !secondPick.ok ||
-  !firstPick.data?.awaitingAmountChoice ||
-  !secondPick.interactive ||
-  !String(secondPick.reply).includes("10,000")
-) {
+let sessionAfterFirst = { ...amountSession, ...firstPick.data };
+if (firstPick.data?.awaitingLowerAmountTerm) {
+  const y = firstPick.data.availableYearsForAmount[0];
+  const done = applyLowerAmountTerm(firstPick.data, y);
+  sessionAfterFirst = { ...amountSession, ...done.data };
+}
+const secondPick = calculateSelectedAmount(sessionAfterFirst, 10000);
+if (!firstPick.ok || !secondPick.ok) {
   console.error("FAIL: تغيير الرأي لمبلغ أقل 10,000", {
     firstOk: firstPick.ok,
     secondOk: secondPick.ok,
-    awaiting: firstPick.data?.awaitingAmountChoice,
-    hasList: Boolean(secondPick.interactive),
     reply: secondPick.reply,
   });
   process.exitCode = 1;
+} else if (secondPick.data?.awaitingLowerAmountTerm) {
+  console.log("OK: تغيير الرأي إلى 10,000 ثم سؤال السنوات");
+} else if (
+  secondPick.data?.selectedAmount === 10000 &&
+  String(secondPick.reply).includes("10,000")
+) {
+  console.log("OK: تغيير الرأي من مبلغ إلى 10,000");
 } else {
-  console.log("OK: تغيير الرأي من مبلغ إلى 10,000 مع بقاء القائمة");
+  console.error("FAIL: تغيير الرأي لمبلغ أقل 10,000", secondPick);
+  process.exitCode = 1;
 }
 
 // رجوع: القسط ما يتجاوز المتاح — عسكري / مدني / متقاعد

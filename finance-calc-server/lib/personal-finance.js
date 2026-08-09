@@ -28,7 +28,9 @@ const AMOUNT_MENU_STEP = Number(CONFIG.financing?.lowerStep) || 5000;
 
 function loanTermOptionsYears() {
   const opts = CONFIG.financing?.loanTermOptionsYears;
-  return Array.isArray(opts) && opts.length ? opts.map(Number) : [3, 4, 5];
+  const list = Array.isArray(opts) && opts.length ? opts.map(Number) : [5, 4, 3, 2, 1];
+  // الأطول أولًا للعرض
+  return [...new Set(list.filter((y) => y > 0))].sort((a, b) => b - a);
 }
 
 function loanTermFallbackYears() {
@@ -47,25 +49,38 @@ function resolveLoanTermMonths(input = {}) {
   return Number(CONFIG.financing?.loanTermMonths) || 60;
 }
 
-function yearsLabel(months) {
-  const years = Math.round(Number(months) / 12);
-  return `${years} ${years === 1 ? "سنة" : "سنوات"}`;
+function yearsTitle(years) {
+  const y = Number(years);
+  if (y === 1) return "سنة واحدة";
+  if (y === 2) return "سنتين";
+  return `${y} سنوات`;
 }
 
-function parseLoanTermChoice(text) {
+function yearsLabel(months) {
+  const years = Math.round(Number(months) / 12);
+  return yearsTitle(years);
+}
+
+function parseLoanTermChoice(text, allowedYears = null) {
   const raw = normalizeDigits(String(text || "")).trim();
   if (!raw || raw.length > 40) return null;
-  const opts = loanTermOptionsYears();
+  const opts = Array.isArray(allowedYears) && allowedYears.length
+    ? allowedYears.map(Number)
+    : loanTermOptionsYears();
   const idMatch = raw.match(/^term_(\d+)$/i);
   if (idMatch) {
     const years = Number(idMatch[1]);
     if (opts.includes(years)) return years;
   }
+  if (/^(سنة\s*واحدة|سنه\s*واحده|سنة|سنه)$/i.test(raw) && opts.includes(1)) {
+    return 1;
+  }
+  if (/^سنتين$/i.test(raw) && opts.includes(2)) return 2;
   for (const years of opts) {
     const re = new RegExp(`^${years}\\s*(سنوات|سنة|yrs?|years?)?$`, "i");
     if (re.test(raw)) return years;
   }
-  const m = raw.match(/(\d+)\s*(سنوات|سنة)/);
+  const m = raw.match(/(\d+)\s*(سنوات|سنة|سنتين)?/);
   if (m) {
     const years = Number(m[1]);
     if (opts.includes(years)) return years;
@@ -73,16 +88,67 @@ function parseLoanTermChoice(text) {
   return null;
 }
 
-function loanTermChoiceInteractive() {
-  const opts = loanTermOptionsYears();
+/** قائمة/أزرار المدة — واتساب: أزرار حتى 3، وإلا قائمة */
+function loanTermChoiceInteractive(availableYears = null) {
+  const opts = (Array.isArray(availableYears) && availableYears.length
+    ? availableYears.map(Number)
+    : loanTermOptionsYears()
+  ).sort((a, b) => b - a);
+
+  if (opts.length <= 3) {
+    return {
+      kind: "buttons",
+      body: "ترغب المبلغ على كم سنة؟",
+      buttons: opts.map((years) => ({
+        id: `term_${years}`,
+        title: yearsTitle(years),
+      })),
+    };
+  }
+
   return {
-    kind: "buttons",
-    body: "ترغب التمويل على كم سنة؟",
-    buttons: opts.map((years) => ({
+    kind: "list",
+    body: "ترغب المبلغ على كم سنة؟",
+    button: "اختر المدة",
+    sectionTitle: "مدة التمويل",
+    rows: opts.map((years) => ({
       id: `term_${years}`,
-      title: `${years} سنوات`,
+      title: yearsTitle(years),
+      description: "مدة السداد",
     })),
   };
+}
+
+/** السنوات التي يسمح فيها الاستقطاع بهذا المبلغ */
+function getAvailableYearsForAmount(sessionData, amount) {
+  const capacity = Number(sessionData?.monthlyCapacity);
+  const rate = Number(sessionData?.rate);
+  const jobCategory = sessionData?.jobCategory;
+  const minAmount = CONFIG.financing.minLowerAmount || 10000;
+  const value = Number(amount);
+  if (!Number.isFinite(value) || value < minAmount) return [];
+  if (!Number.isFinite(capacity) || capacity <= 0 || !Number.isFinite(rate)) {
+    return [];
+  }
+
+  return loanTermOptionsYears().filter((years) => {
+    const months = years * 12;
+    const maxForTerm = findMaxAffordableAmount({
+      monthlyCapacity: capacity,
+      annualRatePercent: rate,
+      months,
+      jobCategory,
+      minAmount,
+    });
+    if (value > maxForTerm) return false;
+    const installment = calculateMonthlyInstallment(
+      value,
+      rate,
+      months,
+      jobCategory
+    );
+    return installment <= capacity;
+  });
 }
 
 function computeRoundedOffer({
@@ -455,11 +521,8 @@ function calculatePersonalFinance(input) {
 
 ${resultReply}`
     : resultReply;
-  // أول نتيجة: زر «مبلغ أقل» فقط — قائمة المبالغ بعد اختيار السنوات
-  const showLowerList = Boolean(input.forLowerAmount || input.showLowerAmountList);
-  const interactive = showLowerList
-    ? buildLowerAmountInteractive(lowerTiers)
-    : buildWantLowerAmountInteractive();
+  // أول نتيجة: أعلى مبلغ على 5 سنوات + قائمة «اختر مبلغ أقل هنا»
+  const interactive = buildLowerAmountInteractive(lowerTiers);
   const followUpReply = buildPersonalApplyFollowUp();
 
   return {
@@ -467,7 +530,7 @@ ${resultReply}`
     reply,
     followUpReply,
     interactive,
-    // نص النتيجة أولًا، ثم رسالة التقديم، ثم زر/قائمة المبالغ الأقل
+    // نص النتيجة أولًا، ثم رسالة التقديم، ثم قائمة المبالغ الأقل
     sendTextThenInteractive: Boolean(interactive),
     data: {
       jobCategory,
@@ -487,9 +550,11 @@ ${resultReply}`
       loanTermYears: Math.round(loanTermMonths / 12),
       requestedLoanTermMonths: requestedMonths,
       forcedToFallbackTerm,
-      awaitingLowerAmountEntry: !showLowerList,
+      awaitingLowerAmountEntry: false,
       awaitingLowerAmountTerm: false,
-      awaitingAmountChoice: Boolean(showLowerList),
+      awaitingAmountChoice: Boolean(interactive),
+      pendingSelectedAmount: null,
+      availableYearsForAmount: null,
     },
   };
 }
@@ -729,11 +794,11 @@ function selectTiersForWhatsAppList(tiers, maxRows = 10) {
   return unique;
 }
 
-/** زر الدخول لمسار المبلغ الأقل → بعده نسأل عن السنوات */
+/** توافق قديم: زر «مبلغ أقل» يعيد فتح قائمة المبالغ */
 function buildWantLowerAmountInteractive() {
   return {
     kind: "buttons",
-    body: "اذا ترغب بمبلغ اقل اضغط هنا",
+    body: "اختر مبلغ أقل هنا",
     buttons: [{ id: "want_lower_amount", title: "مبلغ أقل" }],
   };
 }
@@ -744,83 +809,87 @@ function looksLikeWantLowerAmount(text) {
   if (/^want_lower_amount$/i.test(t)) return true;
   if (/^مبلغ\s*أقل$/i.test(t)) return true;
   if (/^مبلغ\s*اقل$/i.test(t)) return true;
+  if (/اختر\s*مبلغ\s*أقل\s*هنا/i.test(t)) return true;
   if (/اذا\s*ترغب\s*بمبلغ\s*اقل/i.test(t)) return true;
   return false;
 }
 
+/** إعادة عرض قائمة المبالغ الأقل (توافق مع الزر القديم إن وُجد) */
 function beginLowerAmountFlow(sessionData = {}) {
+  const maxAmount = Number(sessionData.maxAmount || sessionData.rounded || 0);
+  const lowerTiers =
+    Array.isArray(sessionData.lowerTiers) && sessionData.lowerTiers.length
+      ? sessionData.lowerTiers
+      : buildLowerAmountTiers(
+          maxAmount,
+          AMOUNT_MENU_STEP,
+          CONFIG.financing.minLowerAmount || 10000
+        );
+  const interactive = buildLowerAmountInteractive(lowerTiers);
   return {
     ok: true,
-    reply: "ترغب المبلغ على كم سنة؟",
-    interactive: loanTermChoiceInteractive(),
+    reply: "اختر مبلغ أقل هنا",
+    interactive,
     data: {
       ...sessionData,
+      lowerTiers,
       awaitingLowerAmountEntry: false,
-      awaitingLowerAmountTerm: true,
-      awaitingAmountChoice: false,
+      awaitingLowerAmountTerm: false,
+      awaitingAmountChoice: Boolean(interactive),
+      pendingSelectedAmount: null,
+      availableYearsForAmount: null,
     },
   };
 }
 
+/**
+ * بعد اختيار المبلغ الأقل: تطبيق مدة التمويل المختارة من السنوات المتاحة فقط
+ */
 function applyLowerAmountTerm(sessionData = {}, years) {
+  const amount = Number(sessionData.pendingSelectedAmount);
+  const allowed = (
+    Array.isArray(sessionData.availableYearsForAmount) &&
+    sessionData.availableYearsForAmount.length
+      ? sessionData.availableYearsForAmount
+      : getAvailableYearsForAmount(sessionData, amount)
+  ).map(Number);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return beginLowerAmountFlow(sessionData);
+  }
+
   const termYears = Number(years);
-  if (!Number.isFinite(termYears) || termYears <= 0) {
+  if (!Number.isFinite(termYears) || !allowed.includes(termYears)) {
     return {
       ok: false,
       reply: "اختر مدة التمويل من الأزرار.",
-      interactive: loanTermChoiceInteractive(),
+      interactive: loanTermChoiceInteractive(allowed),
       data: {
         ...sessionData,
+        pendingSelectedAmount: amount,
+        availableYearsForAmount: allowed,
         awaitingLowerAmountTerm: true,
         awaitingAmountChoice: false,
       },
     };
   }
 
-  const result = calculatePersonalFinance({
-    jobCategory: sessionData.jobCategory,
-    civilianSubtype: sessionData.civilianSubtype,
-    salary: sessionData.salary,
-    commitments: sessionData.commitments,
-    realEstateType: sessionData.realEstateType || "none",
-    supportAmount: sessionData.supportAmount || 0,
-    companyName: sessionData.companyName,
-    loanTermYears: termYears,
-    loanTermMonths: termYears * 12,
-    forLowerAmount: true,
-  });
-
-  if (!result.ok) {
-    return {
-      ...result,
-      data: {
-        ...sessionData,
-        ...(result.data || {}),
-        awaitingLowerAmountTerm: false,
-        awaitingLowerAmountEntry: true,
-        awaitingAmountChoice: false,
-      },
-    };
-  }
-
-  return {
-    ...result,
-    data: {
-      ...result.data,
-      // نحافظ على أعلى مبلغ أول عرض (5 سنوات) للمقارنة إن احتجنا
-      initialMaxAmount:
-        sessionData.initialMaxAmount ||
-        sessionData.maxAmount ||
-        result.data?.maxAmount,
-      awaitingLowerAmountEntry: false,
+  return buildSelectedAmountSuccess(
+    {
+      ...sessionData,
+      loanTermYears: termYears,
+      loanTermMonths: termYears * 12,
+      pendingSelectedAmount: null,
+      availableYearsForAmount: null,
       awaitingLowerAmountTerm: false,
-      awaitingAmountChoice: true,
     },
-  };
+    amount,
+    termYears * 12
+  );
 }
 
 /**
- * قائمة المبالغ الأقل فقط — زر: اذا ترغب بمبلغ اقل اختر هنا
+ * قائمة المبالغ الأقل — نص الزر: اختر مبلغ أقل هنا
  * دائمًا تنتهي عند الحد الأدنى (10,000)
  */
 function buildLowerAmountInteractive(lowerTiers = []) {
@@ -835,7 +904,7 @@ function buildLowerAmountInteractive(lowerTiers = []) {
 
   return {
     kind: "list",
-    body: "اذا ترغب بمبلغ اقل اختر هنا",
+    body: "اختر مبلغ أقل هنا",
     button: "اختر هنا",
     sectionTitle: "مبالغ أقل",
     rows,
@@ -933,6 +1002,59 @@ ${formatMoney(total)} ريال
       loanTermYears: Math.round(months / 12),
       maxAmount: Number(sessionData?.maxAmount || sessionData?.rounded || 0),
       awaitingAmountChoice: true,
+      awaitingLowerAmountTerm: false,
+      awaitingLowerAmountConfirm: false,
+      pendingSelectedAmount: null,
+      availableYearsForAmount: null,
+      suggestedAmount: null,
+      requestedAmount: null,
+    },
+  };
+}
+
+/** بعد اختيار المبلغ: إن كانت مدة واحدة فقط نعتمدها، وإلا نعرض السنوات المتاحة فقط */
+function finalizeAmountOrAskYears(sessionData, amount) {
+  const available = getAvailableYearsForAmount(sessionData, amount);
+  if (!available.length) {
+    return {
+      ok: false,
+      reply: `هذا المبلغ ما يسمح فيه وضع التزاماتك الحالي.\nاختر مبلغًا أقل من القائمة.`,
+      interactive: buildLowerAmountInteractive(
+        Array.isArray(sessionData?.lowerTiers) ? sessionData.lowerTiers : []
+      ),
+      data: {
+        ...sessionData,
+        awaitingAmountChoice: true,
+        awaitingLowerAmountTerm: false,
+        pendingSelectedAmount: null,
+        availableYearsForAmount: null,
+      },
+    };
+  }
+
+  if (available.length === 1) {
+    const years = available[0];
+    return buildSelectedAmountSuccess(
+      {
+        ...sessionData,
+        loanTermYears: years,
+        loanTermMonths: years * 12,
+      },
+      amount,
+      years * 12
+    );
+  }
+
+  return {
+    ok: true,
+    reply: `اخترت ${formatMoney(amount)} ريال.\nترغب المبلغ على كم سنة؟`,
+    interactive: loanTermChoiceInteractive(available),
+    data: {
+      ...sessionData,
+      pendingSelectedAmount: amount,
+      availableYearsForAmount: available,
+      awaitingLowerAmountTerm: true,
+      awaitingAmountChoice: false,
       awaitingLowerAmountConfirm: false,
       suggestedAmount: null,
       requestedAmount: null,
@@ -985,14 +1107,13 @@ ${formatMoney(installment)} ريال
 }
 
 /**
- * حساب القسط لمبلغ اختاره العميل (أقل من أو يساوي الأعلى)
+ * بعد اختيار مبلغ أقل: نحدد السنوات المتاحة (5→1) ثم نثبت أو نسأل
  */
 function calculateSelectedAmount(sessionData, selectedAmount) {
   const maxAmount = Number(sessionData?.maxAmount || sessionData?.rounded || 0);
   const rate = Number(sessionData?.rate);
   const jobCategory = sessionData?.jobCategory;
   const minAmount = CONFIG.financing.minLowerAmount || 10000;
-  const months = resolveLoanTermMonths(sessionData);
   const amount = Number(selectedAmount);
 
   if (!maxAmount || !Number.isFinite(rate) || !jobCategory) {
@@ -1010,29 +1131,32 @@ function calculateSelectedAmount(sessionData, selectedAmount) {
     };
   }
 
-  const capacity = Number(sessionData?.monthlyCapacity);
-  const installment = calculateMonthlyInstallment(
-    amount,
-    rate,
-    months,
-    jobCategory
-  );
-  const fitsCapacity =
-    !Number.isFinite(capacity) ||
-    capacity <= 0 ||
-    installment <= capacity;
-  const withinMax = amount <= maxAmount;
-  const aboveMin = amount >= minAmount;
-
-  if (aboveMin && withinMax && fitsCapacity) {
-    return buildSelectedAmountSuccess(sessionData, amount, months);
+  if (amount < minAmount) {
+    return {
+      ok: false,
+      reply: `أقل مبلغ يمكن اختياره ${formatMoney(minAmount)} ريال.\nأرسل مبلغ من القائمة.`,
+    };
   }
 
-  // طلب مبلغ أعلى مما يسمح التزامه → نعرض أعلى مبلغ يسمح على نفس المدة
+  if (amount > maxAmount) {
+    return {
+      ok: false,
+      reply: `أعلى مبلغ متاح لك ${formatMoney(maxAmount)} ريال.\nأرسل مبلغ من القائمة أو أقل.`,
+    };
+  }
+
+  const available = getAvailableYearsForAmount(sessionData, amount);
+  if (available.length) {
+    return finalizeAmountOrAskYears(sessionData, amount);
+  }
+
+  // المبلغ ما يدخل على أي مدة → اقترح أعلى مبلغ يسمح على 5 سنوات
+  const capacity = Number(sessionData?.monthlyCapacity);
+  const fallbackMonths = loanTermFallbackMonths();
   const suggested = findMaxAffordableAmount({
     monthlyCapacity: capacity,
     annualRatePercent: rate,
-    months,
+    months: fallbackMonths,
     jobCategory,
     minAmount,
   });
@@ -1042,29 +1166,22 @@ function calculateSelectedAmount(sessionData, selectedAmount) {
   );
   if (cappedSuggested >= minAmount && cappedSuggested < amount) {
     return buildLowerAmountSuggestion(
-      sessionData,
+      {
+        ...sessionData,
+        loanTermMonths: fallbackMonths,
+        loanTermYears: Math.round(fallbackMonths / 12),
+      },
       amount,
       roundDownToStep(cappedSuggested) || cappedSuggested
     );
   }
 
-  if (!aboveMin) {
-    return {
-      ok: false,
-      reply: `أقل مبلغ يمكن اختياره ${formatMoney(minAmount)} ريال.\nأرسل مبلغ من القائمة.`,
-    };
-  }
-
-  if (!withinMax) {
-    return {
-      ok: false,
-      reply: `أعلى مبلغ متاح لك ${formatMoney(maxAmount)} ريال.\nأرسل مبلغ من القائمة أو أقل.`,
-    };
-  }
-
   return {
     ok: false,
-    reply: `هذا المبلغ قسطه أعلى من المتاح الشهري لديك (${formatMoney(Math.floor(capacity))} ريال).\nاختر مبلغًا أقل من القائمة.`,
+    reply: `هذا المبلغ ما يسمح فيه وضع التزاماتك الحالي.\nاختر مبلغًا أقل من القائمة.`,
+    interactive: buildLowerAmountInteractive(
+      Array.isArray(sessionData?.lowerTiers) ? sessionData.lowerTiers : []
+    ),
   };
 }
 
@@ -1081,10 +1198,12 @@ function confirmLowerAmountSuggestion(sessionData, choice) {
         },
       };
     }
-    return buildSelectedAmountSuccess(
-      sessionData,
-      suggested,
-      resolveLoanTermMonths(sessionData)
+    return finalizeAmountOrAskYears(
+      {
+        ...sessionData,
+        awaitingLowerAmountConfirm: false,
+      },
+      suggested
     );
   }
   return {
@@ -1117,6 +1236,7 @@ module.exports = {
   loanTermChoiceInteractive,
   loanTermOptionsYears,
   resolveLoanTermMonths,
+  getAvailableYearsForAmount,
   looksLikeWantLowerAmount,
   beginLowerAmountFlow,
   applyLowerAmountTerm,

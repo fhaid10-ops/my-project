@@ -630,12 +630,13 @@ app.post("/webhook/interakt", async (req, res) => {
       result = beginLowerAmountFlow(currentSession || {});
       if (result?.data) saveSession(countryCode, phone, result.data);
     } else if (currentSession?.awaitingLowerAmountTerm) {
-      const years = parseLoanTermChoice(text);
+      const allowed = currentSession.availableYearsForAmount;
+      const years = parseLoanTermChoice(text, allowed);
       if (!years) {
         result = {
           ok: false,
           reply: "اختر مدة التمويل من الأزرار.",
-          interactive: loanTermChoiceInteractive(),
+          interactive: loanTermChoiceInteractive(allowed),
         };
       } else {
         result = applyLowerAmountTerm(currentSession, years);
