@@ -6,12 +6,18 @@ const OUTCOMES = {
   PACKAGE: "أخذ باقة",
   LIMIT_EXHAUSTED: "مستنفذ حد",
   SERVICE_STOP: "إيقاف خدمات",
+  ORDER_NUMBER: "رقم طلب",
 };
 
 const AUTO_OUTCOME_LABELS = new Set(Object.values(OUTCOMES));
 
 function detectCustomerOutcome(result) {
   if (!result || typeof result !== "object") return null;
+
+  // العميل أرسل رقم طلب التقديم
+  if (result.offer === "order_number_received") {
+    return OUTCOMES.ORDER_NUMBER;
+  }
 
   // اختيار مسار إيقاف خدمات من القائمة (أو إكمال خطواته)
   if (

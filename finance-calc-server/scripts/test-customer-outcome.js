@@ -17,6 +17,15 @@ const { startServiceStopFlow } = require("../lib/main-menu");
 
 assert.strictEqual(
   detectCustomerOutcome({
+    offer: "order_number_received",
+    reply: "تم استلام رقم الطلب",
+    data: { orderNumber: "10123456" },
+  }),
+  OUTCOMES.ORDER_NUMBER
+);
+
+assert.strictEqual(
+  detectCustomerOutcome({
     offer: "property_combo_accepted",
     reply: "للتواصل مع المندوب",
   }),

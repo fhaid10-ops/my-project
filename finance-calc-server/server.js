@@ -827,7 +827,7 @@ app.post("/webhook/interakt", async (req, res) => {
           latestSession?.civilianSubtype ||
           null,
       });
-      // تحديث «وش صار» تلقائياً: رابط تمويل / باقة / مستنفذ حد
+      // تحديث «وش صار» تلقائياً: رابط تمويل / باقة / مستنفذ حد / رقم طلب
       const outcome = detectCustomerOutcome(result);
       if (outcome) {
         customerLedger.setOutcomeNotes(countryCode, phone, outcome);
