@@ -83,6 +83,7 @@ assert.strictEqual(
 assert.strictEqual(detectCustomerOutcome({ reply: "مرحبا" }), null);
 assert.ok(canAutoUpdateNotes(""));
 assert.ok(canAutoUpdateNotes("أخذ باقة"));
+assert.ok(canAutoUpdateNotes("رقم طلب"));
 assert.ok(!canAutoUpdateNotes("ملاحظة يدوية خاصة"));
 
 const ledger = createCustomerLedger({
