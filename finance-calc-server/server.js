@@ -17,6 +17,7 @@ const {
   looksLikeAmountChoice,
   parseAmountChoice,
   calculateSelectedAmount,
+  confirmLowerAmountSuggestion,
   replyPropertyComboDecision,
   replyPropertyComboInterestDecision,
   mapSector,
@@ -436,6 +437,7 @@ app.post("/webhook/interakt", async (req, res) => {
       currentSession?.awaitingCombo ||
       currentSession?.awaitingComboInterest ||
       currentSession?.awaitingDebtContinue ||
+      currentSession?.awaitingLowerAmountConfirm ||
       draft?.awaitingCombo ||
       draft?.awaitingComboInterest ||
       draft?.awaitingDebtContinue;
@@ -607,6 +609,11 @@ app.post("/webhook/interakt", async (req, res) => {
         comboDecision: yesNo,
       });
       clearDraft(countryCode, phone);
+    } else if (yesNo && currentSession?.awaitingLowerAmountConfirm) {
+      result = confirmLowerAmountSuggestion(currentSession, yesNo);
+      if (result?.data) {
+        saveSession(countryCode, phone, result.data);
+      }
     } else if (
       looksLikeDebtContinueReply(text) &&
       (currentSession?.awaitingDebtContinue || draft?.awaitingDebtContinue)

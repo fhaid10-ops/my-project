@@ -67,7 +67,8 @@ function calculateEstimatedAmount(
   salary,
   commitments,
   supportAmount = 0,
-  annualRatePercent = null
+  annualRatePercent = null,
+  months = CONFIG.financing?.loanTermMonths || 60
 ) {
   const capacity = calculateMonthlyCapacity(
     realEstateType,
@@ -78,11 +79,48 @@ function calculateEstimatedAmount(
   if (!Number.isFinite(capacity) || capacity <= 0) return 0;
 
   if (annualRatePercent != null && Number(annualRatePercent) > 0) {
-    return calculateMaxAmountFromMonthlyCapacity(capacity, annualRatePercent);
+    return calculateMaxAmountFromMonthlyCapacity(
+      capacity,
+      annualRatePercent,
+      months
+    );
   }
 
   // احتياط قديم إن ما توفرت نسبة الفائدة
   return Math.round((capacity * multiplier) / divisor);
+}
+
+/**
+ * أعلى مبلغ يسمح فيه الاستقطاع الشهري على مدة معيّنة (بعد التقريب)
+ */
+function findMaxAffordableAmount({
+  monthlyCapacity,
+  annualRatePercent,
+  months = loanTermMonths,
+  jobCategory = null,
+  minAmount = minLowerAmount,
+} = {}) {
+  const capacity = Number(monthlyCapacity);
+  if (!Number.isFinite(capacity) || capacity <= 0) return 0;
+  let amount = roundDownToStep(
+    calculateMaxAmountFromMonthlyCapacity(
+      capacity,
+      annualRatePercent,
+      months
+    )
+  );
+  while (amount >= minAmount) {
+    const installment = calculateMonthlyInstallment(
+      amount,
+      annualRatePercent,
+      months,
+      jobCategory
+    );
+    if (installment <= capacity) return amount;
+    amount = Math.max(0, amount - 100);
+    amount = roundDownToStep(amount) || amount;
+  }
+  return 0;
 }
 
 /**
@@ -437,6 +475,7 @@ module.exports = {
   calculateEstimatedAmount,
   calculateMonthlyCapacity,
   calculateMaxAmountFromMonthlyCapacity,
+  findMaxAffordableAmount,
   getDeductionRatio,
   meetsMinimumEstimatedAmount,
   meetsMinimumSalary,

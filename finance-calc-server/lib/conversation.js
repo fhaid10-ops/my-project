@@ -6,6 +6,8 @@ const {
   mapRealEstate,
   calculatePersonalFinance,
   buildPropertyComboInterestAsk,
+  parseLoanTermChoice,
+  loanTermChoiceInteractive,
 } = require("./personal-finance");
 const {
   getMinSalaryForEntry,
@@ -510,7 +512,7 @@ ${restartHint()}`,
     }
 
     state.supportAmount = 0;
-    return finishPersonalFlow(state);
+    return askLoanTerm(state);
   }
 
   if (step === "support") {
@@ -524,11 +526,37 @@ ${restartHint()}`,
       };
     }
     state.supportAmount = supportAmount;
+    return askLoanTerm(state);
+  }
+
+  if (step === "loan_term") {
+    const years = parseLoanTermChoice(raw);
+    if (!years) {
+      return {
+        ok: false,
+        reply: "اختر مدة التمويل من الأزرار.",
+        interactive: loanTermChoiceInteractive(),
+        draft: state,
+      };
+    }
+    state.loanTermYears = years;
+    state.loanTermMonths = years * 12;
     return finishPersonalFlow(state);
   }
 
   // خطوة غير معروفة → نعيد من القطاع
   return startPersonalFinanceFlow();
+}
+
+function askLoanTerm(state) {
+  state.step = "loan_term";
+  return {
+    ok: true,
+    flow: "personal_chat",
+    reply: "ترغب التمويل على كم سنة؟",
+    interactive: loanTermChoiceInteractive(),
+    draft: state,
+  };
 }
 
 function finishPersonalFlow(state) {
@@ -540,6 +568,8 @@ function finishPersonalFlow(state) {
     realEstateType: state.realEstateType || "none",
     supportAmount: state.supportAmount || 0,
     companyName: state.companyName,
+    loanTermYears: state.loanTermYears,
+    loanTermMonths: state.loanTermMonths,
   });
 
   const awaitingInterest = Boolean(result.data?.awaitingComboInterest);
