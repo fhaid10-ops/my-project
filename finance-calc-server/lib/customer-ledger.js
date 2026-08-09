@@ -382,6 +382,8 @@ function createCustomerLedger(options = {}) {
       notes: row.notes || "",
       orderNumber: row.orderNumber || null,
       orderNumberAt: row.orderNumberAt || null,
+      archived: Boolean(row.archived),
+      archivedAt: row.archivedAt || null,
       dayKey: row.dayKey || calendarDayKey(new Date(row.lastSeenAt || Date.now())),
       source: row.source || null,
       syncedAt: row.syncedAt || null,
@@ -443,6 +445,17 @@ function createCustomerLedger(options = {}) {
     if (!row) return null;
     migrateOutcomeFromNotes(row);
     row.notes = String(notes || "").slice(0, 500);
+    scheduleSave();
+    return row;
+  }
+
+  /** أرشفة / إلغاء أرشفة عميل */
+  function setArchived(countryCode, phone, archived = true) {
+    const row = getOrCreate(countryCode, phone);
+    if (!row) return null;
+    const next = Boolean(archived);
+    row.archived = next;
+    row.archivedAt = next ? new Date().toISOString() : null;
     scheduleSave();
     return row;
   }
@@ -522,6 +535,11 @@ function createCustomerLedger(options = {}) {
     if (!row) return null;
     const preview = String(text || "").slice(0, 120);
     const now = new Date().toISOString();
+    // رسالة جديدة تُخرج العميل من الأرشيف تلقائياً
+    if (row.archived) {
+      row.archived = false;
+      row.archivedAt = null;
+    }
     touchMeta(row, meta);
     row.lastInboundAt = now;
     row.lastInboundText = preview;
@@ -581,6 +599,7 @@ function createCustomerLedger(options = {}) {
     hydrateFromDiskIfNeeded();
     const today = calendarDayKey();
     const yesterday = shiftDayKey(today, -1);
+    const wantArchive = day === "archive" || day === "archived";
     let target = null;
     if (day === "today") target = today;
     else if (day === "yesterday") target = yesterday;
@@ -588,7 +607,10 @@ function createCustomerLedger(options = {}) {
 
     const rows = [...customers.values()]
       .filter((row) => {
-        if (!target) return true;
+        const isArchived = Boolean(row.archived);
+        if (wantArchive) return isArchived;
+        if (isArchived) return false;
+        if (!target) return true; // الكل (غير المؤرشف)
         const lastDay = calendarDayKey(new Date(row.lastSeenAt));
         const firstDay = calendarDayKey(new Date(row.firstSeenAt));
         const syncedDay = row.syncedAt
@@ -599,13 +621,21 @@ function createCustomerLedger(options = {}) {
           lastDay === target || firstDay === target || syncedDay === target
         );
       })
-      .sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt));
+      .sort((a, b) => {
+        if (wantArchive) {
+          return (
+            Date.parse(b.archivedAt || b.lastSeenAt) -
+            Date.parse(a.archivedAt || a.lastSeenAt)
+          );
+        }
+        return Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt);
+      });
 
     return {
       timezone: TIMEZONE,
       today,
       yesterday,
-      day: target || "all",
+      day: wantArchive ? "archive" : target || "all",
       count: rows.length,
       customers: rows,
     };
@@ -615,6 +645,8 @@ function createCustomerLedger(options = {}) {
     hydrateFromDiskIfNeeded();
     const todayPack = listByDay("today");
     const yesterdayPack = listByDay("yesterday");
+    const archivePack = listByDay("archive");
+    const activeAll = [...customers.values()].filter((r) => !r.archived).length;
     return {
       timezone: TIMEZONE,
       today: todayPack.today,
@@ -622,7 +654,8 @@ function createCustomerLedger(options = {}) {
       counts: {
         today: todayPack.count,
         yesterday: yesterdayPack.count,
-        all: customers.size,
+        all: activeAll,
+        archive: archivePack.count,
       },
     };
   }
@@ -702,6 +735,8 @@ function createCustomerLedger(options = {}) {
             existing.civilianSubtype || incoming.civilianSubtype || null,
           outcome: existing.outcome || incoming.outcome || "",
           notes: existing.notes || incoming.notes || "",
+          archived: Boolean(existing.archived || incoming.archived),
+          archivedAt: existing.archivedAt || incoming.archivedAt || null,
           orderNumber: existing.orderNumber || incoming.orderNumber || null,
           orderNumberAt:
             existing.orderNumberAt || incoming.orderNumberAt || null,
@@ -808,6 +843,7 @@ function createCustomerLedger(options = {}) {
     updateState,
     setNotes,
     setOutcomeNotes,
+    setArchived,
     setOrderNumber,
     setWorkplace,
     listByDay,

@@ -48,6 +48,22 @@ assert.ok(todayPack.count >= 1);
 assert.strictEqual(todayPack.today, today);
 assert.strictEqual(todayPack.yesterday, yesterday);
 
+const archived = ledger.setArchived("+966", "508031055", true);
+assert.ok(archived.archived);
+assert.ok(archived.archivedAt);
+assert.strictEqual(ledger.listByDay("today").count, 0);
+assert.strictEqual(ledger.listByDay("archive").count, 1);
+assert.strictEqual(ledger.summary().counts.archive, 1);
+assert.strictEqual(ledger.summary().counts.all, 0);
+ledger.setArchived("+966", "508031055", false);
+assert.ok(ledger.listByDay("today").count >= 1);
+assert.strictEqual(ledger.listByDay("archive").count, 0);
+// أرشفة ثم رسالة واردة تُخرج من الأرشيف
+ledger.setArchived("+966", "508031055", true);
+ledger.recordInbound("+966", "508031055", "ارجع");
+assert.strictEqual(ledger._customers.get("+966:508031055").archived, false);
+assert.ok(ledger.listByDay("today").count >= 1);
+
 const exported = ledger.exportPayload();
 assert.strictEqual(exported.kind, "raed-customer-ledger");
 assert.ok(exported.count >= 1);

@@ -199,6 +199,7 @@ function createAdminRouter(deps) {
         customersToday: ledgerSummary?.counts?.today || 0,
         customersYesterday: ledgerSummary?.counts?.yesterday || 0,
         customersAll: ledgerSummary?.counts?.all || 0,
+        customersArchive: ledgerSummary?.counts?.archive || 0,
       },
       customers: ledgerSummary,
       persistence,
@@ -213,8 +214,8 @@ function createAdminRouter(deps) {
   });
 
   /**
-   * عملاء اليوم / أمس / الكل
-   * ?day=today|yesterday|all|YYYY-MM-DD
+   * عملاء اليوم / أمس / الكل / الأرشيف
+   * ?day=today|yesterday|all|archive|YYYY-MM-DD
    * ?limit=&offset= للصفحات (افتراضي 100) — يقلل ثقل الجوال
    * ?phonesOnly=1 لنسخ الأرقام فقط
    */
@@ -288,6 +289,8 @@ function createAdminRouter(deps) {
         civilianSubtype: row.civilianSubtype || liveSubtype || null,
         outcome: row.outcome || "",
         notes: row.notes || "",
+        archived: Boolean(row.archived),
+        archivedAt: row.archivedAt || null,
         orderNumber:
           row.orderNumber ||
           sessionRow?.data?.orderNumber ||
@@ -427,6 +430,41 @@ function createAdminRouter(deps) {
       countryCode,
       orderNumber: row.orderNumber,
       orderNumberAt: row.orderNumberAt,
+    });
+  });
+
+  /** أرشفة / إلغاء أرشفة عميل */
+  router.post("/customers/archive", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const { phone, countryCode } = normalizePhoneParts(req.body || {});
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: "رقم الجوال مطلوب" });
+    }
+    const archived =
+      req.body?.archived === false ||
+      req.body?.archived === "false" ||
+      req.body?.archived === 0 ||
+      req.body?.unarchive === true
+        ? false
+        : true;
+    const row = customerLedger.setArchived(countryCode, phone, archived);
+    if (!row) {
+      return res.status(400).json({ ok: false, error: "تعذر تحديث الأرشيف" });
+    }
+    customerLedger.flush();
+    pushLog({
+      action: archived ? "customers-archive" : "customers-unarchive",
+      phone,
+      countryCode,
+    });
+    res.json({
+      ok: true,
+      phone,
+      countryCode,
+      archived: Boolean(row.archived),
+      archivedAt: row.archivedAt || null,
     });
   });
 

@@ -125,6 +125,25 @@ async function req(method, path, body, token = "test-token") {
     )
   );
 
+  const archive = await req("POST", "/customers/archive", {
+    phone: "0551234567",
+    archived: true,
+  });
+  assert.strictEqual(archive.status, 200);
+  assert.strictEqual(archive.json.archived, true);
+  const todayAfterArchive = await req("GET", "/customers?day=today");
+  assert.ok(
+    !todayAfterArchive.json.customers.some((c) => c.phone === "551234567")
+  );
+  const archiveList = await req("GET", "/customers?day=archive");
+  assert.ok(archiveList.json.customers.some((c) => c.phone === "551234567"));
+  assert.ok((archiveList.json.counts?.archive || 0) >= 1);
+  const unarchive = await req("POST", "/customers/archive", {
+    phone: "0551234567",
+    archived: false,
+  });
+  assert.strictEqual(unarchive.json.archived, false);
+
   const workplace = await req("POST", "/customers/workplace", {
     phone: "0551234567",
     workplace: "government",
