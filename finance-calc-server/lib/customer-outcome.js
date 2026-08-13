@@ -72,6 +72,7 @@ function canAutoUpdateNotes(currentNotes) {
 
 /** مفاتيح تبويبات الأدمن → نص «وش صار» */
 const OUTCOME_TAB_FILTERS = {
+  finance_link: OUTCOMES.FINANCE_LINK,
   order_number: OUTCOMES.ORDER_NUMBER,
   package: OUTCOMES.PACKAGE,
   limit_exhausted: OUTCOMES.LIMIT_EXHAUSTED,
