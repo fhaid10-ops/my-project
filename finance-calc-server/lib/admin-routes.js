@@ -40,6 +40,66 @@ function createAdminRouter(deps) {
 
   const router = express.Router();
   const activityLog = [];
+  /** عداد المتابعة الجماعية اليومي (Asia/Riyadh) — يُصفّر بعد إعادة التشغيل */
+  const bulkFollowupDaily = { dayKey: "", count: 0 };
+
+  function riyadhDayKey(d = new Date()) {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Riyadh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  }
+
+  function getBulkFollowupSafeConfig() {
+    const cfg = CONFIG.outbound || {};
+    const minDelayMs = Math.max(
+      Number(cfg.minDelayMs != null ? cfg.minDelayMs : 8000),
+      0
+    );
+    const delayMs = Math.max(
+      Number(cfg.delayMs != null ? cfg.delayMs : 10000),
+      minDelayMs
+    );
+    const maxBatchSize = Math.min(
+      Math.max(Number(cfg.maxBatchSize || 30), 1),
+      50
+    );
+    const dailyLimit = Math.min(
+      Math.max(Number(cfg.dailyLimit || 80), 1),
+      200
+    );
+    const skipIfFollowedUpWithinHours = Math.max(
+      Number(
+        cfg.skipIfFollowedUpWithinHours != null
+          ? cfg.skipIfFollowedUpWithinHours
+          : 20
+      ),
+      0
+    );
+    return {
+      minDelayMs,
+      delayMs,
+      maxBatchSize,
+      dailyLimit,
+      skipIfFollowedUpWithinHours,
+    };
+  }
+
+  function getBulkDailyUsage() {
+    const dayKey = riyadhDayKey();
+    if (bulkFollowupDaily.dayKey !== dayKey) {
+      bulkFollowupDaily.dayKey = dayKey;
+      bulkFollowupDaily.count = 0;
+    }
+    return bulkFollowupDaily;
+  }
+
+  function looksLikeFollowupMessage(text) {
+    const s = String(text || "");
+    return /هل تم تقديم الطلب/i.test(s) || /ارسل رقم الطلب/i.test(s);
+  }
 
   function pushLog(entry) {
     activityLog.unshift({
@@ -204,12 +264,22 @@ function createAdminRouter(deps) {
         customersPackage: ledgerSummary?.counts?.package || 0,
         customersLimitExhausted: ledgerSummary?.counts?.limit_exhausted || 0,
         customersServiceStop: ledgerSummary?.counts?.service_stop || 0,
+        customersFinanceLink: ledgerSummary?.counts?.finance_link || 0,
       },
       customers: ledgerSummary,
       persistence,
       brand: CONFIG.brand?.name || "رائد الحربي",
       followUpPreview: CONFIG.followUp?.electronicMessage || "",
-      outboundDelayMs: CONFIG.outbound?.delayMs || 3500,
+      outboundDelayMs: getBulkFollowupSafeConfig().delayMs,
+      outboundSafe: (() => {
+        const safe = getBulkFollowupSafeConfig();
+        const usage = getBulkDailyUsage();
+        return {
+          ...safe,
+          dailySent: usage.count,
+          dailyRemaining: Math.max(safe.dailyLimit - usage.count, 0),
+        };
+      })(),
     });
   });
 
@@ -219,7 +289,7 @@ function createAdminRouter(deps) {
 
   /**
    * عملاء اليوم / أمس / الكل / حسب «وش صار» / الأرشيف
-   * ?day=today|yesterday|all|archive|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
+   * ?day=today|yesterday|all|archive|finance_link|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
    * ?limit=&offset= للصفحات (افتراضي 100) — يقلل ثقل الجوال
    * ?phonesOnly=1 لنسخ الأرقام فقط
    */
@@ -722,31 +792,115 @@ function createAdminRouter(deps) {
   });
 
   router.post("/bulk-followup", requireAdmin, async (req, res) => {
-    const phones = Array.isArray(req.body?.phones) ? req.body.phones : [];
+    const safe = getBulkFollowupSafeConfig();
+    const usage = getBulkDailyUsage();
+    const fromOutcome = String(req.body?.fromOutcome || req.body?.outcome || "")
+      .trim()
+      .toLowerCase();
     const message =
       String(req.body?.message || "").trim() ||
       CONFIG.followUp?.electronicMessage ||
       "";
-    const delayMs = Number(
-      req.body?.delayMs != null
-        ? req.body.delayMs
-        : CONFIG.outbound?.delayMs || 3500
+    let delayMs = Number(
+      req.body?.delayMs != null ? req.body.delayMs : safe.delayMs
     );
-    if (!phones.length) {
-      return res.status(400).json({ ok: false, error: "أضف رقمًا واحدًا على الأقل" });
+    if (!Number.isFinite(delayMs) || delayMs < safe.minDelayMs) {
+      delayMs = Math.max(safe.delayMs, safe.minDelayMs);
     }
+    const requestedLimit = Number(
+      req.body?.limit != null ? req.body.limit : safe.maxBatchSize
+    );
+    const batchLimit = Math.min(
+      Math.max(Number.isFinite(requestedLimit) ? requestedLimit : safe.maxBatchSize, 1),
+      safe.maxBatchSize
+    );
+
     if (!message) {
       return res.status(400).json({ ok: false, error: "نص المتابعة فارغ" });
     }
 
-    const results = [];
-    for (let i = 0; i < phones.length; i += 1) {
-      const parts = normalizePhoneParts({
-        phone: phones[i],
-        countryCode: req.body?.countryCode,
+    const dailyRemaining = Math.max(safe.dailyLimit - usage.count, 0);
+    if (dailyRemaining <= 0) {
+      return res.status(429).json({
+        ok: false,
+        error: `تم بلوغ الحد اليومي للمتابعة الجماعية (${safe.dailyLimit}). كمّل غدًا.`,
+        dailyLimit: safe.dailyLimit,
+        dailySent: usage.count,
       });
+    }
+
+    let candidates = [];
+    if (fromOutcome === "finance_link" || fromOutcome === "أخذ رابط التمويل") {
+      if (!customerLedger) {
+        return res.status(503).json({
+          ok: false,
+          error: "سجل العملاء غير مفعّل على هذا السيرفر",
+        });
+      }
+      const pack = customerLedger.listByDay("finance_link");
+      candidates = (pack.customers || []).map((row) => ({
+        phone: row.phone,
+        countryCode: row.countryCode || "+966",
+        lastOutboundAt: row.lastOutboundAt || null,
+        lastOutboundPreview: row.lastOutboundPreview || "",
+      }));
+    } else {
+      const phones = Array.isArray(req.body?.phones) ? req.body.phones : [];
+      candidates = phones.map((p) => {
+        if (p && typeof p === "object") {
+          return {
+            phone: p.phone,
+            countryCode: p.countryCode,
+            lastOutboundAt: p.lastOutboundAt || null,
+            lastOutboundPreview: p.lastOutboundPreview || "",
+          };
+        }
+        return { phone: p, countryCode: req.body?.countryCode };
+      });
+    }
+
+    if (!candidates.length) {
+      return res.status(400).json({
+        ok: false,
+        error: "لا يوجد عملاء للإرسال (تأكد من تبويب أخذ رابط التمويل)",
+      });
+    }
+
+    const skipMs = safe.skipIfFollowedUpWithinHours * 60 * 60 * 1000;
+    const now = Date.now();
+    const skipped = [];
+    const queue = [];
+    for (const raw of candidates) {
+      const parts = normalizePhoneParts(raw);
+      if (!parts.phone) {
+        skipped.push({ phone: String(raw.phone || ""), reason: "رقم غير صالح" });
+        continue;
+      }
+      if (skipMs > 0 && raw.lastOutboundAt) {
+        const lastAt = Date.parse(raw.lastOutboundAt);
+        if (
+          Number.isFinite(lastAt) &&
+          now - lastAt < skipMs &&
+          looksLikeFollowupMessage(raw.lastOutboundPreview)
+        ) {
+          skipped.push({
+            phone: parts.phone,
+            reason: `تمت المتابعة خلال ${safe.skipIfFollowedUpWithinHours} ساعة`,
+          });
+          continue;
+        }
+      }
+      queue.push(parts);
+    }
+
+    const sendCap = Math.min(batchLimit, dailyRemaining, queue.length);
+    const toSend = queue.slice(0, sendCap);
+    const deferred = queue.slice(sendCap);
+
+    const results = [];
+    for (let i = 0; i < toSend.length; i += 1) {
+      const parts = toSend[i];
       try {
-        if (!parts.phone) throw new Error("رقم غير صالح");
         await sendInteraktText(parts.countryCode, parts.phone, message);
         customerLedger?.recordOutbound?.(
           parts.countryCode,
@@ -754,28 +908,42 @@ function createAdminRouter(deps) {
           message,
           { mode: "admin-bulk-followup" }
         );
+        usage.count += 1;
         results.push({ phone: parts.phone, ok: true });
         pushLog({
           action: "bulk-followup",
           phone: parts.phone,
           countryCode: parts.countryCode,
+          fromOutcome: fromOutcome || null,
         });
       } catch (err) {
         results.push({
-          phone: parts.phone || String(phones[i]),
+          phone: parts.phone,
           ok: false,
           error: err.message,
         });
       }
-      if (i < phones.length - 1 && delayMs > 0) {
+      if (i < toSend.length - 1 && delayMs > 0) {
         await new Promise((r) => setTimeout(r, delayMs));
       }
     }
+
     res.json({
       ok: true,
       sent: results.filter((r) => r.ok).length,
       failed: results.filter((r) => !r.ok).length,
+      skipped: skipped.length,
+      deferred: deferred.length,
+      delayMs,
+      dailyLimit: safe.dailyLimit,
+      dailySent: usage.count,
+      dailyRemaining: Math.max(safe.dailyLimit - usage.count, 0),
       results,
+      skippedDetails: skipped.slice(0, 40),
+      hint:
+        deferred.length > 0
+          ? `تبقّى ${deferred.length} للإرسال لاحقًا (حد الدفعة/اليوم).`
+          : undefined,
     });
   });
 

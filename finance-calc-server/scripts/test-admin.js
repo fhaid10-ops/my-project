@@ -206,6 +206,63 @@ async function req(method, path, body, token = "test-token") {
     "طلب رقم الطلب"
   );
 
+  // عميل أخذ رابط التمويل — للمتابعة الجماعية
+  customerLedger.recordInbound("+966", "550000001", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000001", "أخذ رابط التمويل");
+  customerLedger.recordInbound("+966", "550000002", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000002", "أخذ رابط التمويل");
+  customerLedger.recordInbound("+966", "550000003", "باقة");
+  customerLedger.setOutcomeNotes("+966", "550000003", "أخذ باقة");
+
+  const financeTab = await req("GET", "/customers?day=finance_link");
+  assert.strictEqual(financeTab.status, 200);
+  assert.ok(
+    (financeTab.json.customers || []).some((c) => c.phone === "550000001")
+  );
+  assert.ok(
+    !(financeTab.json.customers || []).some((c) => c.phone === "550000003")
+  );
+  assert.ok((financeTab.json.counts?.finance_link || 0) >= 2);
+
+  const CONFIG = require("../config");
+  const prevOutbound = { ...CONFIG.outbound };
+  CONFIG.outbound = {
+    ...CONFIG.outbound,
+    minDelayMs: 0,
+    delayMs: 0,
+    maxBatchSize: 2,
+    dailyLimit: 3,
+    skipIfFollowedUpWithinHours: 0,
+  };
+
+  const beforeBulk = sent.length;
+  const bulk = await req("POST", "/bulk-followup", {
+    fromOutcome: "finance_link",
+    delayMs: 0,
+    limit: 10,
+  });
+  assert.strictEqual(bulk.status, 200, bulk.json?.error || "bulk ok");
+  assert.strictEqual(bulk.json.sent, 2, "حد الدفعة 2");
+  assert.strictEqual(bulk.json.deferred, 0);
+  assert.ok(sent.length >= beforeBulk + 2);
+  assert.ok(bulk.json.dailySent >= 2);
+
+  const bulk2 = await req("POST", "/bulk-followup", {
+    fromOutcome: "finance_link",
+    delayMs: 0,
+    limit: 10,
+  });
+  assert.strictEqual(bulk2.status, 200);
+  assert.ok(bulk2.json.sent <= 1, "باقي الحصة اليومية");
+
+  const bulk3 = await req("POST", "/bulk-followup", {
+    fromOutcome: "finance_link",
+    delayMs: 0,
+    limit: 10,
+  });
+  assert.strictEqual(bulk3.status, 429, "حد يومي");
+  CONFIG.outbound = prevOutbound;
+
   const menu = await req("POST", "/send-menu", { phone: "0551234567" });
   assert.strictEqual(menu.json.sent, true);
   assert.ok(drafts.has("+966:551234567"));
