@@ -123,6 +123,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 }
 .badge.paused { background: rgba(157,58,45,.12); color: var(--danger); }
 .badge.active { background: var(--accent-soft); color: var(--accent); }
+.badge.followed { background: rgba(184,137,31,.16); color: #8a6414; }
+.badge.pending-follow { background: rgba(13,107,76,.1); color: var(--accent); }
 .work-choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .work-choice {
   border: 1px solid var(--line); background: #fff; color: var(--ink);
@@ -315,6 +317,11 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       </div>
       <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو الطلب أو جهة العمل أو وش صار أو ملاحظة" />
     </div>
+    <div class="btn-row" id="followup-filter-row" style="margin:-4px 0 12px;display:none">
+      <button type="button" class="btn secondary small followup-filter active" data-followup-filter="all">الكل</button>
+      <button type="button" class="btn secondary small followup-filter" data-followup-filter="pending">لم تُرسل متابعة</button>
+      <button type="button" class="btn secondary small followup-filter" data-followup-filter="sent">تمت المتابعة</button>
+    </div>
 
     <div class="card">
       <div class="toolbar">
@@ -348,7 +355,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-13-bulk";
+  const UI_VERSION = "2026-08-14-followup-badge";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -367,6 +374,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   let customerDay = "today";
   let customersCache = [];
   let customersHasMore = false;
+  let followupFilter = "all"; // all | pending | sent
 
   try {
     const url = new URL(location.href);
@@ -426,6 +434,44 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       hour: "2-digit",
       minute: "2-digit",
     });
+  }
+  function looksLikeFollowupMessage(text) {
+    const s = String(text || "");
+    return /هل تم تقديم الطلب/i.test(s) || /ارسل رقم الطلب/i.test(s);
+  }
+  /** نفس منطق التخطي في السيرفر: متابعة خلال 20 ساعة */
+  function followupStatusOf(row, withinHours = 20) {
+    if (!looksLikeFollowupMessage(row?.lastOutboundPreview)) {
+      return { sent: false, label: "لم تُرسل متابعة", at: null };
+    }
+    const at = row.lastOutboundAt ? Date.parse(row.lastOutboundAt) : NaN;
+    if (!Number.isFinite(at)) {
+      return { sent: true, label: "تمت المتابعة", at: row.lastOutboundAt || null };
+    }
+    const ageMs = Date.now() - at;
+    const windowMs = withinHours * 60 * 60 * 1000;
+    if (ageMs <= windowMs) {
+      return {
+        sent: true,
+        recent: true,
+        label: "تمت المتابعة",
+        at: row.lastOutboundAt,
+      };
+    }
+    return {
+      sent: true,
+      recent: false,
+      label: "متابعة سابقة",
+      at: row.lastOutboundAt,
+    };
+  }
+  function followupBadgesHtml(row) {
+    const st = followupStatusOf(row);
+    if (st.sent) {
+      return `<span class="badge followed">${st.label}</span>` +
+        (st.at ? `<div class="meta-line">آخر متابعة: ${formatTime(st.at)}</div>` : "");
+    }
+    return `<span class="badge pending-follow">لم تُرسل متابعة</span>`;
   }
   function displayPhone(row) {
     const phone = row.phone || "";
@@ -569,13 +615,17 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     document.querySelectorAll("#customer-tabs .tab").forEach((t) => {
       t.classList.toggle("active", t.dataset.day === customerDay);
     });
+    const filterRow = document.getElementById("followup-filter-row");
+    if (filterRow) {
+      filterRow.style.display = customerDay === "finance_link" ? "flex" : "none";
+    }
   }
 
   function renderCustomers(rows, counts) {
     const body = document.getElementById("customers-body");
     const q = (customerSearch.value || "").trim().toLowerCase();
-    const filtered = !q
-      ? rows
+    let filtered = !q
+      ? rows.slice()
       : rows.filter((r) => {
           const hay = [
             r.phone,
@@ -589,10 +639,17 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           return hay.includes(q);
         });
 
+    if (customerDay === "finance_link" && followupFilter !== "all") {
+      filtered = filtered.filter((r) => {
+        const sent = followupStatusOf(r).sent;
+        return followupFilter === "sent" ? sent : !sent;
+      });
+    }
+
     if (!filtered.length) {
       const all = counts?.all || 0;
       const tip = all
-        ? " جرّب تبويب «الكل»."
+        ? " جرّب تبويب «الكل» أو فلتر المتابعة."
         : " اضغط «جلب من Interakt» أو انتظر رسائل واتساب، أو استورد بكب.";
       body.innerHTML = `<tr><td colspan="7" class="empty">لا يوجد عملاء في هذا التبويب.${tip}</td></tr>`;
       return;
@@ -606,6 +663,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         <td data-label="الجوال">
           ${phoneWhatsAppLink(row)}
           <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}</div>
+          <div class="meta-line" style="margin-top:6px">${followupBadgesHtml(row)}</div>
         </td>
         <td data-label="تاريخ الإرسال">${formatTime(sendDateOf(row))}</td>
         <td data-label="جهة العمل">${workplaceChoicesHtml(row)}</td>
@@ -788,6 +846,18 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   });
 
   customerSearch.addEventListener("input", () => renderCustomers(customersCache));
+
+  document.getElementById("followup-filter-row")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-followup-filter]");
+    if (!btn) return;
+    followupFilter = btn.dataset.followupFilter || "all";
+    document.querySelectorAll(".followup-filter").forEach((b) => {
+      b.classList.toggle("active", b === btn);
+      b.classList.toggle("primary", b === btn);
+      b.classList.toggle("secondary", b !== btn);
+    });
+    renderCustomers(customersCache);
+  });
 
   document.getElementById("load-more-customers").addEventListener("click", async () => {
     try {
