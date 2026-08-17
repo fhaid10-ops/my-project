@@ -243,11 +243,11 @@ module.exports = {
     branchEmployeePhone: "0595243553",
     /** باقة عقاري + شخصي — عند قبول العرض والتواصل */
     propertyComboAgentName: "عبدالرحمن الرشيدي",
-    propertyComboAgentPhone: "0595243553",
+    propertyComboAgentPhone: "0562393866",
     propertyComboContactFooter: "من طرف عبدالرحمن الرشيدي\nربي يسر أمرك",
     /** إيقاف الخدمات — المندوب عند رغبة العميل بالتواصل */
     serviceStopAgentName: "عبدالرحمن الرشيدي",
-    serviceStopAgentPhone: "0595243553",
+    serviceStopAgentPhone: "0562393866",
     serviceStopContactHint: "من طرف عبدالرحمن الرشيدي",
   },
 

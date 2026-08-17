@@ -717,7 +717,7 @@ function replyPropertyComboDecision(choice) {
     const agentName =
       CONFIG.financing?.propertyComboAgentName || "أبو شايع";
     const agentPhone =
-      CONFIG.financing?.propertyComboAgentPhone || "0501812339";
+      CONFIG.financing?.propertyComboAgentPhone || "0562393866";
     const footer =
       CONFIG.financing?.propertyComboContactFooter ||
       "من طرف رائد الحربي\nربي يسر أمرك";

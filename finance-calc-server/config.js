@@ -17,7 +17,7 @@ module.exports = {
   // ---------------------------------------------------------------------------
   brand: {
     name: "رائد الحربي",
-    contactPhone: "0501812339",
+    contactPhone: "0562393866",
     contactHint: "من طرف رائد الحربي",
     /** أرقام المساعدين — خيار «رقم المساعد» في القائمة */
     assistants: [
@@ -25,7 +25,7 @@ module.exports = {
     ],
     /** عدّل نصوص الخيارات 2 و 4 و 5 من هنا */
     debtPurchaseInfo: `لطلب شراء المديونية فضلاً تواصل معنا على الرقم:
-0501812339
+0562393866
 
 وأرسل:
 من طرف رائد الحربي — شراء مديونية`,
@@ -243,11 +243,11 @@ module.exports = {
     branchEmployeePhone: "0507009290",
     /** باقة عقاري + شخصي — عند قبول العرض والتواصل */
     propertyComboAgentName: "أبو شايع",
-    propertyComboAgentPhone: "0501812339",
+    propertyComboAgentPhone: "0562393866",
     propertyComboContactFooter: "من طرف رائد الحربي\nربي يسر أمرك",
     /** إيقاف الخدمات — المندوب عند رغبة العميل بالتواصل */
     serviceStopAgentName: "أبو شايع",
-    serviceStopAgentPhone: "0501812339",
+    serviceStopAgentPhone: "0562393866",
     serviceStopContactHint: "من طرف رائد الحربي",
   },
 
@@ -690,7 +690,7 @@ ${phone}
         .map((a) => `رقم المساعد — ${a.name}:\n${a.phone}`);
       if (!lines.length) {
         return `رقم المساعد — رائد الحربي:
-0501812339`;
+0562393866`;
       }
       return lines.join("\n\n");
     },

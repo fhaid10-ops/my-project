@@ -368,7 +368,7 @@ function serviceStopInfoReply() {
 • ما عليك عقاري
 • شركة تسددلك جميع التزاماتك
 
-للتواصل: ${CONFIG.brand?.contactPhone || "0501812339"}`;
+للتواصل: ${CONFIG.brand?.contactPhone || "0562393866"}`;
 }
 
 function assistantContactReply() {
@@ -390,7 +390,7 @@ function assistantContactReply() {
   const phone =
     CONFIG.financing?.branchEmployeePhone ||
     CONFIG.brand?.contactPhone ||
-    "0501812339";
+    "0562393866";
   const tpl = CONFIG.templates?.assistantContact;
   if (typeof tpl === "function") return tpl(name, phone);
   return `رقم المساعد — ${name}:

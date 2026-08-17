@@ -72,6 +72,7 @@ const assistant = handleMainMenuChoice("7");
 assert.ok(assistant.reply.includes("عبدالرحمن الرشيدي"));
 assert.ok(assistant.reply.includes("0595243553"));
 assert.ok(!assistant.reply.includes("0501812339"));
+assert.ok(!assistant.reply.includes("0562393866"));
 
 const {
   startServiceStopFlow,
