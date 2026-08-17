@@ -20,7 +20,7 @@ ledger.recordInbound("+966", "508031055", "السلام", {
   flow: "main_menu",
   step: "awaiting_choice",
 });
-ledger.recordOutbound("+966", "508031055", "مرحبا معاك رائد", {
+ledger.recordOutbound("+966", "508031055", "مرحبا معاك عبدالرحمن الرشيدي", {
   mode: "text+interactive",
   flow: "personal_chat",
   companyName: "شركة اختبار",

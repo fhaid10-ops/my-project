@@ -32,6 +32,8 @@ assert.strictEqual(looksLikeMenuShortcut("تمويل"), false);
 
 const welcome = showMainMenu("السلام عليكم");
 assert.ok(welcome.reply.includes("وعليكم السلام"));
+assert.ok(welcome.reply.includes("عبدالرحمن الرشيدي"));
+assert.ok(!welcome.reply.includes("رائد الحربي"));
 assert.ok(welcome.interactive);
 assert.strictEqual(welcome.interactive.kind, "list");
 assert.strictEqual(welcome.interactive.rows.length, 7);
