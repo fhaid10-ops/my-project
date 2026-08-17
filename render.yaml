@@ -1,5 +1,5 @@
-# رفع الكوبري على Render — بدل جهاز البيت + Cloudflare
-# New → Blueprint → ربط GitHub → اختر هذا المستودع
+# رفع الكوبري على Render
+# New → Blueprint → ربط GitHub → اختر مستودع الكوبري
 #
 # بقاء العملاء بعد تحديث الصفحة / إعادة التشغيل / النشر:
 # - هذا الملف يضيف Persistent Disk على /var/data
@@ -10,7 +10,6 @@ services:
   - type: web
     name: finance-calc-kobri
     runtime: node
-    rootDir: finance-calc-server
     plan: starter
     buildCommand: npm install
     startCommand: npm start

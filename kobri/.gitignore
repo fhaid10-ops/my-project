@@ -1,7 +1,0 @@
-node_modules/
-.env
-*.log
-data/customers.json
-data/*.json
-!data/approved-companies.json
-data/backups/
