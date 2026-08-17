@@ -224,8 +224,39 @@ async function req(method, path, body, token = "test-token") {
   );
   assert.ok((financeTab.json.counts?.finance_link || 0) >= 2);
 
+  const statusQuota = await req("GET", "/status");
+  assert.strictEqual(statusQuota.status, 200);
+  assert.ok(
+    (statusQuota.json.outboundSafe?.dailyLimit || 0) >= 250,
+    "الحصة اليومية تغطي قائمة أخذ الرابط (200+)"
+  );
+  assert.ok(
+    (statusQuota.json.outboundSafe?.financeLinkTotal || 0) >= 2,
+    "عدد من أخذوا الرابط"
+  );
+  assert.ok(
+    (statusQuota.json.outboundSafe?.financeLinkPending || 0) >= 2,
+    "بانتظار متابعة"
+  );
+  assert.ok(
+    (statusQuota.json.outboundSafe?.financeLinkEligible || 0) >= 2,
+    "قابل للإرسال الآن"
+  );
+
   const CONFIG = require("../config");
+  assert.ok((CONFIG.outbound?.dailyLimit || 0) >= 250);
   const prevOutbound = { ...CONFIG.outbound };
+  CONFIG.outbound = {
+    ...CONFIG.outbound,
+    dailyLimit: 300,
+  };
+  const highCap = await req("GET", "/status");
+  assert.strictEqual(
+    highCap.json.outboundSafe.dailyLimit,
+    300,
+    "لا يُقص السقف اليومي عند 200"
+  );
+
   CONFIG.outbound = {
     ...CONFIG.outbound,
     minDelayMs: 0,
@@ -246,6 +277,7 @@ async function req(method, path, body, token = "test-token") {
   assert.strictEqual(bulk.json.deferred, 0);
   assert.ok(sent.length >= beforeBulk + 2);
   assert.ok(bulk.json.dailySent >= 2);
+  assert.ok((bulk.json.financeLinkTotal || 0) >= 2);
 
   const bulk2 = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",

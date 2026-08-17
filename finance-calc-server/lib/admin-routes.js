@@ -67,8 +67,8 @@ function createAdminRouter(deps) {
       50
     );
     const dailyLimit = Math.min(
-      Math.max(Number(cfg.dailyLimit || 80), 1),
-      200
+      Math.max(Number(cfg.dailyLimit || 250), 1),
+      400
     );
     const skipIfFollowedUpWithinHours = Math.max(
       Number(
@@ -99,6 +99,34 @@ function createAdminRouter(deps) {
   function looksLikeFollowupMessage(text) {
     const s = String(text || "");
     return /هل تم تقديم الطلب/i.test(s) || /ارسل رقم الطلب/i.test(s);
+  }
+
+  function wasFollowedUpRecently(row, skipMs, now = Date.now()) {
+    if (!(skipMs > 0) || !row?.lastOutboundAt) return false;
+    if (!looksLikeFollowupMessage(row.lastOutboundPreview)) return false;
+    const lastAt = Date.parse(row.lastOutboundAt);
+    return Number.isFinite(lastAt) && now - lastAt < skipMs;
+  }
+
+  function getFinanceLinkFollowupStats() {
+    const safe = getBulkFollowupSafeConfig();
+    const skipMs = safe.skipIfFollowedUpWithinHours * 60 * 60 * 1000;
+    const now = Date.now();
+    const rows = customerLedger?.listByDay?.("finance_link")?.customers || [];
+    let pending = 0;
+    let eligible = 0;
+    let skippedRecent = 0;
+    for (const row of rows) {
+      if (!looksLikeFollowupMessage(row.lastOutboundPreview)) pending += 1;
+      if (wasFollowedUpRecently(row, skipMs, now)) skippedRecent += 1;
+      else eligible += 1;
+    }
+    return {
+      financeLinkTotal: rows.length,
+      financeLinkPending: pending,
+      financeLinkEligible: eligible,
+      financeLinkSkippedRecent: skippedRecent,
+    };
   }
 
   function pushLog(entry) {
@@ -278,6 +306,7 @@ function createAdminRouter(deps) {
           ...safe,
           dailySent: usage.count,
           dailyRemaining: Math.max(safe.dailyLimit - usage.count, 0),
+          ...getFinanceLinkFollowupStats(),
         };
       })(),
     });
@@ -823,7 +852,7 @@ function createAdminRouter(deps) {
     if (dailyRemaining <= 0) {
       return res.status(429).json({
         ok: false,
-        error: `تم بلوغ الحد اليومي للمتابعة الجماعية (${safe.dailyLimit}). كمّل غدًا.`,
+        error: `تم بلوغ الحد اليومي للمتابعة الجماعية (${safe.dailyLimit}). أعد المحاولة غدًا أو ارفع dailyLimit.`,
         dailyLimit: safe.dailyLimit,
         dailySent: usage.count,
       });
@@ -876,19 +905,12 @@ function createAdminRouter(deps) {
         skipped.push({ phone: String(raw.phone || ""), reason: "رقم غير صالح" });
         continue;
       }
-      if (skipMs > 0 && raw.lastOutboundAt) {
-        const lastAt = Date.parse(raw.lastOutboundAt);
-        if (
-          Number.isFinite(lastAt) &&
-          now - lastAt < skipMs &&
-          looksLikeFollowupMessage(raw.lastOutboundPreview)
-        ) {
-          skipped.push({
-            phone: parts.phone,
-            reason: `تمت المتابعة خلال ${safe.skipIfFollowedUpWithinHours} ساعة`,
-          });
-          continue;
-        }
+      if (wasFollowedUpRecently(raw, skipMs, now)) {
+        skipped.push({
+          phone: parts.phone,
+          reason: `تمت المتابعة خلال ${safe.skipIfFollowedUpWithinHours} ساعة`,
+        });
+        continue;
       }
       queue.push(parts);
     }
@@ -928,6 +950,7 @@ function createAdminRouter(deps) {
       }
     }
 
+    const financeStats = getFinanceLinkFollowupStats();
     res.json({
       ok: true,
       sent: results.filter((r) => r.ok).length,
@@ -938,12 +961,15 @@ function createAdminRouter(deps) {
       dailyLimit: safe.dailyLimit,
       dailySent: usage.count,
       dailyRemaining: Math.max(safe.dailyLimit - usage.count, 0),
+      ...financeStats,
       results,
       skippedDetails: skipped.slice(0, 40),
       hint:
         deferred.length > 0
-          ? `تبقّى ${deferred.length} للإرسال لاحقًا (حد الدفعة/اليوم).`
-          : undefined,
+          ? `تبقّى ${deferred.length} بانتظار إرسال هذه الدفعة. أعد الإرسال لإكمال الباقي.`
+          : financeStats.financeLinkPending > 0
+            ? `تبقّى ${financeStats.financeLinkPending} من أخذوا الرابط بدون متابعة.`
+            : undefined,
     });
   });
 

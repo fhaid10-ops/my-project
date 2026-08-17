@@ -252,7 +252,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     <div class="card" id="bulk-followup-card" style="margin-bottom:14px">
       <h3 style="margin:0 0 6px;font-size:1.05rem">متابعة جماعية — أخذ رابط التمويل</h3>
       <p class="muted" style="margin-bottom:12px">
-        يرسل فقط لعملاء «أخذ رابط التمويل»، بتأخير آمن وحد يومي لتقليل خطر الحظر.
+        يرسل لكل عملاء «أخذ رابط التمويل» الذين لم تُرسل لهم متابعة خلال نافذة التخطّي،
+        بتأخير آمن. الحصة اليومية تغطي قائمة أخذ الرابط كاملة (200+).
       </p>
       <label class="field">
         <span>نص الرسالة</span>
@@ -355,7 +356,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-14-followup-badge";
+  const UI_VERSION = "2026-08-17-followup-quota";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -754,9 +755,16 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     const quota = document.getElementById("bulk-followup-quota");
     if (quota) {
       const sent = safe.dailySent ?? 0;
-      const daily = safe.dailyLimit ?? 80;
+      const daily = safe.dailyLimit ?? 250;
       const rem = safe.dailyRemaining ?? Math.max(daily - sent, 0);
+      const linkTotal = safe.financeLinkTotal;
+      const pending = safe.financeLinkPending;
+      const linkPart =
+        linkTotal != null
+          ? `أخذوا الرابط: ${linkTotal} · بانتظار متابعة: ${pending ?? "—"} · `
+          : "";
       quota.textContent =
+        `${linkPart}` +
         `الحصة اليومية: أُرسل ${sent} من ${daily} · المتبقي ${rem}` +
         ` · تخطّي من توبع خلال ${safe.skipIfFollowedUpWithinHours ?? 20} ساعة`;
     }
@@ -1061,7 +1069,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   document.getElementById("bulk-followup-send").addEventListener("click", async () => {
     const statusEl = document.getElementById("bulk-followup-status");
     const delaySec = Math.max(Number(bulkDelay.value || 10), 8);
-    const limit = Math.min(Math.max(Number(bulkLimit.value || 30), 1), 30);
+    const maxBatch = Math.max(Number(bulkLimit.max || 30), 1);
+    const limit = Math.min(Math.max(Number(bulkLimit.value || maxBatch), 1), maxBatch);
     const message = String(bulkMsg.value || "").trim();
     if (!message) {
       alert("اكتب نص رسالة المتابعة أولًا");
@@ -1090,10 +1099,15 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         }),
       });
       statusEl.className = "status ok";
+      const linkHint =
+        result.financeLinkTotal != null
+          ? ` | أخذوا الرابط: ${result.financeLinkTotal} · بانتظار: ${result.financeLinkPending ?? "—"}`
+          : "";
       statusEl.textContent =
         `تم: ${result.sent || 0} | فشل: ${result.failed || 0} | تخطّي: ${result.skipped || 0}` +
         (result.deferred ? ` | مؤجّل: ${result.deferred}` : "") +
         ` | متبقي اليوم: ${result.dailyRemaining ?? "—"}` +
+        linkHint +
         (result.hint ? ` — ${result.hint}` : "");
       await refreshAll();
     } catch (err) {
