@@ -103,6 +103,25 @@ async function req(method, path, body, token = "test-token") {
   assert.strictEqual(phonesOnly.status, 200);
   assert.ok((phonesOnly.json.phones || []).length >= 1);
 
+  const pastDay = "2026-08-11";
+  const datedRow = customerLedger._customers.get("+966:551234567");
+  const prevLast = datedRow.lastSeenAt;
+  const prevFirst = datedRow.firstSeenAt;
+  const prevSynced = datedRow.syncedAt;
+  datedRow.lastSeenAt = `${pastDay}T12:00:00.000Z`;
+  datedRow.firstSeenAt = `${pastDay}T12:00:00.000Z`;
+  datedRow.syncedAt = null;
+  const byDate = await req("GET", `/customers?day=${pastDay}`);
+  assert.strictEqual(byDate.status, 200);
+  assert.strictEqual(byDate.json.day, pastDay);
+  assert.ok(
+    byDate.json.customers.some((c) => c.phone === "551234567"),
+    "يمكن تحديد تاريخ للسجل"
+  );
+  datedRow.lastSeenAt = prevLast;
+  datedRow.firstSeenAt = prevFirst;
+  datedRow.syncedAt = prevSynced;
+
   const notes = await req("POST", "/customers/notes", {
     phone: "0551234567",
     notes: "عميل متابع",

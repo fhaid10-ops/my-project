@@ -123,6 +123,21 @@ assert.strictEqual(
 ledger.setFollowupPlus("+966", "508031055", false);
 assert.strictEqual(ledger._customers.get("+966:508031055").followupPlus, false);
 
+const pastDay = shiftDayKey(today, -5);
+const row = ledger._customers.get("+966:508031055");
+row.lastSeenAt = `${pastDay}T12:00:00.000Z`;
+row.firstSeenAt = `${pastDay}T12:00:00.000Z`;
+row.syncedAt = null;
+const dated = ledger.listByDay(pastDay);
+assert.strictEqual(dated.day, pastDay);
+assert.ok(
+  dated.customers.some((c) => c.phone === "508031055"),
+  "السجل يظهر حسب التاريخ المحدد"
+);
+assert.ok(!ledger.listByDay("today").customers.some((c) => c.phone === "508031055"));
+row.lastSeenAt = new Date().toISOString();
+row.firstSeenAt = row.lastSeenAt;
+
 const exported = ledger.exportPayload();
 assert.strictEqual(exported.kind, "raed-customer-ledger");
 assert.ok(exported.count >= 1);

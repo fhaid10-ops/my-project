@@ -88,6 +88,20 @@ textarea { min-height: 110px; resize: vertical; }
   align-items: center; margin-bottom: 12px;
 }
 .search { min-width: min(280px, 100%); }
+.ledger-date-bar {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: end;
+  margin: 0 0 12px;
+}
+.ledger-date-bar .field { margin: 0; }
+.ledger-date-bar input[type="date"] {
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 10px; min-height: 44px; min-width: 168px;
+  background: #fff; color: var(--ink); font-weight: 600;
+}
+.ledger-date-bar input[type="date"].picking {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td {
@@ -178,6 +192,9 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   .btn-row { width: 100%; }
   .btn-row .btn { flex: 1 1 calc(50% - 6px); min-width: 140px; }
   .search { min-width: 100%; width: 100%; }
+  .ledger-date-bar { width: 100%; }
+  .ledger-date-bar .field { width: 100%; }
+  .ledger-date-bar input[type="date"] { width: 100%; min-width: 0; }
   .tabs { width: 100%; }
   .tab { flex: 1 1 auto; text-align: center; min-height: 54px; justify-content: center; }
   .toolbar { align-items: stretch; }
@@ -329,6 +346,14 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       </div>
       <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو الطلب أو جهة العمل أو وش صار أو ملاحظة" />
     </div>
+    <div class="ledger-date-bar">
+      <label class="field">
+        <span>تاريخ السجل</span>
+        <input id="ledger-date" type="date" />
+      </label>
+      <button id="ledger-date-prev" class="btn secondary small" type="button">يوم سابق</button>
+      <button id="ledger-date-next" class="btn secondary small" type="button">يوم لاحق</button>
+    </div>
     <div class="card" id="manual-add-card" style="margin-bottom:12px;display:none">
       <h3 style="margin:0 0 8px;font-size:1.05rem">رفع يدوي</h3>
       <p class="muted" style="margin-bottom:12px">حوّل أي عميل إلى هذا القسم بزر «يدوي»، أو أضف رقماً جديداً هنا.</p>
@@ -370,7 +395,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       <div class="toolbar">
         <p class="muted" id="customers-meta" style="margin:0">—</p>
         <div class="btn-row">
-          <button id="copy-today-phones" class="btn secondary small" type="button">نسخ أرقام اليوم</button>
+          <button id="copy-today-phones" class="btn secondary small" type="button">نسخ الأرقام</button>
           <button id="load-more-customers" class="btn secondary small" type="button" hidden>تحميل المزيد</button>
         </div>
       </div>
@@ -447,7 +472,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-18-followup-plus-tab";
+  const UI_VERSION = "2026-08-18-ledger-date";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -469,6 +494,44 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   let customerDay = "today";
   let customersCache = [];
   let customersHasMore = false;
+
+  function riyadhDayKey(d = new Date()) {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Riyadh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  }
+  function shiftDayKey(dayKey, deltaDays) {
+    const [y, m, d] = String(dayKey).split("-").map(Number);
+    const utc = new Date(Date.UTC(y, m - 1, d));
+    utc.setUTCDate(utc.getUTCDate() + deltaDays);
+    const yy = utc.getUTCFullYear();
+    const mm = String(utc.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(utc.getUTCDate()).padStart(2, "0");
+    return `${yy}-${mm}-${dd}`;
+  }
+  function isIsoDay(day) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(day || ""));
+  }
+  function isDayFilter(day) {
+    return day === "today" || day === "yesterday" || isIsoDay(day);
+  }
+  function dayFromPicker(iso) {
+    const today = riyadhDayKey();
+    const yesterday = shiftDayKey(today, -1);
+    if (iso === today) return "today";
+    if (iso === yesterday) return "yesterday";
+    return iso;
+  }
+  function isoForCustomerDay(day) {
+    const today = riyadhDayKey();
+    if (day === "today") return today;
+    if (day === "yesterday") return shiftDayKey(today, -1);
+    if (isIsoDay(day)) return day;
+    return today;
+  }
 
   try {
     const url = new URL(location.href);
@@ -740,6 +803,13 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     if (rejectedCard) rejectedCard.style.display = customerDay === "rejected" ? "block" : "none";
     const plusCard = document.getElementById("plus-add-card");
     if (plusCard) plusCard.style.display = customerDay === "finance_link_plus" ? "block" : "none";
+    const dateInput = document.getElementById("ledger-date");
+    if (dateInput) {
+      const today = riyadhDayKey();
+      dateInput.max = today;
+      dateInput.value = isoForCustomerDay(customerDay);
+      dateInput.classList.toggle("picking", isDayFilter(customerDay));
+    }
   }
 
   function renderCustomers(rows, counts) {
@@ -817,6 +887,12 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
               ? "رفض"
               : pack.day === "finance_link_plus"
                 ? "رابط — متابعة بلس"
+              : pack.day === pack.today
+                ? `اليوم · ${pack.day}`
+                : pack.day === pack.yesterday
+                  ? `أمس · ${pack.day}`
+                  : isIsoDay(pack.day)
+                    ? `تاريخ ${pack.day}`
               : OUTCOME_TAB_LABELS[pack.day] || pack.outcome || pack.day;
     document.getElementById("customers-meta").textContent =
       `عرض ${shown} من ${total} · ${dayLabel} · ${pack.timezone || "Asia/Riyadh"}` +
@@ -1017,6 +1093,29 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     });
   });
 
+  async function openLedgerDate(iso) {
+    const today = riyadhDayKey();
+    let next = String(iso || "").trim();
+    if (!isIsoDay(next)) next = today;
+    if (next > today) next = today;
+    setCustomerTab(dayFromPicker(next));
+    await refreshCustomers({ append: false }).catch((err) => {
+      showError(err.message);
+      alert(err.message);
+    });
+  }
+  document.getElementById("ledger-date").addEventListener("change", () => {
+    openLedgerDate(document.getElementById("ledger-date").value);
+  });
+  document.getElementById("ledger-date-prev").addEventListener("click", () => {
+    const current = document.getElementById("ledger-date").value || riyadhDayKey();
+    openLedgerDate(shiftDayKey(current, -1));
+  });
+  document.getElementById("ledger-date-next").addEventListener("click", () => {
+    const current = document.getElementById("ledger-date").value || riyadhDayKey();
+    openLedgerDate(shiftDayKey(current, 1));
+  });
+
   customerSearch.addEventListener("input", () => renderCustomers(customersCache));
 
   document.getElementById("load-more-customers").addEventListener("click", async () => {
@@ -1029,10 +1128,11 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
   document.getElementById("copy-today-phones").addEventListener("click", async () => {
     try {
-      const pack = await api("/customers?day=today&phonesOnly=1");
+      const day = isDayFilter(customerDay) ? customerDay : "today";
+      const pack = await api(`/customers?day=${encodeURIComponent(day)}&phonesOnly=1`);
       const phones = (pack.phones || []).map((r) => displayPhone(r)).join("\n");
       await navigator.clipboard.writeText(phones || "");
-      alert(phones ? `تم نسخ ${pack.count} رقم` : "لا توجد أرقام اليوم");
+      alert(phones ? `تم نسخ ${pack.count} رقم` : "لا توجد أرقام في هذا التاريخ");
     } catch (err) {
       alert(err.message);
     }
@@ -1435,6 +1535,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     showPage(location.hash === "#followup" ? "followup" : "home", { push: false });
   });
   showPage(location.hash === "#followup" ? "followup" : "home", { push: false });
+  setCustomerTab(customerDay);
 
   refreshAll().catch((err) => {
     showError(err.message);
