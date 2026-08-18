@@ -577,12 +577,25 @@ function finishPersonalFlow(state) {
   };
 }
 
+/** ضغط مدني/متقاعد/عسكري بدون مسودة حيّة — نكمل الحسبة بدل السكوت */
+function resumeFromSectorReply(text, draft) {
+  const jobCategory = mapSector(text);
+  if (!jobCategory) return null;
+  const state = {
+    ...(draft && typeof draft === "object" ? draft : {}),
+    flow: "personal_chat",
+    step: "sector",
+  };
+  return afterSectorSelected(state, jobCategory, salaryPrompt(jobCategory));
+}
+
 module.exports = {
   looksLikeStartPersonalFinance,
   startPersonalFinanceFlow,
   advancePersonalFinanceFlow,
   advanceCivilianSubtypeFlow,
   afterSectorSelected,
+  resumeFromSectorReply,
   realEstateInteractive,
   parseRealEstateChoice,
   parseSalaryReply,

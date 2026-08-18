@@ -31,6 +31,7 @@ const {
   looksLikeStartPersonalFinance,
   startPersonalFinanceFlow,
   advancePersonalFinanceFlow,
+  resumeFromSectorReply,
 } = require("./lib/conversation");
 const {
   looksLikeStartDebtPurchase,
@@ -57,10 +58,14 @@ const {
   handleAmountExamplesPick,
   looksLikeAmountExamplesCta,
 } = require("./lib/amount-examples");
-const { extractIncomingMessage } = require("./lib/webhook-parse");
+const {
+  extractIncomingMessage,
+  hasInteractiveCustomerClick,
+} = require("./lib/webhook-parse");
 const { normalizeDigits } = require("./lib/digits");
 const { mountAdmin } = require("./lib/admin-routes");
 const { createCustomerLedger } = require("./lib/customer-ledger");
+const { createChatState } = require("./lib/chat-state");
 const { detectCustomerOutcome } = require("./lib/customer-outcome");
 const {
   looksLikeApplicationOrderNumber,
@@ -86,74 +91,21 @@ const INTERAKT_API_KEY = normalizeEnvValue(process.env.INTERAKT_API_KEY);
 const WEBHOOK_SECRET = normalizeEnvValue(process.env.WEBHOOK_SECRET);
 const ADMIN_TOKEN = normalizeEnvValue(process.env.ADMIN_TOKEN);
 
-/** جلسات مؤقتة: phone -> نتيجة الحسبة (أعلى مبلغ + نسبة) */
-const sessions = new Map();
-/** مسودات ناقصة: phone -> بيانات الراتب/الالتزامات بانتظار القطاع */
-const drafts = new Map();
-/** محادثات أوقف العميل فيها الرد الآلي (خيار 6) */
-const pausedChats = new Set();
-const SESSION_TTL_MS = 1000 * 60 * 60 * 6; // 6 ساعات
 const customerLedger = createCustomerLedger();
-
-function sessionKey(countryCode, phone) {
-  return `${countryCode}:${phone}`;
-}
-
-function saveSession(countryCode, phone, data) {
-  sessions.set(sessionKey(countryCode, phone), {
-    data,
-    savedAt: Date.now(),
-  });
-}
-
-function getSession(countryCode, phone) {
-  const key = sessionKey(countryCode, phone);
-  const row = sessions.get(key);
-  if (!row) return null;
-  if (Date.now() - row.savedAt > SESSION_TTL_MS) {
-    sessions.delete(key);
-    return null;
-  }
-  return row.data;
-}
-
-function saveDraft(countryCode, phone, data) {
-  drafts.set(sessionKey(countryCode, phone), {
-    data,
-    savedAt: Date.now(),
-  });
-}
-
-function getDraft(countryCode, phone) {
-  const key = sessionKey(countryCode, phone);
-  const row = drafts.get(key);
-  if (!row) return null;
-  if (Date.now() - row.savedAt > SESSION_TTL_MS) {
-    drafts.delete(key);
-    return null;
-  }
-  return row.data;
-}
-
-function clearDraft(countryCode, phone) {
-  drafts.delete(sessionKey(countryCode, phone));
-}
-
-function clearSession(countryCode, phone) {
-  sessions.delete(sessionKey(countryCode, phone));
-}
-
-function isChatPaused(countryCode, phone) {
-  return pausedChats.has(sessionKey(countryCode, phone));
-}
-
-function pauseChat(countryCode, phone) {
-  pausedChats.add(sessionKey(countryCode, phone));
-}
-
-function resumeChat(countryCode, phone) {
-  pausedChats.delete(sessionKey(countryCode, phone));
-}
+const chatState = createChatState();
+const sessions = chatState.sessions;
+const drafts = chatState.drafts;
+const pausedChats = chatState.pausedChats;
+const sessionKey = chatState.sessionKey;
+const saveSession = chatState.saveSession;
+const getSession = chatState.getSession;
+const saveDraft = chatState.saveDraft;
+const getDraft = chatState.getDraft;
+const clearDraft = chatState.clearDraft;
+const clearSession = chatState.clearSession;
+const isChatPaused = chatState.isChatPaused;
+const pauseChat = chatState.pauseChat;
+const resumeChat = chatState.resumeChat;
 
 function applyApplicationOrderNumber(countryCode, phone, orderNumber) {
   const prev = getSession(countryCode, phone) || {};
@@ -426,10 +378,12 @@ app.post("/webhook/interakt", async (req, res) => {
       /^(message_api_sent|message_api_delivered|message_api_read|message_api_failed|message_campaign_)/i;
     const staffMenuShortcut =
       isOutboundSent && phone && text && looksLikeMenuShortcut(text);
+    const interactiveClick = hasInteractiveCustomerClick(payload);
     if (
       type &&
       ignoredTypes.test(String(type)) &&
       !payload?.data?.message?.button_text &&
+      !interactiveClick &&
       !staffMenuShortcut
     ) {
       return;
@@ -768,16 +722,22 @@ app.post("/webhook/interakt", async (req, res) => {
         if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
     } else if (looksLikeSectorOnlyReply(text)) {
-      if (!draft) return;
-      const merged = {
-        ...draft,
-        sectorRaw: text,
-        jobCategory: mapSector(text),
-      };
-      result = calculatePersonalFinance(merged);
-      if (result.ok && result.data) {
-        clearDraft(countryCode, phone);
-        saveSession(countryCode, phone, result.data);
+      // ضغط مدني/متقاعد/عسكري بعد ما تروح المسودة (نشر أو أزرار Interakt)
+      const hasSalary = Number(draft?.salary) > 0;
+      if (hasSalary) {
+        const merged = {
+          ...draft,
+          sectorRaw: text,
+          jobCategory: mapSector(text),
+        };
+        result = calculatePersonalFinance(merged);
+        if (result.ok && result.data) {
+          clearDraft(countryCode, phone);
+          saveSession(countryCode, phone, result.data);
+        }
+      } else {
+        result = resumeFromSectorReply(text, draft);
+        if (result?.draft) saveDraft(countryCode, phone, result.draft);
       }
     } else if (looksLikeAmountChoice(text)) {
       const sessionData = getSession(countryCode, phone);
@@ -808,6 +768,7 @@ app.post("/webhook/interakt", async (req, res) => {
         if (result.draft) saveDraft(countryCode, phone, result.draft);
       }
     } else {
+      console.log("[webhook:unhandled]", phone, String(text || "").slice(0, 80));
       return;
     }
 
@@ -912,9 +873,10 @@ mountAdmin(app, {
 
 function gracefulShutdown(signal) {
   try {
+    chatState.flush();
     customerLedger.createSnapshot(`shutdown-${signal}`);
     customerLedger.flush();
-    console.log(`[shutdown] تم حفظ سجل العملاء قبل الإيقاف (${signal})`);
+    console.log(`[shutdown] تم حفظ المسودات وسجل العملاء قبل الإيقاف (${signal})`);
   } catch (err) {
     console.error("[shutdown:ledger]", err.message);
   }

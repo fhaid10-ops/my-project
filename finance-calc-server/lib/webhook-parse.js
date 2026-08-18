@@ -288,10 +288,31 @@ function looksLikeIncomingImage(contentType, mediaUrl, messageObj = {}) {
   return false;
 }
 
+function hasInteractiveCustomerClick(payload = {}) {
+  const data = payload?.data || payload || {};
+  const messageObj = data.message || {};
+  if (asTrimmedString(messageObj.button_text)) return true;
+  const interactive =
+    messageObj.interactive ||
+    messageObj.meta_data?.interactive ||
+    messageObj.metadata?.interactive ||
+    {};
+  if (interactive.button_reply || interactive.list_reply) return true;
+  if (messageObj.button_reply || messageObj.list_reply) return true;
+  const type = String(
+    messageObj.message_content_type || messageObj.type || ""
+  ).toLowerCase();
+  if (/interactive|buttonreply|listreply|button_reply|list_reply/.test(type)) {
+    return true;
+  }
+  return false;
+}
+
 module.exports = {
   normalizeIncomingText,
   pickInteractiveLabel,
   extractIncomingMessage,
   pickMediaUrl,
   looksLikeIncomingImage,
+  hasInteractiveCustomerClick,
 };

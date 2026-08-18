@@ -272,6 +272,47 @@ check("تعليق الصورة يبقى نصاً مع الرابط", () => {
   assert.strictEqual(got.isImage, true);
 });
 
+check("ضغط عسكري بدون مسودة يسأل الراتب بدل السكوت", () => {
+  const {
+    resumeFromSectorReply,
+    salaryPrompt,
+  } = require("../lib/conversation");
+  const military = resumeFromSectorReply("عسكري", null);
+  assert.ok(military);
+  assert.strictEqual(military.draft.jobCategory, "military");
+  assert.strictEqual(military.draft.step, "salary");
+  assert.strictEqual(military.reply, salaryPrompt("military"));
+  const civilian = resumeFromSectorReply("مدني");
+  assert.strictEqual(civilian.draft.step, "civilian_subtype");
+  assert.ok(civilian.interactive);
+});
+
+check("ضغط زر بدون button_text يُعتبر نقرة عميل", () => {
+  const { hasInteractiveCustomerClick } = require("../lib/webhook-parse");
+  assert.strictEqual(
+    hasInteractiveCustomerClick({
+      type: "message_api_sent",
+      data: {
+        message: {
+          message_content_type: "InteractiveButtonReply",
+          interactive: {
+            type: "button_reply",
+            button_reply: { id: "military", title: "عسكري" },
+          },
+        },
+      },
+    }),
+    true
+  );
+  assert.strictEqual(
+    hasInteractiveCustomerClick({
+      type: "message_api_delivered",
+      data: { message: { message_content_type: "Text", message: "ok" } },
+    }),
+    false
+  );
+});
+
 if (!process.exitCode) {
   console.log("\nكل اختبارات webhook-parse نجحت");
 }
