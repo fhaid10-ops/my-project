@@ -283,9 +283,13 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <span class="tab-label">الكل</span>
           <span class="tab-count" id="tab-count-all">—</span>
         </button>
-        <button class="tab" data-day="finance_link" type="button">
-          <span class="tab-label">أخذ رابط التمويل</span>
-          <span class="tab-count" id="tab-count-finance_link">—</span>
+        <button class="tab" data-day="finance_link_pending" type="button">
+          <span class="tab-label">رابط — بدون متابعة</span>
+          <span class="tab-count" id="tab-count-finance_link_pending">—</span>
+        </button>
+        <button class="tab" data-day="finance_link_sent" type="button">
+          <span class="tab-label">رابط — تمت المتابعة</span>
+          <span class="tab-count" id="tab-count-finance_link_sent">—</span>
         </button>
         <button class="tab" data-day="order_number" type="button">
           <span class="tab-label">رقم طلب</span>
@@ -309,11 +313,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         </button>
       </div>
       <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو الطلب أو جهة العمل أو وش صار أو ملاحظة" />
-    </div>
-    <div class="btn-row" id="followup-filter-row" style="margin:-4px 0 12px;display:none">
-      <button type="button" class="btn secondary small followup-filter active" data-followup-filter="all">الكل</button>
-      <button type="button" class="btn secondary small followup-filter" data-followup-filter="pending">لم تُرسل متابعة</button>
-      <button type="button" class="btn secondary small followup-filter" data-followup-filter="sent">تمت المتابعة</button>
     </div>
 
     <div class="card">
@@ -382,7 +381,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-18-followup-page";
+  const UI_VERSION = "2026-08-18-finance-link-split";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -392,6 +391,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   ];
   const OUTCOME_TAB_LABELS = {
     finance_link: "أخذ رابط التمويل",
+    finance_link_pending: "رابط — بدون متابعة",
+    finance_link_sent: "رابط — تمت المتابعة",
     order_number: "رقم طلب",
     package: "أخذ باقة",
     limit_exhausted: "مستنفذ حد",
@@ -401,7 +402,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   let customerDay = "today";
   let customersCache = [];
   let customersHasMore = false;
-  let followupFilter = "all"; // all | pending | sent
 
   try {
     const url = new URL(location.href);
@@ -621,7 +621,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     set("tab-count-today", today);
     set("tab-count-yesterday", yesterday);
     set("tab-count-all", all);
-    set("tab-count-finance_link", counts?.finance_link ?? counts?.customersFinanceLink);
+    set("tab-count-finance_link_pending", counts?.finance_link_pending ?? counts?.customersFinanceLinkPending);
+    set("tab-count-finance_link_sent", counts?.finance_link_sent ?? counts?.customersFinanceLinkSent);
     set("tab-count-order_number", counts?.order_number ?? counts?.customersOrderNumber);
     set("tab-count-package", counts?.package ?? counts?.customersPackage);
     set("tab-count-limit_exhausted", counts?.limit_exhausted ?? counts?.customersLimitExhausted);
@@ -663,10 +664,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     document.querySelectorAll("#customer-tabs .tab").forEach((t) => {
       t.classList.toggle("active", t.dataset.day === customerDay);
     });
-    const filterRow = document.getElementById("followup-filter-row");
-    if (filterRow) {
-      filterRow.style.display = customerDay === "finance_link" ? "flex" : "none";
-    }
   }
 
   function renderCustomers(rows, counts) {
@@ -687,17 +684,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           return hay.includes(q);
         });
 
-    if (customerDay === "finance_link" && followupFilter !== "all") {
-      filtered = filtered.filter((r) => {
-        const sent = followupStatusOf(r).sent;
-        return followupFilter === "sent" ? sent : !sent;
-      });
-    }
-
     if (!filtered.length) {
       const all = counts?.all || 0;
       const tip = all
-        ? " جرّب تبويب «الكل» أو فلتر المتابعة."
+        ? " جرّب تبويب «الكل»."
         : " اضغط «جلب من Interakt» أو انتظر رسائل واتساب، أو استورد بكب.";
       body.innerHTML = `<tr><td colspan="7" class="empty">لا يوجد عملاء في هذا التبويب.${tip}</td></tr>`;
       return;
@@ -908,18 +898,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   });
 
   customerSearch.addEventListener("input", () => renderCustomers(customersCache));
-
-  document.getElementById("followup-filter-row")?.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-followup-filter]");
-    if (!btn) return;
-    followupFilter = btn.dataset.followupFilter || "all";
-    document.querySelectorAll(".followup-filter").forEach((b) => {
-      b.classList.toggle("active", b === btn);
-      b.classList.toggle("primary", b === btn);
-      b.classList.toggle("secondary", b !== btn);
-    });
-    renderCustomers(customersCache);
-  });
 
   document.getElementById("load-more-customers").addEventListener("click", async () => {
     try {

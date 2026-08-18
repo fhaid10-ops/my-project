@@ -213,6 +213,13 @@ async function req(method, path, body, token = "test-token") {
   customerLedger.setOutcomeNotes("+966", "550000002", "أخذ رابط التمويل");
   customerLedger.recordInbound("+966", "550000003", "باقة");
   customerLedger.setOutcomeNotes("+966", "550000003", "أخذ باقة");
+  customerLedger.recordInbound("+966", "550000004", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000004", "أخذ رابط التمويل");
+  customerLedger.recordOutbound(
+    "+966",
+    "550000004",
+    "السلام عليكم / هل تم تقديم الطلب / في حال تم التقديم ارسل رقم الطلب"
+  );
 
   const financeTab = await req("GET", "/customers?day=finance_link");
   assert.strictEqual(financeTab.status, 200);
@@ -222,7 +229,26 @@ async function req(method, path, body, token = "test-token") {
   assert.ok(
     !(financeTab.json.customers || []).some((c) => c.phone === "550000003")
   );
-  assert.ok((financeTab.json.counts?.finance_link || 0) >= 2);
+  assert.ok((financeTab.json.counts?.finance_link || 0) >= 3);
+
+  const pendingTab = await req("GET", "/customers?day=finance_link_pending");
+  assert.strictEqual(pendingTab.status, 200);
+  assert.ok((pendingTab.json.customers || []).some((c) => c.phone === "550000001"));
+  assert.ok((pendingTab.json.customers || []).some((c) => c.phone === "550000002"));
+  assert.ok(
+    !(pendingTab.json.customers || []).some((c) => c.phone === "550000004"),
+    "من أُرسلت له متابعة لا يظهر في تبويب بدون متابعة"
+  );
+  assert.ok((pendingTab.json.counts?.finance_link_pending || 0) >= 2);
+
+  const sentTab = await req("GET", "/customers?day=finance_link_sent");
+  assert.strictEqual(sentTab.status, 200);
+  assert.ok((sentTab.json.customers || []).some((c) => c.phone === "550000004"));
+  assert.ok(
+    !(sentTab.json.customers || []).some((c) => c.phone === "550000001"),
+    "بدون متابعة لا يظهر في تبويب تمت المتابعة"
+  );
+  assert.ok((sentTab.json.counts?.finance_link_sent || 0) >= 1);
 
   const statusQuota = await req("GET", "/status");
   assert.strictEqual(statusQuota.status, 200);
@@ -274,7 +300,7 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(bulk.status, 200, bulk.json?.error || "bulk ok");
   assert.strictEqual(bulk.json.sent, 2, "حد الدفعة 2");
-  assert.strictEqual(bulk.json.deferred, 0);
+  assert.strictEqual(bulk.json.deferred, 1, "الثالث يُؤجّل بعد حد الدفعة");
   assert.ok(sent.length >= beforeBulk + 2);
   assert.ok(bulk.json.dailySent >= 2);
   assert.ok((bulk.json.financeLinkTotal || 0) >= 2);
