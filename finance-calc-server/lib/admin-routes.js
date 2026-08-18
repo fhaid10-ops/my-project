@@ -124,8 +124,19 @@ function createAdminRouter(deps) {
     return {
       financeLinkTotal: rows.length,
       financeLinkPending: pending,
+      financeLinkSent: Math.max(rows.length - pending, 0),
       financeLinkEligible: eligible,
       financeLinkSkippedRecent: skippedRecent,
+    };
+  }
+
+  function withFinanceLinkCounts(counts) {
+    const stats = getFinanceLinkFollowupStats();
+    return {
+      ...(counts || {}),
+      finance_link: stats.financeLinkTotal,
+      finance_link_pending: stats.financeLinkPending,
+      finance_link_sent: stats.financeLinkSent,
     };
   }
 
@@ -275,6 +286,7 @@ function createAdminRouter(deps) {
   router.get("/status", requireAdmin, (_req, res) => {
     const ledgerSummary = customerLedger?.summary?.() || null;
     const persistence = customerLedger?.persistenceInfo?.() || null;
+    const financeStats = getFinanceLinkFollowupStats();
     res.json({
       ok: true,
       service: "finance-calc-server",
@@ -292,7 +304,9 @@ function createAdminRouter(deps) {
         customersPackage: ledgerSummary?.counts?.package || 0,
         customersLimitExhausted: ledgerSummary?.counts?.limit_exhausted || 0,
         customersServiceStop: ledgerSummary?.counts?.service_stop || 0,
-        customersFinanceLink: ledgerSummary?.counts?.finance_link || 0,
+        customersFinanceLink: financeStats.financeLinkTotal,
+        customersFinanceLinkPending: financeStats.financeLinkPending,
+        customersFinanceLinkSent: financeStats.financeLinkSent,
       },
       customers: ledgerSummary,
       persistence,
@@ -318,7 +332,7 @@ function createAdminRouter(deps) {
 
   /**
    * عملاء اليوم / أمس / الكل / حسب «وش صار» / الأرشيف
-   * ?day=today|yesterday|all|archive|finance_link|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
+   * ?day=today|yesterday|all|archive|finance_link|finance_link_pending|finance_link_sent|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
    * ?limit=&offset= للصفحات (افتراضي 100) — يقلل ثقل الجوال
    * ?phonesOnly=1 لنسخ الأرقام فقط
    */
@@ -329,9 +343,28 @@ function createAdminRouter(deps) {
         error: "سجل العملاء غير مفعّل على هذا السيرفر",
       });
     }
-    const day = String(req.query.day || "today").trim() || "today";
+    const rawDay = String(req.query.day || "today").trim() || "today";
+    let day = rawDay;
+    let followupSplit = null;
+    if (rawDay === "finance_link_pending") {
+      day = "finance_link";
+      followupSplit = "pending";
+    } else if (rawDay === "finance_link_sent") {
+      day = "finance_link";
+      followupSplit = "sent";
+    }
     const pack = customerLedger.listByDay(day);
     const summary = customerLedger.summary();
+    let customers = pack.customers || [];
+    if (followupSplit === "pending") {
+      customers = customers.filter(
+        (row) => !looksLikeFollowupMessage(row.lastOutboundPreview)
+      );
+    } else if (followupSplit === "sent") {
+      customers = customers.filter((row) =>
+        looksLikeFollowupMessage(row.lastOutboundPreview)
+      );
+    }
     const phonesOnly =
       req.query.phonesOnly === "1" || req.query.phonesOnly === "true";
     if (phonesOnly) {
@@ -340,17 +373,17 @@ function createAdminRouter(deps) {
         timezone: pack.timezone,
         today: pack.today,
         yesterday: pack.yesterday,
-        day: pack.day,
-        count: pack.count,
-        counts: summary.counts,
-        phones: pack.customers.map((row) => ({
+        day: rawDay,
+        count: customers.length,
+        counts: withFinanceLinkCounts(summary.counts),
+        phones: customers.map((row) => ({
           phone: row.phone,
           countryCode: row.countryCode,
         })),
       });
     }
 
-    const total = pack.customers.length;
+    const total = customers.length;
     const wantAll =
       req.query.limit === "all" ||
       req.query.limit === "0" ||
@@ -359,7 +392,7 @@ function createAdminRouter(deps) {
       ? total
       : Math.min(Math.max(Number(req.query.limit || 100), 1), 500);
     const offset = Math.max(Number(req.query.offset || 0), 0);
-    const slice = pack.customers.slice(offset, offset + limit);
+    const slice = customers.slice(offset, offset + limit);
     const enriched = slice.map((row) => {
       const key = sessionKey(row.countryCode, row.phone);
       const sessionRow = sessions.get(key);
@@ -428,12 +461,12 @@ function createAdminRouter(deps) {
       timezone: pack.timezone,
       today: pack.today,
       yesterday: pack.yesterday,
-      day: pack.day,
+      day: followupSplit ? rawDay : pack.day,
       count: total,
       offset,
       limit: wantAll ? total : limit,
       hasMore: offset + enriched.length < total,
-      counts: summary.counts,
+      counts: withFinanceLinkCounts(summary.counts),
       customers: enriched,
       persistence: customerLedger.persistenceInfo?.() || null,
     });
