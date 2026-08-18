@@ -241,17 +241,57 @@ function extractIncomingMessage(payload) {
     }
   }
 
+  const mediaUrl = pickMediaUrl(messageObj, data);
+  const contentType = String(
+    messageObj.message_content_type || messageObj.type || data?.message_content_type || ""
+  );
+
   return {
     text: String(text || ""),
     phone,
     countryCode,
-    contentType: messageObj.message_content_type || messageObj.type || "",
+    contentType,
+    mediaUrl,
+    isImage: looksLikeIncomingImage(contentType, mediaUrl, messageObj),
     eventType: payload?.type || payload?.event || "",
   };
+}
+
+function pickMediaUrl(messageObj = {}, data = {}) {
+  const meta = messageObj.meta_data || messageObj.metadata || {};
+  const candidates = [
+    messageObj.media_url,
+    messageObj.mediaUrl,
+    messageObj.file_url,
+    messageObj.image_url,
+    data.media_url,
+    meta.media_url,
+    messageObj?.image?.url,
+    messageObj?.image?.link,
+    messageObj?.media?.url,
+  ];
+  for (const c of candidates) {
+    const s = asTrimmedString(c);
+    if (/^https?:\/\//i.test(s)) return s;
+  }
+  return "";
+}
+
+function looksLikeIncomingImage(contentType, mediaUrl, messageObj = {}) {
+  const type = String(contentType || "").toLowerCase();
+  if (/image|photo|jpeg|jpg|png|webp|gif/.test(type)) return true;
+  const mime = String(
+    messageObj.mime_type || messageObj.mimetype || messageObj?.image?.mime_type || ""
+  ).toLowerCase();
+  if (mime.startsWith("image/")) return true;
+  if (mediaUrl && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(mediaUrl)) return true;
+  return false;
 }
 
 module.exports = {
   normalizeIncomingText,
   pickInteractiveLabel,
   extractIncomingMessage,
+  pickMediaUrl,
+  looksLikeIncomingImage,
 };

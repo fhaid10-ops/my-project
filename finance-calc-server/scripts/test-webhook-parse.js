@@ -237,6 +237,41 @@ check("سؤال العقاري يرسل قائمة تفاعلية", () => {
   assert.strictEqual(realEstateInteractive().button, "اختر النوع");
 });
 
+check("صورة واردة تعطي mediaUrl و isImage", () => {
+  const got = extractIncomingMessage({
+    type: "message_received",
+    data: {
+      customer: { phone_number: "501234567", country_code: "+966" },
+      message: {
+        message_content_type: "Image",
+        message: "",
+        media_url: "https://cdn.interakt.ai/media/order.jpg",
+      },
+    },
+  });
+  assert.strictEqual(got.phone, "501234567");
+  assert.strictEqual(got.text, "");
+  assert.strictEqual(got.isImage, true);
+  assert.strictEqual(got.mediaUrl, "https://cdn.interakt.ai/media/order.jpg");
+  assert.strictEqual(got.contentType, "Image");
+});
+
+check("تعليق الصورة يبقى نصاً مع الرابط", () => {
+  const got = extractIncomingMessage({
+    type: "message_received",
+    data: {
+      customer: { phone_number: "501234567", country_code: "+966" },
+      message: {
+        message_content_type: "Image",
+        message: "رقم الطلب",
+        media_url: "https://example.com/a.png",
+      },
+    },
+  });
+  assert.strictEqual(got.text, "رقم الطلب");
+  assert.strictEqual(got.isImage, true);
+});
+
 if (!process.exitCode) {
   console.log("\nكل اختبارات webhook-parse نجحت");
 }

@@ -23,6 +23,45 @@ function extractOrderCandidate(raw) {
   return null;
 }
 
+function collectOrderNumbersFromDigits(digits) {
+  const raw = String(digits || "");
+  const found = [];
+  const seen = new Set();
+  for (let i = 0; i + ORDER_DIGITS <= raw.length; i += 1) {
+    const slice = raw.slice(i, i + ORDER_DIGITS);
+    if (!ORDER_NUMBER_RE.test(slice) || seen.has(slice)) continue;
+    seen.add(slice);
+    found.push(slice);
+  }
+  return found;
+}
+
+function pickPreferredOrderNumber(candidates) {
+  if (!Array.isArray(candidates) || !candidates.length) return null;
+  return candidates.find((n) => String(n).startsWith("1017")) || candidates[0];
+}
+
+/** OCR غالبًا يخلط O/0 و I/1؛ نفضّل الأرقام التي تبدأ بـ 1017 */
+function normalizeOcrGarbage(text) {
+  return normalizeDigits(String(text || ""))
+    .replace(/[Oo]/g, "0")
+    .replace(/[Il|]/g, "1")
+    .replace(/[Zz]/g, "2")
+    .replace(/[Ss]/g, "5")
+    .replace(/[Bb]/g, "8");
+}
+
+function extractOrderNumberFromOcr(text) {
+  const normalized = normalizeDigits(String(text || ""));
+  const labeled = extractOrderCandidate(normalized);
+  const extra = labeled && ORDER_NUMBER_RE.test(labeled) ? [labeled] : [];
+  const fromRaw = collectOrderNumbersFromDigits(normalized.replace(/\D/g, ""));
+  const fromSwapped = collectOrderNumbersFromDigits(
+    normalizeOcrGarbage(normalized).replace(/\D/g, "")
+  );
+  return pickPreferredOrderNumber([...extra, ...fromRaw, ...fromSwapped]);
+}
+
 function parseApplicationOrderNumber(text) {
   const raw = normalizeDigits(String(text || "")).trim();
   if (!raw) return null;
@@ -75,5 +114,6 @@ module.exports = {
   ORDER_NUMBER_RE,
   parseApplicationOrderNumber,
   looksLikeApplicationOrderNumber,
+  extractOrderNumberFromOcr,
   buildOrderNumberAckReply,
 };

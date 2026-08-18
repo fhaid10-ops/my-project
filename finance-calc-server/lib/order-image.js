@@ -1,0 +1,165 @@
+/**
+ * قراءة رقم طلب التقديم من صورة واتساب (Interakt media_url)
+ * يعتمد Tesseract محلياً — بدون إرسال الصورة لخدمة خارجية
+ */
+const { extractOrderNumberFromOcr } = require("./order-number");
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const DOWNLOAD_TIMEOUT_MS = 12000;
+const OCR_TIMEOUT_MS = 25000;
+const TESSDATA_CACHE = process.env.TESSDATA_CACHE || "/tmp/tesseract";
+
+let workerPromise = null;
+let ocrChain = Promise.resolve();
+
+function isOcrEnabled() {
+  const v = String(process.env.ORDER_IMAGE_OCR || "1")
+    .trim()
+    .toLowerCase();
+  return v !== "0" && v !== "false" && v !== "off";
+}
+
+function isPrivateHostname(hostname) {
+  const host = String(hostname || "").toLowerCase();
+  if (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host === "[::1]"
+  ) {
+    return true;
+  }
+  if (/^10\.\d+\.\d+\.\d+$/.test(host)) return true;
+  if (/^192\.168\.\d+\.\d+$/.test(host)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)) return true;
+  if (/^169\.254\.\d+\.\d+$/.test(host)) return true;
+  return false;
+}
+
+function isSafeMediaUrl(raw) {
+  let parsed;
+  try {
+    parsed = new URL(String(raw || ""));
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "https:") return false;
+  if (parsed.username || parsed.password) return false;
+  if (isPrivateHostname(parsed.hostname)) return false;
+  return true;
+}
+
+function looksLikeImageBuffer(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 12) return false;
+  if (buf[0] === 0xff && buf[1] === 0xd8) return true; // jpeg
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+    return true; // png
+  }
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return true; // gif
+  const head = buf.subarray(0, 4).toString("ascii");
+  const webp = buf.subarray(8, 12).toString("ascii");
+  if (head === "RIFF" && webp === "WEBP") return true;
+  return false;
+}
+
+async function downloadImage(url, { fetchImpl = fetch } = {}) {
+  if (!isSafeMediaUrl(url)) {
+    throw new Error("unsafe media url");
+  }
+  const res = await fetchImpl(url, {
+    method: "GET",
+    redirect: "follow",
+    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+    headers: { Accept: "image/*,*/*" },
+  });
+  if (!res.ok) {
+    throw new Error(`media download ${res.status}`);
+  }
+  const length = Number(res.headers.get("content-length") || 0);
+  if (length > MAX_IMAGE_BYTES) {
+    throw new Error("media too large");
+  }
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length > MAX_IMAGE_BYTES) {
+    throw new Error("media too large");
+  }
+  if (!looksLikeImageBuffer(buf)) {
+    const mime = String(res.headers.get("content-type") || "").toLowerCase();
+    if (!mime.startsWith("image/")) {
+      throw new Error("not an image");
+    }
+  }
+  return buf;
+}
+
+async function getWorker(createWorkerFn) {
+  if (!workerPromise) {
+    workerPromise = (async () => {
+      const { createWorker } = require("tesseract.js");
+      const create = createWorkerFn || createWorker;
+      const worker = await create("eng", 1, {
+        cachePath: TESSDATA_CACHE,
+        logger: () => {},
+      });
+      await worker.setParameters({
+        tessedit_char_whitelist: "0123456789",
+      });
+      return worker;
+    })().catch((err) => {
+      workerPromise = null;
+      throw err;
+    });
+  }
+  return workerPromise;
+}
+
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(label || "timeout")), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function recognizeDigits(buffer, { createWorkerFn } = {}) {
+  const worker = await getWorker(createWorkerFn);
+  const { data } = await withTimeout(
+    worker.recognize(buffer),
+    OCR_TIMEOUT_MS,
+    "ocr timeout"
+  );
+  return String(data?.text || "");
+}
+
+function enqueue(fn) {
+  const run = ocrChain.then(fn, fn);
+  ocrChain = run.then(
+    () => {},
+    () => {}
+  );
+  return run;
+}
+
+async function readOrderNumberFromImage(url, deps = {}) {
+  if (!isOcrEnabled()) return null;
+  if (!url) return null;
+  return enqueue(async () => {
+    const buf = await downloadImage(url, deps);
+    const ocrText =
+      typeof deps.recognizeFn === "function"
+        ? await deps.recognizeFn(buf)
+        : await recognizeDigits(buf, deps);
+    return extractOrderNumberFromOcr(ocrText);
+  });
+}
+
+module.exports = {
+  MAX_IMAGE_BYTES,
+  isOcrEnabled,
+  isSafeMediaUrl,
+  looksLikeImageBuffer,
+  downloadImage,
+  readOrderNumberFromImage,
+  extractOrderNumberFromOcr,
+};

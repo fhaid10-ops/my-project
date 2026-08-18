@@ -13,12 +13,15 @@
     "test:admin": "node scripts/test-admin.js",
     "test:ledger": "node scripts/test-customer-ledger.js",
     "test:combo": "node scripts/test-combo-exhausted.js",
+    "test:order": "node scripts/test-order-number.js",
+    "test:order-image": "node scripts/test-order-image.js",
     "backup:customers": "node -e \"require('./lib/customer-ledger').createCustomerLedger().createSnapshot('cli')\"",
-    "test": "npm run test:calc && npm run test:webhook && npm run test:debt && npm run test:menu && npm run test:amounts && npm run test:admin && npm run test:ledger && npm run test:combo"
+    "test": "npm run test:calc && npm run test:webhook && npm run test:debt && npm run test:menu && npm run test:amounts && npm run test:admin && npm run test:ledger && npm run test:combo && npm run test:order && npm run test:order-image"
   },
   "type": "commonjs",
   "dependencies": {
     "dotenv": "^16.4.7",
-    "express": "^4.22.2"
+    "express": "^4.22.2",
+    "tesseract.js": "^5.1.1"
   }
 }

@@ -67,6 +67,7 @@ const {
   parseApplicationOrderNumber,
   buildOrderNumberAckReply,
 } = require("./lib/order-number");
+const { readOrderNumberFromImage } = require("./lib/order-image");
 const CONFIG = require("./config");
 
 function normalizeEnvValue(value) {
@@ -152,6 +153,30 @@ function pauseChat(countryCode, phone) {
 
 function resumeChat(countryCode, phone) {
   pausedChats.delete(sessionKey(countryCode, phone));
+}
+
+function applyApplicationOrderNumber(countryCode, phone, orderNumber) {
+  const prev = getSession(countryCode, phone) || {};
+  const orderNumberAt = new Date().toISOString();
+  saveSession(countryCode, phone, {
+    ...prev,
+    orderNumber,
+    orderNumberAt,
+    awaitingAmountChoice: false,
+  });
+  customerLedger.setOrderNumber(countryCode, phone, orderNumber);
+  customerLedger.updateState(countryCode, phone, {
+    orderNumber,
+    orderNumberAt,
+    flow: "order_number",
+    step: "received",
+  });
+  return {
+    ok: true,
+    reply: buildOrderNumberAckReply(CONFIG.messages),
+    offer: "order_number_received",
+    data: { orderNumber },
+  };
 }
 
 app.get("/health", (_req, res) => {
@@ -380,14 +405,17 @@ app.post("/webhook/interakt", async (req, res) => {
 
     const payload = req.body || {};
     const type = payload?.type || payload?.event || "";
-    const { text, phone, countryCode, contentType, eventType } =
-      extractIncomingMessage(payload);
+    const incoming = extractIncomingMessage(payload);
+    let { text, phone, countryCode, contentType, eventType, mediaUrl, isImage } =
+      incoming;
 
     console.log("[webhook]", {
       type: type || eventType,
       phone,
       contentType,
-      preview: text.slice(0, 80),
+      isImage: Boolean(isImage),
+      hasMedia: Boolean(mediaUrl),
+      preview: String(text || "").slice(0, 80),
       messageKeys: Object.keys(payload?.data?.message || {}),
       hasButtonText: Boolean(payload?.data?.message?.button_text),
     });
@@ -407,15 +435,32 @@ app.post("/webhook/interakt", async (req, res) => {
       return;
     }
 
-    if (!phone || !text) return;
+    if (!phone) return;
+
+    if (isImage && mediaUrl && !looksLikeApplicationOrderNumber(text)) {
+      try {
+        const fromImage = await readOrderNumberFromImage(mediaUrl);
+        if (fromImage) {
+          console.log("[order-image:ok]", phone, fromImage);
+          text = fromImage;
+        } else {
+          console.log("[order-image:miss]", phone);
+        }
+      } catch (err) {
+        console.error("[order-image:fail]", phone, err.message || err);
+      }
+    }
+
+    if (!text && !isImage) return;
 
     let result = null;
     const yesNo = looksLikeYesNoReply(text);
     const currentSession = getSession(countryCode, phone);
     const draft = getDraft(countryCode, phone);
+    const inboundPreview = text || "[صورة]";
 
     // سجل العميل في لوحة التحكم (اليوم / أمس)
-    customerLedger.recordInbound(countryCode, phone, text, {
+    customerLedger.recordInbound(countryCode, phone, inboundPreview, {
       flow: draft?.flow || currentSession?.offer || null,
       step: draft?.step || null,
       maxAmount: currentSession?.maxAmount || currentSession?.rounded || null,
@@ -425,6 +470,7 @@ app.post("/webhook/interakt", async (req, res) => {
         draft?.civilianSubtype || currentSession?.civilianSubtype || null,
     });
 
+    if (!text) return;
     // داخل مسار/اختيار قائمة: الرقم 1 له معنى ثاني (لا نعيد القائمة)
     const inActiveChoice =
       (draft?.flow === "main_menu" &&
@@ -499,6 +545,11 @@ app.post("/webhook/interakt", async (req, res) => {
         result = showMainMenu("قائمة");
         saveDraft(countryCode, phone, result.draft);
       }
+    } else if (looksLikeApplicationOrderNumber(text)) {
+      // رقم طلب التقديم (يبدأ بـ 101 وطوله 8) — قبل المسارات والمبلغ
+      const orderNumber = parseApplicationOrderNumber(text);
+      result = applyApplicationOrderNumber(countryCode, phone, orderNumber);
+      if (isChatPaused(countryCode, phone)) return;
     } else if (isChatPaused(countryCode, phone)) {
       // محادثة موقوفة: لا نرد إلا بعد سلام / قائمة / اختصار
       return;
@@ -728,30 +779,6 @@ app.post("/webhook/interakt", async (req, res) => {
         clearDraft(countryCode, phone);
         saveSession(countryCode, phone, result.data);
       }
-    } else if (looksLikeApplicationOrderNumber(text)) {
-      // رقم طلب التقديم (يبدأ بـ 101 وطوله 8) — قبل اختيار المبلغ حتى ما ينحسب كمبلغ تمويل
-      const orderNumber = parseApplicationOrderNumber(text);
-      const prev = getSession(countryCode, phone) || {};
-      const orderNumberAt = new Date().toISOString();
-      saveSession(countryCode, phone, {
-        ...prev,
-        orderNumber,
-        orderNumberAt,
-        awaitingAmountChoice: false,
-      });
-      customerLedger.setOrderNumber(countryCode, phone, orderNumber);
-      customerLedger.updateState(countryCode, phone, {
-        orderNumber,
-        orderNumberAt,
-        flow: "order_number",
-        step: "received",
-      });
-      result = {
-        ok: true,
-        reply: buildOrderNumberAckReply(CONFIG.messages),
-        offer: "order_number_received",
-        data: { orderNumber },
-      };
     } else if (looksLikeAmountChoice(text)) {
       const sessionData = getSession(countryCode, phone);
       if (sessionData?.awaitingCombo || sessionData?.awaitingComboInterest) return;
