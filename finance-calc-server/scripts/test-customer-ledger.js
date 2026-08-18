@@ -79,6 +79,20 @@ ledger.recordInbound("+966", "508031055", "ارجع");
 assert.strictEqual(ledger._customers.get("+966:508031055").archived, false);
 assert.ok(ledger.listByDay("today").count >= 1);
 
+const manual = ledger.setManual("+966", "508031055", true);
+assert.ok(manual.manual);
+assert.ok(manual.manualAt);
+assert.strictEqual(ledger.listByDay("today").count, 0);
+assert.strictEqual(ledger.listByDay("service_stop").count, 0, "اليدوي لا يظهر في تبويب وش صار");
+assert.strictEqual(ledger.listByDay("manual").count, 1);
+assert.strictEqual(ledger.summary().counts.manual, 1);
+assert.strictEqual(ledger.summary().counts.all, 0);
+ledger.recordInbound("+966", "508031055", "ما زال يدوي");
+assert.strictEqual(ledger._customers.get("+966:508031055").manual, true, "الرسالة الواردة لا تلغي اليدوي");
+ledger.setManual("+966", "508031055", false);
+assert.ok(ledger.listByDay("today").count >= 1);
+assert.strictEqual(ledger.listByDay("manual").count, 0);
+
 const exported = ledger.exportPayload();
 assert.strictEqual(exported.kind, "raed-customer-ledger");
 assert.ok(exported.count >= 1);
