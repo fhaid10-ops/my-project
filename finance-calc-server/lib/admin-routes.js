@@ -300,6 +300,7 @@ function createAdminRouter(deps) {
         customersYesterday: ledgerSummary?.counts?.yesterday || 0,
         customersAll: ledgerSummary?.counts?.all || 0,
         customersArchive: ledgerSummary?.counts?.archive || 0,
+        customersManual: ledgerSummary?.counts?.manual || 0,
         customersOrderNumber: ledgerSummary?.counts?.order_number || 0,
         customersPackage: ledgerSummary?.counts?.package || 0,
         customersLimitExhausted: ledgerSummary?.counts?.limit_exhausted || 0,
@@ -332,7 +333,7 @@ function createAdminRouter(deps) {
 
   /**
    * عملاء اليوم / أمس / الكل / حسب «وش صار» / الأرشيف
-   * ?day=today|yesterday|all|archive|finance_link|finance_link_pending|finance_link_sent|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
+   * ?day=today|yesterday|all|archive|manual|finance_link|finance_link_pending|finance_link_sent|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
    * ?limit=&offset= للصفحات (افتراضي 100) — يقلل ثقل الجوال
    * ?phonesOnly=1 لنسخ الأرقام فقط
    */
@@ -427,6 +428,8 @@ function createAdminRouter(deps) {
         notes: row.notes || "",
         archived: Boolean(row.archived),
         archivedAt: row.archivedAt || null,
+        manual: Boolean(row.manual),
+        manualAt: row.manualAt || null,
         orderNumber:
           row.orderNumber ||
           sessionRow?.data?.orderNumber ||
@@ -601,6 +604,41 @@ function createAdminRouter(deps) {
       countryCode,
       archived: Boolean(row.archived),
       archivedAt: row.archivedAt || null,
+    });
+  });
+
+  /** رفع يدوي / إلغاء اليدوي */
+  router.post("/customers/manual", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const { phone, countryCode } = normalizePhoneParts(req.body || {});
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: "رقم الجوال مطلوب" });
+    }
+    const manual =
+      req.body?.manual === false ||
+      req.body?.manual === "false" ||
+      req.body?.manual === 0 ||
+      req.body?.unmanual === true
+        ? false
+        : true;
+    const row = customerLedger.setManual(countryCode, phone, manual);
+    if (!row) {
+      return res.status(400).json({ ok: false, error: "تعذر تحديث القسم اليدوي" });
+    }
+    customerLedger.flush();
+    pushLog({
+      action: manual ? "customers-manual" : "customers-unmanual",
+      phone,
+      countryCode,
+    });
+    res.json({
+      ok: true,
+      phone,
+      countryCode,
+      manual: Boolean(row.manual),
+      manualAt: row.manualAt || null,
     });
   });
 

@@ -388,6 +388,8 @@ function createCustomerLedger(options = {}) {
       orderNumberAt: row.orderNumberAt || null,
       archived: Boolean(row.archived),
       archivedAt: row.archivedAt || null,
+      manual: Boolean(row.manual),
+      manualAt: row.manualAt || null,
       dayKey: row.dayKey || calendarDayKey(new Date(row.lastSeenAt || Date.now())),
       source: row.source || null,
       syncedAt: row.syncedAt || null,
@@ -460,6 +462,25 @@ function createCustomerLedger(options = {}) {
     const next = Boolean(archived);
     row.archived = next;
     row.archivedAt = next ? new Date().toISOString() : null;
+    if (next) {
+      row.manual = false;
+      row.manualAt = null;
+    }
+    scheduleSave();
+    return row;
+  }
+
+  /** رفع يدوي / إلغاء اليدوي — يعزل العميل في تبويب «يدوي» مثل الأرشيف */
+  function setManual(countryCode, phone, manual = true) {
+    const row = getOrCreate(countryCode, phone);
+    if (!row) return null;
+    const next = Boolean(manual);
+    row.manual = next;
+    row.manualAt = next ? new Date().toISOString() : null;
+    if (next) {
+      row.archived = false;
+      row.archivedAt = null;
+    }
     scheduleSave();
     return row;
   }
@@ -604,9 +625,10 @@ function createCustomerLedger(options = {}) {
     const today = calendarDayKey();
     const yesterday = shiftDayKey(today, -1);
     const wantArchive = day === "archive" || day === "archived";
+    const wantManual = day === "manual" || day === "يدوي";
     const outcomeLabel = outcomeLabelForTab(day);
     let target = null;
-    if (!wantArchive && !outcomeLabel) {
+    if (!wantArchive && !wantManual && !outcomeLabel) {
       if (day === "today") target = today;
       else if (day === "yesterday") target = yesterday;
       else if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) target = day;
@@ -615,8 +637,10 @@ function createCustomerLedger(options = {}) {
     const rows = [...customers.values()]
       .filter((row) => {
         const isArchived = Boolean(row.archived);
+        const isManual = Boolean(row.manual);
+        if (wantManual) return isManual && !isArchived;
         if (wantArchive) return isArchived;
-        if (isArchived) return false;
+        if (isArchived || isManual) return false;
         if (outcomeLabel) {
           return String(row.outcome || "").trim() === outcomeLabel;
         }
@@ -632,6 +656,12 @@ function createCustomerLedger(options = {}) {
         );
       })
       .sort((a, b) => {
+        if (wantManual) {
+          return (
+            Date.parse(b.manualAt || b.lastSeenAt) -
+            Date.parse(a.manualAt || a.lastSeenAt)
+          );
+        }
         if (wantArchive) {
           return (
             Date.parse(b.archivedAt || b.lastSeenAt) -
@@ -642,7 +672,8 @@ function createCustomerLedger(options = {}) {
       });
 
     let dayKey = "all";
-    if (wantArchive) dayKey = "archive";
+    if (wantManual) dayKey = "manual";
+    else if (wantArchive) dayKey = "archive";
     else if (outcomeLabel) dayKey = String(day);
     else if (target) dayKey = target;
 
@@ -662,7 +693,10 @@ function createCustomerLedger(options = {}) {
     const todayPack = listByDay("today");
     const yesterdayPack = listByDay("yesterday");
     const archivePack = listByDay("archive");
-    const activeRows = [...customers.values()].filter((r) => !r.archived);
+    const manualPack = listByDay("manual");
+    const activeRows = [...customers.values()].filter(
+      (r) => !r.archived && !r.manual
+    );
     const outcomeCounts = {};
     for (const [key, label] of Object.entries(OUTCOME_TAB_FILTERS)) {
       outcomeCounts[key] = activeRows.filter(
@@ -678,6 +712,7 @@ function createCustomerLedger(options = {}) {
         yesterday: yesterdayPack.count,
         all: activeRows.length,
         archive: archivePack.count,
+        manual: manualPack.count,
         ...outcomeCounts,
       },
     };
@@ -760,6 +795,8 @@ function createCustomerLedger(options = {}) {
           notes: existing.notes || incoming.notes || "",
           archived: Boolean(existing.archived || incoming.archived),
           archivedAt: existing.archivedAt || incoming.archivedAt || null,
+          manual: Boolean(existing.manual || incoming.manual),
+          manualAt: existing.manualAt || incoming.manualAt || null,
           orderNumber: existing.orderNumber || incoming.orderNumber || null,
           orderNumberAt:
             existing.orderNumberAt || incoming.orderNumberAt || null,
@@ -867,6 +904,7 @@ function createCustomerLedger(options = {}) {
     setNotes,
     setOutcomeNotes,
     setArchived,
+    setManual,
     setOrderNumber,
     setWorkplace,
     listByDay,

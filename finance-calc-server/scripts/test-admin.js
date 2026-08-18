@@ -144,6 +144,25 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(unarchive.json.archived, false);
 
+  const manual = await req("POST", "/customers/manual", {
+    phone: "0551234567",
+    manual: true,
+  });
+  assert.strictEqual(manual.status, 200);
+  assert.strictEqual(manual.json.manual, true);
+  const todayAfterManual = await req("GET", "/customers?day=today");
+  assert.ok(
+    !todayAfterManual.json.customers.some((c) => c.phone === "551234567")
+  );
+  const manualList = await req("GET", "/customers?day=manual");
+  assert.ok(manualList.json.customers.some((c) => c.phone === "551234567"));
+  assert.ok((manualList.json.counts?.manual || 0) >= 1);
+  const unmanual = await req("POST", "/customers/manual", {
+    phone: "0551234567",
+    manual: false,
+  });
+  assert.strictEqual(unmanual.json.manual, false);
+
   const workplace = await req("POST", "/customers/workplace", {
     phone: "0551234567",
     workplace: "government",
