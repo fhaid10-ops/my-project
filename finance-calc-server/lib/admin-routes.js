@@ -114,18 +114,30 @@ function createAdminRouter(deps) {
     const now = Date.now();
     const rows = customerLedger?.listByDay?.("finance_link")?.customers || [];
     let pending = 0;
+    let sentCount = 0;
+    let plus = 0;
     let eligible = 0;
+    let plusEligible = 0;
     let skippedRecent = 0;
     for (const row of rows) {
-      if (!looksLikeFollowupMessage(row.lastOutboundPreview)) pending += 1;
+      if (row.followupPlus) {
+        plus += 1;
+        continue;
+      }
+      const followed = looksLikeFollowupMessage(row.lastOutboundPreview);
+      if (!followed) pending += 1;
+      else sentCount += 1;
       if (wasFollowedUpRecently(row, skipMs, now)) skippedRecent += 1;
       else eligible += 1;
+      if (followed && !wasFollowedUpRecently(row, skipMs, now)) plusEligible += 1;
     }
     return {
       financeLinkTotal: rows.length,
       financeLinkPending: pending,
-      financeLinkSent: Math.max(rows.length - pending, 0),
+      financeLinkSent: sentCount,
+      financeLinkPlus: plus,
       financeLinkEligible: eligible,
+      financeLinkPlusEligible: plusEligible,
       financeLinkSkippedRecent: skippedRecent,
     };
   }
@@ -137,6 +149,7 @@ function createAdminRouter(deps) {
       finance_link: stats.financeLinkTotal,
       finance_link_pending: stats.financeLinkPending,
       finance_link_sent: stats.financeLinkSent,
+      finance_link_plus: stats.financeLinkPlus,
     };
   }
 
@@ -309,11 +322,13 @@ function createAdminRouter(deps) {
         customersFinanceLink: financeStats.financeLinkTotal,
         customersFinanceLinkPending: financeStats.financeLinkPending,
         customersFinanceLinkSent: financeStats.financeLinkSent,
+        customersFinanceLinkPlus: financeStats.financeLinkPlus,
       },
       customers: ledgerSummary,
       persistence,
       brand: CONFIG.brand?.name || "رائد الحربي",
       followUpPreview: CONFIG.followUp?.electronicMessage || "",
+      followUpPlusPreview: CONFIG.followUp?.plusMessage || "",
       outboundDelayMs: getBulkFollowupSafeConfig().delayMs,
       outboundSafe: (() => {
         const safe = getBulkFollowupSafeConfig();
@@ -334,7 +349,7 @@ function createAdminRouter(deps) {
 
   /**
    * عملاء اليوم / أمس / الكل / حسب «وش صار» / الأرشيف
-   * ?day=today|yesterday|all|archive|manual|rejected|finance_link|finance_link_pending|finance_link_sent|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
+   * ?day=today|yesterday|all|archive|manual|rejected|finance_link|finance_link_pending|finance_link_sent|finance_link_plus|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
    * ?limit=&offset= للصفحات (افتراضي 100) — يقلل ثقل الجوال
    * ?phonesOnly=1 لنسخ الأرقام فقط
    */
@@ -354,17 +369,29 @@ function createAdminRouter(deps) {
     } else if (rawDay === "finance_link_sent") {
       day = "finance_link";
       followupSplit = "sent";
+    } else if (rawDay === "finance_link_plus") {
+      day = "finance_link";
+      followupSplit = "plus";
     }
     const pack = customerLedger.listByDay(day);
     const summary = customerLedger.summary();
     let customers = pack.customers || [];
-    if (followupSplit === "pending") {
+    if (followupSplit === "plus") {
+      customers = customers.filter((row) => Boolean(row.followupPlus));
+      customers.sort(
+        (a, b) =>
+          Date.parse(b.followupPlusAt || b.lastSeenAt) -
+          Date.parse(a.followupPlusAt || a.lastSeenAt)
+      );
+    } else if (followupSplit === "pending") {
       customers = customers.filter(
-        (row) => !looksLikeFollowupMessage(row.lastOutboundPreview)
+        (row) =>
+          !row.followupPlus && !looksLikeFollowupMessage(row.lastOutboundPreview)
       );
     } else if (followupSplit === "sent") {
-      customers = customers.filter((row) =>
-        looksLikeFollowupMessage(row.lastOutboundPreview)
+      customers = customers.filter(
+        (row) =>
+          !row.followupPlus && looksLikeFollowupMessage(row.lastOutboundPreview)
       );
     }
     const phonesOnly =
@@ -433,6 +460,8 @@ function createAdminRouter(deps) {
         manualAt: row.manualAt || null,
         rejected: Boolean(row.rejected),
         rejectedAt: row.rejectedAt || null,
+        followupPlus: Boolean(row.followupPlus),
+        followupPlusAt: row.followupPlusAt || null,
         orderNumber:
           row.orderNumber ||
           sessionRow?.data?.orderNumber ||
@@ -677,6 +706,47 @@ function createAdminRouter(deps) {
       countryCode,
       rejected: Boolean(row.rejected),
       rejectedAt: row.rejectedAt || null,
+    });
+  });
+
+  /** متابعة بلس / إلغاء — تبويب «رابط — متابعة بلس» */
+  router.post("/customers/followup-plus", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const { phone, countryCode } = normalizePhoneParts(req.body || {});
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: "رقم الجوال مطلوب" });
+    }
+    const plus =
+      req.body?.plus === false ||
+      req.body?.plus === "false" ||
+      req.body?.plus === 0 ||
+      req.body?.followupPlus === false ||
+      req.body?.followupPlus === "false" ||
+      req.body?.unplus === true
+        ? false
+        : true;
+    const row = customerLedger.setFollowupPlus(countryCode, phone, plus);
+    if (!row) {
+      return res.status(400).json({ ok: false, error: "تعذر تحديث متابعة بلس" });
+    }
+    if (plus) {
+      customerLedger.setOutcomeNotes(countryCode, phone, "أخذ رابط التمويل");
+    }
+    customerLedger.flush();
+    pushLog({
+      action: plus ? "customers-followup-plus" : "customers-unfollowup-plus",
+      phone,
+      countryCode,
+    });
+    res.json({
+      ok: true,
+      phone,
+      countryCode,
+      followupPlus: Boolean(row.followupPlus),
+      followupPlusAt: row.followupPlusAt || null,
+      outcome: row.outcome || "",
     });
   });
 
@@ -935,10 +1005,18 @@ function createAdminRouter(deps) {
     const fromOutcome = String(req.body?.fromOutcome || req.body?.outcome || "")
       .trim()
       .toLowerCase();
+    const isPlusWave =
+      fromOutcome === "finance_link_plus" ||
+      fromOutcome === "متابعة بلس" ||
+      fromOutcome === "plus";
+    const isFinanceLinkWave =
+      fromOutcome === "finance_link" || fromOutcome === "أخذ رابط التمويل";
+
     const message =
       String(req.body?.message || "").trim() ||
-      CONFIG.followUp?.electronicMessage ||
-      "";
+      (isPlusWave
+        ? CONFIG.followUp?.plusMessage || CONFIG.followUp?.electronicMessage || ""
+        : CONFIG.followUp?.electronicMessage || "");
     let delayMs = Number(
       req.body?.delayMs != null ? req.body.delayMs : safe.delayMs
     );
@@ -968,7 +1046,7 @@ function createAdminRouter(deps) {
     }
 
     let candidates = [];
-    if (fromOutcome === "finance_link" || fromOutcome === "أخذ رابط التمويل") {
+    if (isFinanceLinkWave || isPlusWave) {
       if (!customerLedger) {
         return res.status(503).json({
           ok: false,
@@ -981,6 +1059,7 @@ function createAdminRouter(deps) {
         countryCode: row.countryCode || "+966",
         lastOutboundAt: row.lastOutboundAt || null,
         lastOutboundPreview: row.lastOutboundPreview || "",
+        followupPlus: Boolean(row.followupPlus),
       }));
     } else {
       const phones = Array.isArray(req.body?.phones) ? req.body.phones : [];
@@ -1014,6 +1093,19 @@ function createAdminRouter(deps) {
         skipped.push({ phone: String(raw.phone || ""), reason: "رقم غير صالح" });
         continue;
       }
+      if (isPlusWave) {
+        if (raw.followupPlus) {
+          skipped.push({ phone: parts.phone, reason: "في متابعة بلس مسبقاً" });
+          continue;
+        }
+        if (!looksLikeFollowupMessage(raw.lastOutboundPreview)) {
+          skipped.push({ phone: parts.phone, reason: "لم تُرسل المتابعة الأولى" });
+          continue;
+        }
+      } else if (raw.followupPlus) {
+        skipped.push({ phone: parts.phone, reason: "في متابعة بلس" });
+        continue;
+      }
       if (wasFollowedUpRecently(raw, skipMs, now)) {
         skipped.push({
           phone: parts.phone,
@@ -1037,12 +1129,15 @@ function createAdminRouter(deps) {
           parts.countryCode,
           parts.phone,
           message,
-          { mode: "admin-bulk-followup" }
+          { mode: isPlusWave ? "admin-bulk-followup-plus" : "admin-bulk-followup" }
         );
+        if (isPlusWave) {
+          customerLedger?.setFollowupPlus?.(parts.countryCode, parts.phone, true);
+        }
         usage.count += 1;
         results.push({ phone: parts.phone, ok: true });
         pushLog({
-          action: "bulk-followup",
+          action: isPlusWave ? "bulk-followup-plus" : "bulk-followup",
           phone: parts.phone,
           countryCode: parts.countryCode,
           fromOutcome: fromOutcome || null,
@@ -1076,7 +1171,9 @@ function createAdminRouter(deps) {
       hint:
         deferred.length > 0
           ? `تبقّى ${deferred.length} بانتظار إرسال هذه الدفعة. أعد الإرسال لإكمال الباقي.`
-          : financeStats.financeLinkPending > 0
+          : isPlusWave && financeStats.financeLinkPlusEligible > 0
+            ? `تبقّى ${financeStats.financeLinkPlusEligible} مؤهلون لمتابعة بلس.`
+            : financeStats.financeLinkPending > 0
             ? `تبقّى ${financeStats.financeLinkPending} من أخذوا الرابط بدون متابعة.`
             : undefined,
     });

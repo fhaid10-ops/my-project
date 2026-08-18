@@ -127,6 +127,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 .badge.pending-follow { background: rgba(13,107,76,.1); color: var(--accent); }
 .badge.manual { background: rgba(13,107,76,.16); color: var(--accent); }
 .badge.rejected { background: rgba(157,58,45,.14); color: var(--danger); }
+.badge.plus { background: rgba(184,137,31,.18); color: #7a5610; }
 .work-choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .work-choice {
   border: 1px solid var(--line); background: #fff; color: var(--ink);
@@ -293,6 +294,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <span class="tab-label">رابط — تمت المتابعة</span>
           <span class="tab-count" id="tab-count-finance_link_sent">—</span>
         </button>
+        <button class="tab" data-day="finance_link_plus" type="button">
+          <span class="tab-label">رابط — متابعة بلس</span>
+          <span class="tab-count" id="tab-count-finance_link_plus">—</span>
+        </button>
         <button class="tab" data-day="order_number" type="button">
           <span class="tab-label">رقم طلب</span>
           <span class="tab-count" id="tab-count-order_number">—</span>
@@ -347,6 +352,18 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         <button id="rejected-add-btn" class="btn primary" type="button">إضافة إلى الرفض</button>
       </div>
       <p id="rejected-add-status" class="status" hidden></p>
+    </div>
+    <div class="card" id="plus-add-card" style="margin-bottom:12px;display:none">
+      <h3 style="margin:0 0 8px;font-size:1.05rem">أخذ الرابط — متابعة بلس</h3>
+      <p class="muted" style="margin-bottom:12px">تذكير ثانٍ لمن أخذوا الرابط بعد المتابعة الأولى. حوّل أي عميل بزر «متابعة بلس»، أو أضف رقماً هنا.</p>
+      <div class="btn-row" style="align-items:end">
+        <label class="field" style="margin:0;flex:1;min-width:180px">
+          <span>رقم الجوال</span>
+          <input id="plus-add-phone" type="tel" inputmode="numeric" placeholder="05xxxxxxxx" />
+        </label>
+        <button id="plus-add-btn" class="btn primary" type="button">إضافة إلى متابعة بلس</button>
+      </div>
+      <p id="plus-add-status" class="status" hidden></p>
     </div>
 
     <div class="card">
@@ -409,13 +426,28 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         </div>
         <p id="bulk-followup-status" class="status" hidden></p>
       </div>
+      <div class="card" id="bulk-followup-plus-card" style="margin-top:14px">
+        <h3 style="margin:0 0 8px;font-size:1.05rem">متابعة بلس</h3>
+        <p class="muted" style="margin-bottom:12px">
+          تذكير ثانٍ لعملاء «رابط — تمت المتابعة». بعد الإرسال ينتقلون لتبويب «رابط — متابعة بلس».
+        </p>
+        <label class="field">
+          <span>نص متابعة بلس</span>
+          <textarea id="bulk-followup-plus-message" rows="4" placeholder="السلام عليكم..."></textarea>
+        </label>
+        <p class="muted" id="bulk-followup-plus-quota" style="margin:0 0 12px">مؤهلون لمتابعة بلس: —</p>
+        <div class="btn-row">
+          <button id="bulk-followup-plus-send" class="btn primary" type="button">إرسال متابعة بلس</button>
+        </div>
+        <p id="bulk-followup-plus-status" class="status" hidden></p>
+      </div>
     </div>
   </main>
 </div>
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-18-rejected-tab";
+  const UI_VERSION = "2026-08-18-followup-plus-tab";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -427,6 +459,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     finance_link: "أخذ رابط التمويل",
     finance_link_pending: "رابط — بدون متابعة",
     finance_link_sent: "رابط — تمت المتابعة",
+    finance_link_plus: "رابط — متابعة بلس",
     order_number: "رقم طلب",
     package: "أخذ باقة",
     limit_exhausted: "مستنفذ حد",
@@ -657,6 +690,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     set("tab-count-all", all);
     set("tab-count-finance_link_pending", counts?.finance_link_pending ?? counts?.customersFinanceLinkPending);
     set("tab-count-finance_link_sent", counts?.finance_link_sent ?? counts?.customersFinanceLinkSent);
+    set("tab-count-finance_link_plus", counts?.finance_link_plus ?? counts?.customersFinanceLinkPlus);
     set("tab-count-order_number", counts?.order_number ?? counts?.customersOrderNumber);
     set("tab-count-package", counts?.package ?? counts?.customersPackage);
     set("tab-count-limit_exhausted", counts?.limit_exhausted ?? counts?.customersLimitExhausted);
@@ -704,6 +738,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     if (addCard) addCard.style.display = customerDay === "manual" ? "block" : "none";
     const rejectedCard = document.getElementById("rejected-add-card");
     if (rejectedCard) rejectedCard.style.display = customerDay === "rejected" ? "block" : "none";
+    const plusCard = document.getElementById("plus-add-card");
+    if (plusCard) plusCard.style.display = customerDay === "finance_link_plus" ? "block" : "none";
   }
 
   function renderCustomers(rows, counts) {
@@ -740,7 +776,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       return `<tr>
         <td data-label="الجوال">
           ${phoneWhatsAppLink(row)}
-          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${row.manual ? ' <span class="badge manual">يدوي</span>' : ""}${row.rejected ? ' <span class="badge rejected">رفض</span>' : ""}</div>
+          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${row.manual ? ' <span class="badge manual">يدوي</span>' : ""}${row.rejected ? ' <span class="badge rejected">رفض</span>' : ""}${row.followupPlus ? ' <span class="badge plus">متابعة بلس</span>' : ""}</div>
           <div class="meta-line" style="margin-top:6px">${followupBadgesHtml(row)}</div>
         </td>
         <td data-label="تاريخ الإرسال">${formatTime(sendDateOf(row))}</td>
@@ -758,6 +794,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <button class="btn secondary small" data-act="${row.archived ? "unarchive" : "archive"}" data-phone="${row.phone}" type="button">${row.archived ? "إلغاء الأرشفة" : "أرشفة"}</button>
           <button class="btn secondary small" data-act="${row.manual ? "unmanual" : "manual"}" data-phone="${row.phone}" type="button">${row.manual ? "إلغاء اليدوي" : "يدوي"}</button>
           <button class="btn danger small" data-act="${row.rejected ? "unreject" : "reject"}" data-phone="${row.phone}" type="button">${row.rejected ? "إلغاء الرفض" : "رفض"}</button>
+          <button class="btn secondary small" data-act="${row.followupPlus ? "unplus" : "plus"}" data-phone="${row.phone}" type="button">${row.followupPlus ? "إلغاء بلس" : "متابعة بلس"}</button>
           <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
           <button class="btn ghost small" data-act="reset" data-phone="${row.phone}" type="button">تصفير</button>
@@ -778,6 +815,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
             ? "يدوي"
             : pack.day === "rejected"
               ? "رفض"
+              : pack.day === "finance_link_plus"
+                ? "رابط — متابعة بلس"
               : OUTCOME_TAB_LABELS[pack.day] || pack.outcome || pack.day;
     document.getElementById("customers-meta").textContent =
       `عرض ${shown} من ${total} · ${dayLabel} · ${pack.timezone || "Asia/Riyadh"}` +
@@ -841,15 +880,26 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     const rem = safe.dailyRemaining ?? Math.max(daily - sent, 0);
     const linkTotal = safe.financeLinkTotal;
     const pending = safe.financeLinkPending;
+    const plusEligible = safe.financeLinkPlusEligible;
+    const plusCount = safe.financeLinkPlus;
     if (quota) {
       const linkPart =
         linkTotal != null
-          ? `أخذوا الرابط: ${linkTotal} · بانتظار متابعة: ${pending ?? "—"} · `
+          ? `أخذوا الرابط: ${linkTotal} · بانتظار متابعة: ${pending ?? "—"} · متابعة بلس: ${plusCount ?? "—"} · `
           : "";
       quota.textContent =
         `${linkPart}` +
         `الحصة اليومية: أُرسل ${sent} من ${daily} · المتبقي ${rem}` +
         ` · تخطّي من توبع خلال ${safe.skipIfFollowedUpWithinHours ?? 20} ساعة`;
+    }
+    const plusMsg = document.getElementById("bulk-followup-plus-message");
+    if (plusMsg && !plusMsg.dataset.touched) {
+      plusMsg.value = status?.followUpPlusPreview || plusMsg.value || "";
+    }
+    const plusQuota = document.getElementById("bulk-followup-plus-quota");
+    if (plusQuota) {
+      plusQuota.textContent =
+        `مؤهلون لمتابعة بلس الآن: ${plusEligible ?? "—"} · في التبويب: ${plusCount ?? "—"} · المتبقي من الحصة ${rem}`;
     }
     const homeHint = document.getElementById("followup-home-hint");
     if (homeHint) {
@@ -925,6 +975,14 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       await api("/customers/rejected", {
         method: "POST",
         body: JSON.stringify({ phone, rejected: act === "reject" }),
+      });
+      await refreshCustomers({ append: false });
+      return;
+    }
+    if (act === "plus" || act === "unplus") {
+      await api("/customers/followup-plus", {
+        method: "POST",
+        body: JSON.stringify({ phone, plus: act === "plus" }),
       });
       await refreshCustomers({ append: false });
       return;
@@ -1045,6 +1103,40 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     if (e.key === "Enter") {
       e.preventDefault();
       document.getElementById("rejected-add-btn").click();
+    }
+  });
+
+  document.getElementById("plus-add-btn").addEventListener("click", async () => {
+    const statusEl = document.getElementById("plus-add-status");
+    const input = document.getElementById("plus-add-phone");
+    const phone = String(input.value || "").trim();
+    if (!phone) {
+      alert("اكتب رقم الجوال أولاً");
+      return;
+    }
+    statusEl.hidden = false;
+    statusEl.className = "status";
+    statusEl.textContent = "جاري الإضافة...";
+    try {
+      await api("/customers/followup-plus", {
+        method: "POST",
+        body: JSON.stringify({ phone, plus: true }),
+      });
+      input.value = "";
+      statusEl.className = "status ok";
+      statusEl.textContent = "تمت إضافة الرقم إلى متابعة بلس";
+      setCustomerTab("finance_link_plus");
+      await refreshCustomers({ append: false });
+    } catch (err) {
+      statusEl.className = "status";
+      statusEl.style.color = "var(--danger)";
+      statusEl.textContent = err.message;
+    }
+  });
+  document.getElementById("plus-add-phone").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      document.getElementById("plus-add-btn").click();
     }
   });
 
@@ -1208,7 +1300,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   const bulkMsg = document.getElementById("bulk-followup-message");
   const bulkDelay = document.getElementById("bulk-followup-delay-sec");
   const bulkLimit = document.getElementById("bulk-followup-limit");
-  [bulkMsg, bulkDelay, bulkLimit].forEach((el) => {
+  const bulkPlusMsg = document.getElementById("bulk-followup-plus-message");
+  [bulkMsg, bulkDelay, bulkLimit, bulkPlusMsg].forEach((el) => {
     if (!el) return;
     el.addEventListener("input", () => {
       el.dataset.touched = "1";
@@ -1270,6 +1363,55 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         (result.deferred ? ` | مؤجّل: ${result.deferred}` : "") +
         ` | متبقي اليوم: ${result.dailyRemaining ?? "—"}` +
         linkHint +
+        (result.hint ? ` — ${result.hint}` : "");
+      await refreshAll();
+    } catch (err) {
+      statusEl.className = "status";
+      statusEl.style.color = "var(--danger)";
+      statusEl.textContent = err.message;
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  document.getElementById("bulk-followup-plus-send").addEventListener("click", async () => {
+    const statusEl = document.getElementById("bulk-followup-plus-status");
+    const delaySec = Math.max(Number(bulkDelay.value || 10), 8);
+    const maxBatch = Math.max(Number(bulkLimit.max || 30), 1);
+    const limit = Math.min(Math.max(Number(bulkLimit.value || maxBatch), 1), maxBatch);
+    const message = String(bulkPlusMsg.value || "").trim();
+    if (!message) {
+      alert("اكتب نص متابعة بلس أولًا");
+      return;
+    }
+    const ok = confirm(
+      `إرسال متابعة بلس لمن أخذوا الرابط وتمت متابعتهم؟\n` +
+        `التأخير: ${delaySec} ثانية · حد الدفعة: ${limit}\n` +
+        `بعد الإرسال ينتقلون لتبويب «رابط — متابعة بلس».`
+    );
+    if (!ok) return;
+
+    statusEl.hidden = false;
+    statusEl.className = "status";
+    statusEl.textContent = "جاري إرسال متابعة بلس...";
+    const sendBtn = document.getElementById("bulk-followup-plus-send");
+    sendBtn.disabled = true;
+    try {
+      const result = await api("/bulk-followup", {
+        method: "POST",
+        body: JSON.stringify({
+          fromOutcome: "finance_link_plus",
+          message,
+          delayMs: delaySec * 1000,
+          limit,
+        }),
+      });
+      statusEl.className = "status ok";
+      statusEl.textContent =
+        `تم: ${result.sent || 0} | فشل: ${result.failed || 0} | تخطّي: ${result.skipped || 0}` +
+        (result.deferred ? ` | مؤجّل: ${result.deferred}` : "") +
+        ` | متبقي اليوم: ${result.dailyRemaining ?? "—"}` +
+        (result.financeLinkPlus != null ? ` | متابعة بلس: ${result.financeLinkPlus}` : "") +
         (result.hint ? ` — ${result.hint}` : "");
       await refreshAll();
     } catch (err) {

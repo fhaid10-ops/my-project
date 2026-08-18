@@ -107,6 +107,22 @@ ledger.setRejected("+966", "508031055", false);
 assert.ok(ledger.listByDay("today").count >= 1);
 assert.strictEqual(ledger.listByDay("rejected").count, 0);
 
+ledger.setOutcomeNotes("+966", "508031055", "أخذ رابط التمويل");
+const plus = ledger.setFollowupPlus("+966", "508031055", true);
+assert.ok(plus.followupPlus);
+assert.ok(plus.followupPlusAt);
+assert.ok(
+  ledger.listByDay("finance_link").customers.some((r) => r.phone === "508031055")
+);
+ledger.recordInbound("+966", "508031055", "ما زال بلس");
+assert.strictEqual(
+  ledger._customers.get("+966:508031055").followupPlus,
+  true,
+  "الرسالة الواردة لا تلغي متابعة بلس"
+);
+ledger.setFollowupPlus("+966", "508031055", false);
+assert.strictEqual(ledger._customers.get("+966:508031055").followupPlus, false);
+
 const exported = ledger.exportPayload();
 assert.strictEqual(exported.kind, "raed-customer-ledger");
 assert.ok(exported.count >= 1);

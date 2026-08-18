@@ -392,6 +392,8 @@ function createCustomerLedger(options = {}) {
       manualAt: row.manualAt || null,
       rejected: Boolean(row.rejected),
       rejectedAt: row.rejectedAt || null,
+      followupPlus: Boolean(row.followupPlus),
+      followupPlusAt: row.followupPlusAt || null,
       dayKey: row.dayKey || calendarDayKey(new Date(row.lastSeenAt || Date.now())),
       source: row.source || null,
       syncedAt: row.syncedAt || null,
@@ -504,6 +506,21 @@ function createCustomerLedger(options = {}) {
     row.rejected = next;
     row.rejectedAt = next ? new Date().toISOString() : null;
     if (next) clearIsolation(row, "rejected");
+    scheduleSave();
+    return row;
+  }
+
+  /**
+   * متابعة بلس — تذكير ثانٍ لمن أخذ رابط التمويل.
+   * يخرج من أرشيف/يدوي/رفض حتى يظهر في تبويب «رابط — متابعة بلس».
+   */
+  function setFollowupPlus(countryCode, phone, plus = true) {
+    const row = getOrCreate(countryCode, phone);
+    if (!row) return null;
+    const next = Boolean(plus);
+    row.followupPlus = next;
+    row.followupPlusAt = next ? new Date().toISOString() : null;
+    if (next) clearIsolation(row, "followupPlus");
     scheduleSave();
     return row;
   }
@@ -834,6 +851,8 @@ function createCustomerLedger(options = {}) {
           manualAt: existing.manualAt || incoming.manualAt || null,
           rejected: Boolean(existing.rejected || incoming.rejected),
           rejectedAt: existing.rejectedAt || incoming.rejectedAt || null,
+          followupPlus: Boolean(existing.followupPlus || incoming.followupPlus),
+          followupPlusAt: existing.followupPlusAt || incoming.followupPlusAt || null,
           orderNumber: existing.orderNumber || incoming.orderNumber || null,
           orderNumberAt:
             existing.orderNumberAt || incoming.orderNumberAt || null,
@@ -943,6 +962,7 @@ function createCustomerLedger(options = {}) {
     setArchived,
     setManual,
     setRejected,
+    setFollowupPlus,
     setOrderNumber,
     setWorkplace,
     listByDay,

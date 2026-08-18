@@ -288,6 +288,34 @@ async function req(method, path, body, token = "test-token") {
   );
   assert.ok((sentTab.json.counts?.finance_link_sent || 0) >= 1);
 
+  const plusFlag = await req("POST", "/customers/followup-plus", {
+    phone: "0550000004",
+    plus: true,
+  });
+  assert.strictEqual(plusFlag.status, 200);
+  assert.strictEqual(plusFlag.json.followupPlus, true);
+  assert.strictEqual(plusFlag.json.outcome, "أخذ رابط التمويل");
+  const plusTab = await req("GET", "/customers?day=finance_link_plus");
+  assert.ok(plusTab.json.customers.some((c) => c.phone === "550000004"));
+  assert.ok((plusTab.json.counts?.finance_link_plus || 0) >= 1);
+  const sentAfterPlus = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok(
+    !sentAfterPlus.json.customers.some((c) => c.phone === "550000004"),
+    "متابعة بلس لا تظهر في تبويب تمت المتابعة"
+  );
+  const pendingAfterPlus = await req("GET", "/customers?day=finance_link_pending");
+  assert.ok(
+    !pendingAfterPlus.json.customers.some((c) => c.phone === "550000004"),
+    "متابعة بلس لا تظهر في تبويب بدون متابعة"
+  );
+  const unplus = await req("POST", "/customers/followup-plus", {
+    phone: "0550000004",
+    plus: false,
+  });
+  assert.strictEqual(unplus.json.followupPlus, false);
+  const sentAfterUnplus = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok(sentAfterUnplus.json.customers.some((c) => c.phone === "550000004"));
+
   const statusQuota = await req("GET", "/status");
   assert.strictEqual(statusQuota.status, 200);
   assert.ok(
@@ -357,6 +385,27 @@ async function req(method, path, body, token = "test-token") {
     limit: 10,
   });
   assert.strictEqual(bulk3.status, 429, "حد يومي");
+  CONFIG.outbound = {
+    ...prevOutbound,
+    minDelayMs: 0,
+    delayMs: 0,
+    maxBatchSize: 10,
+    dailyLimit: 250,
+    skipIfFollowedUpWithinHours: 0,
+  };
+  const plusBulk = await req("POST", "/bulk-followup", {
+    fromOutcome: "finance_link_plus",
+    delayMs: 0,
+    limit: 10,
+  });
+  assert.strictEqual(plusBulk.status, 200, plusBulk.json?.error || "plus bulk ok");
+  assert.ok((plusBulk.json.sent || 0) >= 1, "متابعة بلس ترسل لمن تمت متابعتهم");
+  assert.ok(
+    String(sent[sent.length - 1].message).includes("نذكرك بتقديم الطلب"),
+    "نص متابعة بلس الافتراضي"
+  );
+  const plusAfterBulk = await req("GET", "/customers?day=finance_link_plus");
+  assert.ok((plusAfterBulk.json.counts?.finance_link_plus || 0) >= 1);
   CONFIG.outbound = prevOutbound;
 
   const menu = await req("POST", "/send-menu", { phone: "0551234567" });
