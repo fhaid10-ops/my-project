@@ -18,6 +18,7 @@ function createChatState(options = {}) {
   const sessions = options.sessions || new Map();
   const drafts = options.drafts || new Map();
   const pausedChats = options.pausedChats || new Set();
+  const pausedAt = new Map();
   let saveTimer = null;
 
   function ensureDir() {
@@ -53,25 +54,51 @@ function createChatState(options = {}) {
           });
         }
       }
-      for (const key of raw.paused || []) {
-        if (key) pausedChats.add(String(key));
+      let skippedStuckPause = 0;
+      for (const item of raw.paused || []) {
+        // الصيغة القديمة مصفوفة أرقام بدون وقت — توقف دائم يخلي البوت ما يرد
+        if (typeof item === "string" || typeof item === "number") {
+          skippedStuckPause += 1;
+          continue;
+        }
+        const key = String(item?.key || "").trim();
+        const savedAt = Number(item?.savedAt || 0);
+        if (!key || !savedAt || now - savedAt > ttlMs) {
+          if (key) skippedStuckPause += 1;
+          continue;
+        }
+        pausedAt.set(key, savedAt);
+        pausedChats.add(key);
       }
       console.log(
-        `[chat-state:load] drafts=${drafts.size} sessions=${sessions.size} paused=${pausedChats.size} · ${dataFile}`
+        `[chat-state:load] drafts=${drafts.size} sessions=${sessions.size} paused=${pausedChats.size} skippedStuckPause=${skippedStuckPause} · ${dataFile}`
       );
     } catch (err) {
       console.error("[chat-state:load]", err.message);
     }
   }
 
+  function pruneExpiredPaused(now = Date.now()) {
+    for (const [key, savedAt] of pausedAt.entries()) {
+      if (now - Number(savedAt || 0) > ttlMs) {
+        pausedAt.delete(key);
+        pausedChats.delete(key);
+      }
+    }
+  }
+
   function serialize() {
     pruneExpired(sessions);
     pruneExpired(drafts);
+    pruneExpiredPaused();
     return {
       savedAt: new Date().toISOString(),
       sessions: Object.fromEntries(sessions),
       drafts: Object.fromEntries(drafts),
-      paused: [...pausedChats],
+      paused: [...pausedAt.entries()].map(([key, savedAt]) => ({
+        key,
+        savedAt,
+      })),
     };
   }
 
@@ -152,16 +179,36 @@ function createChatState(options = {}) {
   }
 
   function isChatPaused(countryCode, phone) {
-    return pausedChats.has(sessionKey(countryCode, phone));
+    const key = sessionKey(countryCode, phone);
+    const savedAt = pausedAt.get(key);
+    if (!savedAt) {
+      if (pausedChats.has(key)) {
+        pausedChats.delete(key);
+        scheduleSave();
+      }
+      return false;
+    }
+    if (Date.now() - savedAt > ttlMs) {
+      pausedAt.delete(key);
+      pausedChats.delete(key);
+      scheduleSave();
+      return false;
+    }
+    return true;
   }
 
   function pauseChat(countryCode, phone) {
-    pausedChats.add(sessionKey(countryCode, phone));
+    const key = sessionKey(countryCode, phone);
+    pausedAt.set(key, Date.now());
+    pausedChats.add(key);
     scheduleSave();
   }
 
   function resumeChat(countryCode, phone) {
-    if (pausedChats.delete(sessionKey(countryCode, phone))) scheduleSave();
+    const key = sessionKey(countryCode, phone);
+    const hadAt = pausedAt.delete(key);
+    const hadSet = pausedChats.delete(key);
+    if (hadAt || hadSet) scheduleSave();
   }
 
   load();
