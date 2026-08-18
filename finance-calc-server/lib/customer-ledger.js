@@ -390,6 +390,8 @@ function createCustomerLedger(options = {}) {
       archivedAt: row.archivedAt || null,
       manual: Boolean(row.manual),
       manualAt: row.manualAt || null,
+      rejected: Boolean(row.rejected),
+      rejectedAt: row.rejectedAt || null,
       dayKey: row.dayKey || calendarDayKey(new Date(row.lastSeenAt || Date.now())),
       source: row.source || null,
       syncedAt: row.syncedAt || null,
@@ -455,6 +457,21 @@ function createCustomerLedger(options = {}) {
     return row;
   }
 
+  function clearIsolation(row, keep) {
+    if (keep !== "archived") {
+      row.archived = false;
+      row.archivedAt = null;
+    }
+    if (keep !== "manual") {
+      row.manual = false;
+      row.manualAt = null;
+    }
+    if (keep !== "rejected") {
+      row.rejected = false;
+      row.rejectedAt = null;
+    }
+  }
+
   /** أرشفة / إلغاء أرشفة عميل */
   function setArchived(countryCode, phone, archived = true) {
     const row = getOrCreate(countryCode, phone);
@@ -462,10 +479,7 @@ function createCustomerLedger(options = {}) {
     const next = Boolean(archived);
     row.archived = next;
     row.archivedAt = next ? new Date().toISOString() : null;
-    if (next) {
-      row.manual = false;
-      row.manualAt = null;
-    }
+    if (next) clearIsolation(row, "archived");
     scheduleSave();
     return row;
   }
@@ -477,10 +491,19 @@ function createCustomerLedger(options = {}) {
     const next = Boolean(manual);
     row.manual = next;
     row.manualAt = next ? new Date().toISOString() : null;
-    if (next) {
-      row.archived = false;
-      row.archivedAt = null;
-    }
+    if (next) clearIsolation(row, "manual");
+    scheduleSave();
+    return row;
+  }
+
+  /** رفض / إلغاء الرفض — يعزل العميل في تبويب «رفض» */
+  function setRejected(countryCode, phone, rejected = true) {
+    const row = getOrCreate(countryCode, phone);
+    if (!row) return null;
+    const next = Boolean(rejected);
+    row.rejected = next;
+    row.rejectedAt = next ? new Date().toISOString() : null;
+    if (next) clearIsolation(row, "rejected");
     scheduleSave();
     return row;
   }
@@ -626,9 +649,10 @@ function createCustomerLedger(options = {}) {
     const yesterday = shiftDayKey(today, -1);
     const wantArchive = day === "archive" || day === "archived";
     const wantManual = day === "manual" || day === "يدوي";
+    const wantRejected = day === "rejected" || day === "رفض";
     const outcomeLabel = outcomeLabelForTab(day);
     let target = null;
-    if (!wantArchive && !wantManual && !outcomeLabel) {
+    if (!wantArchive && !wantManual && !wantRejected && !outcomeLabel) {
       if (day === "today") target = today;
       else if (day === "yesterday") target = yesterday;
       else if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) target = day;
@@ -638,9 +662,11 @@ function createCustomerLedger(options = {}) {
       .filter((row) => {
         const isArchived = Boolean(row.archived);
         const isManual = Boolean(row.manual);
-        if (wantManual) return isManual && !isArchived;
+        const isRejected = Boolean(row.rejected);
+        if (wantRejected) return isRejected && !isArchived && !isManual;
+        if (wantManual) return isManual && !isArchived && !isRejected;
         if (wantArchive) return isArchived;
-        if (isArchived || isManual) return false;
+        if (isArchived || isManual || isRejected) return false;
         if (outcomeLabel) {
           return String(row.outcome || "").trim() === outcomeLabel;
         }
@@ -656,6 +682,12 @@ function createCustomerLedger(options = {}) {
         );
       })
       .sort((a, b) => {
+        if (wantRejected) {
+          return (
+            Date.parse(b.rejectedAt || b.lastSeenAt) -
+            Date.parse(a.rejectedAt || a.lastSeenAt)
+          );
+        }
         if (wantManual) {
           return (
             Date.parse(b.manualAt || b.lastSeenAt) -
@@ -672,7 +704,8 @@ function createCustomerLedger(options = {}) {
       });
 
     let dayKey = "all";
-    if (wantManual) dayKey = "manual";
+    if (wantRejected) dayKey = "rejected";
+    else if (wantManual) dayKey = "manual";
     else if (wantArchive) dayKey = "archive";
     else if (outcomeLabel) dayKey = String(day);
     else if (target) dayKey = target;
@@ -694,8 +727,9 @@ function createCustomerLedger(options = {}) {
     const yesterdayPack = listByDay("yesterday");
     const archivePack = listByDay("archive");
     const manualPack = listByDay("manual");
+    const rejectedPack = listByDay("rejected");
     const activeRows = [...customers.values()].filter(
-      (r) => !r.archived && !r.manual
+      (r) => !r.archived && !r.manual && !r.rejected
     );
     const outcomeCounts = {};
     for (const [key, label] of Object.entries(OUTCOME_TAB_FILTERS)) {
@@ -713,6 +747,7 @@ function createCustomerLedger(options = {}) {
         all: activeRows.length,
         archive: archivePack.count,
         manual: manualPack.count,
+        rejected: rejectedPack.count,
         ...outcomeCounts,
       },
     };
@@ -797,6 +832,8 @@ function createCustomerLedger(options = {}) {
           archivedAt: existing.archivedAt || incoming.archivedAt || null,
           manual: Boolean(existing.manual || incoming.manual),
           manualAt: existing.manualAt || incoming.manualAt || null,
+          rejected: Boolean(existing.rejected || incoming.rejected),
+          rejectedAt: existing.rejectedAt || incoming.rejectedAt || null,
           orderNumber: existing.orderNumber || incoming.orderNumber || null,
           orderNumberAt:
             existing.orderNumberAt || incoming.orderNumberAt || null,
@@ -905,6 +942,7 @@ function createCustomerLedger(options = {}) {
     setOutcomeNotes,
     setArchived,
     setManual,
+    setRejected,
     setOrderNumber,
     setWorkplace,
     listByDay,

@@ -126,6 +126,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 .badge.followed { background: rgba(184,137,31,.16); color: #8a6414; }
 .badge.pending-follow { background: rgba(13,107,76,.1); color: var(--accent); }
 .badge.manual { background: rgba(13,107,76,.16); color: var(--accent); }
+.badge.rejected { background: rgba(157,58,45,.14); color: var(--danger); }
 .work-choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .work-choice {
   border: 1px solid var(--line); background: #fff; color: var(--ink);
@@ -316,6 +317,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <span class="tab-label">يدوي</span>
           <span class="tab-count" id="tab-count-manual">—</span>
         </button>
+        <button class="tab" data-day="rejected" type="button">
+          <span class="tab-label">رفض</span>
+          <span class="tab-count" id="tab-count-rejected">—</span>
+        </button>
       </div>
       <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو الطلب أو جهة العمل أو وش صار أو ملاحظة" />
     </div>
@@ -330,6 +335,18 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         <button id="manual-add-btn" class="btn primary" type="button">إضافة إلى اليدوي</button>
       </div>
       <p id="manual-add-status" class="status" hidden></p>
+    </div>
+    <div class="card" id="rejected-add-card" style="margin-bottom:12px;display:none">
+      <h3 style="margin:0 0 8px;font-size:1.05rem">قسم الرفض</h3>
+      <p class="muted" style="margin-bottom:12px">حوّل أي عميل إلى هذا القسم بزر «رفض»، أو أضف رقماً جديداً هنا.</p>
+      <div class="btn-row" style="align-items:end">
+        <label class="field" style="margin:0;flex:1;min-width:180px">
+          <span>رقم الجوال</span>
+          <input id="rejected-add-phone" type="tel" inputmode="numeric" placeholder="05xxxxxxxx" />
+        </label>
+        <button id="rejected-add-btn" class="btn primary" type="button">إضافة إلى الرفض</button>
+      </div>
+      <p id="rejected-add-status" class="status" hidden></p>
     </div>
 
     <div class="card">
@@ -398,7 +415,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-18-manual-tab";
+  const UI_VERSION = "2026-08-18-rejected-tab";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -646,6 +663,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     set("tab-count-service_stop", counts?.service_stop ?? counts?.customersServiceStop);
     set("tab-count-archive", archive);
     set("tab-count-manual", counts?.manual ?? counts?.customersManual);
+    set("tab-count-rejected", counts?.rejected ?? counts?.customersRejected);
   }
 
   function updateLiveCounts(counts, persistence) {
@@ -684,6 +702,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     });
     const addCard = document.getElementById("manual-add-card");
     if (addCard) addCard.style.display = customerDay === "manual" ? "block" : "none";
+    const rejectedCard = document.getElementById("rejected-add-card");
+    if (rejectedCard) rejectedCard.style.display = customerDay === "rejected" ? "block" : "none";
   }
 
   function renderCustomers(rows, counts) {
@@ -720,7 +740,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       return `<tr>
         <td data-label="الجوال">
           ${phoneWhatsAppLink(row)}
-          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${row.manual ? ' <span class="badge manual">يدوي</span>' : ""}</div>
+          <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${row.manual ? ' <span class="badge manual">يدوي</span>' : ""}${row.rejected ? ' <span class="badge rejected">رفض</span>' : ""}</div>
           <div class="meta-line" style="margin-top:6px">${followupBadgesHtml(row)}</div>
         </td>
         <td data-label="تاريخ الإرسال">${formatTime(sendDateOf(row))}</td>
@@ -737,6 +757,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <button class="btn primary small" data-act="ask-order" data-phone="${row.phone}" type="button" title="يرسل: السلام عليكم / هل تم تقديم الطلب / ارسل رقم الطلب">سؤال عن الطلب</button>
           <button class="btn secondary small" data-act="${row.archived ? "unarchive" : "archive"}" data-phone="${row.phone}" type="button">${row.archived ? "إلغاء الأرشفة" : "أرشفة"}</button>
           <button class="btn secondary small" data-act="${row.manual ? "unmanual" : "manual"}" data-phone="${row.phone}" type="button">${row.manual ? "إلغاء اليدوي" : "يدوي"}</button>
+          <button class="btn danger small" data-act="${row.rejected ? "unreject" : "reject"}" data-phone="${row.phone}" type="button">${row.rejected ? "إلغاء الرفض" : "رفض"}</button>
           <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
           <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
           <button class="btn ghost small" data-act="reset" data-phone="${row.phone}" type="button">تصفير</button>
@@ -755,7 +776,9 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           ? "الأرشيف"
           : pack.day === "manual"
             ? "يدوي"
-            : OUTCOME_TAB_LABELS[pack.day] || pack.outcome || pack.day;
+            : pack.day === "rejected"
+              ? "رفض"
+              : OUTCOME_TAB_LABELS[pack.day] || pack.outcome || pack.day;
     document.getElementById("customers-meta").textContent =
       `عرض ${shown} من ${total} · ${dayLabel} · ${pack.timezone || "Asia/Riyadh"}` +
       ` · الكل ${counts.all ?? "—"}` +
@@ -898,6 +921,14 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       await refreshCustomers({ append: false });
       return;
     }
+    if (act === "reject" || act === "unreject") {
+      await api("/customers/rejected", {
+        method: "POST",
+        body: JSON.stringify({ phone, rejected: act === "reject" }),
+      });
+      await refreshCustomers({ append: false });
+      return;
+    }
     if (act === "menu") await api("/send-menu", { method: "POST", body: JSON.stringify({ phone }) });
     if (act === "pause") await api("/pause", { method: "POST", body: JSON.stringify({ phone }) });
     if (act === "resume") await api("/resume", { method: "POST", body: JSON.stringify({ phone }) });
@@ -980,6 +1011,40 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     if (e.key === "Enter") {
       e.preventDefault();
       document.getElementById("manual-add-btn").click();
+    }
+  });
+
+  document.getElementById("rejected-add-btn").addEventListener("click", async () => {
+    const statusEl = document.getElementById("rejected-add-status");
+    const input = document.getElementById("rejected-add-phone");
+    const phone = String(input.value || "").trim();
+    if (!phone) {
+      alert("اكتب رقم الجوال أولاً");
+      return;
+    }
+    statusEl.hidden = false;
+    statusEl.className = "status";
+    statusEl.textContent = "جاري الإضافة...";
+    try {
+      await api("/customers/rejected", {
+        method: "POST",
+        body: JSON.stringify({ phone, rejected: true }),
+      });
+      input.value = "";
+      statusEl.className = "status ok";
+      statusEl.textContent = "تمت إضافة الرقم إلى قسم الرفض";
+      setCustomerTab("rejected");
+      await refreshCustomers({ append: false });
+    } catch (err) {
+      statusEl.className = "status";
+      statusEl.style.color = "var(--danger)";
+      statusEl.textContent = err.message;
+    }
+  });
+  document.getElementById("rejected-add-phone").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      document.getElementById("rejected-add-btn").click();
     }
   });
 

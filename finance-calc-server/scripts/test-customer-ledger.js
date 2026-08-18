@@ -93,6 +93,20 @@ ledger.setManual("+966", "508031055", false);
 assert.ok(ledger.listByDay("today").count >= 1);
 assert.strictEqual(ledger.listByDay("manual").count, 0);
 
+const rejected = ledger.setRejected("+966", "508031055", true);
+assert.ok(rejected.rejected);
+assert.ok(rejected.rejectedAt);
+assert.strictEqual(ledger.listByDay("today").count, 0);
+assert.strictEqual(ledger.listByDay("service_stop").count, 0, "المرفوض لا يظهر في تبويب وش صار");
+assert.strictEqual(ledger.listByDay("rejected").count, 1);
+assert.strictEqual(ledger.summary().counts.rejected, 1);
+assert.strictEqual(ledger.summary().counts.all, 0);
+ledger.recordInbound("+966", "508031055", "ما زال مرفوض");
+assert.strictEqual(ledger._customers.get("+966:508031055").rejected, true, "الرسالة الواردة لا تلغي الرفض");
+ledger.setRejected("+966", "508031055", false);
+assert.ok(ledger.listByDay("today").count >= 1);
+assert.strictEqual(ledger.listByDay("rejected").count, 0);
+
 const exported = ledger.exportPayload();
 assert.strictEqual(exported.kind, "raed-customer-ledger");
 assert.ok(exported.count >= 1);

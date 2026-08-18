@@ -163,6 +163,25 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(unmanual.json.manual, false);
 
+  const rejected = await req("POST", "/customers/rejected", {
+    phone: "0551234567",
+    rejected: true,
+  });
+  assert.strictEqual(rejected.status, 200);
+  assert.strictEqual(rejected.json.rejected, true);
+  const todayAfterReject = await req("GET", "/customers?day=today");
+  assert.ok(
+    !todayAfterReject.json.customers.some((c) => c.phone === "551234567")
+  );
+  const rejectedList = await req("GET", "/customers?day=rejected");
+  assert.ok(rejectedList.json.customers.some((c) => c.phone === "551234567"));
+  assert.ok((rejectedList.json.counts?.rejected || 0) >= 1);
+  const unreject = await req("POST", "/customers/rejected", {
+    phone: "0551234567",
+    rejected: false,
+  });
+  assert.strictEqual(unreject.json.rejected, false);
+
   const workplace = await req("POST", "/customers/workplace", {
     phone: "0551234567",
     workplace: "government",

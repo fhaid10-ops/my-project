@@ -301,6 +301,7 @@ function createAdminRouter(deps) {
         customersAll: ledgerSummary?.counts?.all || 0,
         customersArchive: ledgerSummary?.counts?.archive || 0,
         customersManual: ledgerSummary?.counts?.manual || 0,
+        customersRejected: ledgerSummary?.counts?.rejected || 0,
         customersOrderNumber: ledgerSummary?.counts?.order_number || 0,
         customersPackage: ledgerSummary?.counts?.package || 0,
         customersLimitExhausted: ledgerSummary?.counts?.limit_exhausted || 0,
@@ -333,7 +334,7 @@ function createAdminRouter(deps) {
 
   /**
    * عملاء اليوم / أمس / الكل / حسب «وش صار» / الأرشيف
-   * ?day=today|yesterday|all|archive|manual|finance_link|finance_link_pending|finance_link_sent|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
+   * ?day=today|yesterday|all|archive|manual|rejected|finance_link|finance_link_pending|finance_link_sent|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
    * ?limit=&offset= للصفحات (افتراضي 100) — يقلل ثقل الجوال
    * ?phonesOnly=1 لنسخ الأرقام فقط
    */
@@ -430,6 +431,8 @@ function createAdminRouter(deps) {
         archivedAt: row.archivedAt || null,
         manual: Boolean(row.manual),
         manualAt: row.manualAt || null,
+        rejected: Boolean(row.rejected),
+        rejectedAt: row.rejectedAt || null,
         orderNumber:
           row.orderNumber ||
           sessionRow?.data?.orderNumber ||
@@ -639,6 +642,41 @@ function createAdminRouter(deps) {
       countryCode,
       manual: Boolean(row.manual),
       manualAt: row.manualAt || null,
+    });
+  });
+
+  /** رفض / إلغاء الرفض */
+  router.post("/customers/rejected", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const { phone, countryCode } = normalizePhoneParts(req.body || {});
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: "رقم الجوال مطلوب" });
+    }
+    const rejected =
+      req.body?.rejected === false ||
+      req.body?.rejected === "false" ||
+      req.body?.rejected === 0 ||
+      req.body?.unreject === true
+        ? false
+        : true;
+    const row = customerLedger.setRejected(countryCode, phone, rejected);
+    if (!row) {
+      return res.status(400).json({ ok: false, error: "تعذر تحديث قسم الرفض" });
+    }
+    customerLedger.flush();
+    pushLog({
+      action: rejected ? "customers-rejected" : "customers-unrejected",
+      phone,
+      countryCode,
+    });
+    res.json({
+      ok: true,
+      phone,
+      countryCode,
+      rejected: Boolean(row.rejected),
+      rejectedAt: row.rejectedAt || null,
     });
   });
 
