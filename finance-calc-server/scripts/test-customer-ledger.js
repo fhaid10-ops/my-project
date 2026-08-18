@@ -123,6 +123,17 @@ assert.strictEqual(
 ledger.setFollowupPlus("+966", "508031055", false);
 assert.strictEqual(ledger._customers.get("+966:508031055").followupPlus, false);
 
+const sentPlace = ledger.placeInLinkFollowup("+966", "508031055", "sent");
+assert.strictEqual(sentPlace.outcome, "أخذ رابط التمويل");
+assert.strictEqual(sentPlace.followupPlus, false);
+assert.ok(
+  ledger.listByDay("finance_link").customers.some((r) => r.phone === "508031055")
+);
+const plusPlace = ledger.placeInLinkFollowup("+966", "508031055", "plus");
+assert.ok(plusPlace.followupPlus);
+assert.strictEqual(plusPlace.outcome, "أخذ رابط التمويل");
+ledger.setFollowupPlus("+966", "508031055", false);
+
 const pastDay = shiftDayKey(today, -5);
 const row = ledger._customers.get("+966:508031055");
 row.lastSeenAt = `${pastDay}T12:00:00.000Z`;

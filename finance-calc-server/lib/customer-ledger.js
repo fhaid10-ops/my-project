@@ -526,6 +526,22 @@ function createCustomerLedger(options = {}) {
   }
 
   /**
+   * نقل العميل إلى تبويب رابط التمويل بعد سؤال الطلب / سؤال بلس.
+   * sent → رابط — تمت المتابعة | plus → رابط — متابعة بلس
+   */
+  function placeInLinkFollowup(countryCode, phone, bucket = "sent") {
+    const row = getOrCreate(countryCode, phone);
+    if (!row) return null;
+    const plus = bucket === "plus";
+    row.followupPlus = plus;
+    row.followupPlusAt = plus ? new Date().toISOString() : null;
+    clearIsolation(row, plus ? "followupPlus" : "");
+    row.outcome = "أخذ رابط التمويل";
+    scheduleSave();
+    return row;
+  }
+
+  /**
    * تحديث خانة «وش صار» (منفصلة عن الملاحظة الحرة)
    */
   function setOutcomeNotes(countryCode, phone, outcome) {
@@ -963,6 +979,7 @@ function createCustomerLedger(options = {}) {
     setManual,
     setRejected,
     setFollowupPlus,
+    placeInLinkFollowup,
     setOrderNumber,
     setWorkplace,
     listByDay,

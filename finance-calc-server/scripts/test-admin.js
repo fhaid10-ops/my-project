@@ -254,6 +254,7 @@ async function req(method, path, body, token = "test-token") {
   const followup = await req("POST", "/send-followup", { phone: "0551234567" });
   assert.strictEqual(followup.status, 200);
   assert.strictEqual(followup.json.sent, true);
+  assert.strictEqual(followup.json.tab, "finance_link_sent");
   assert.ok(
     String(sent[sent.length - 1].message).includes("هل تم تقديم الطلب"),
     "رسالة سؤال التقديم"
@@ -262,6 +263,16 @@ async function req(method, path, body, token = "test-token") {
     String(sent[sent.length - 1].message).includes("ارسل رقم الطلب"),
     "طلب رقم الطلب"
   );
+  const sentAfterAsk = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok(
+    sentAfterAsk.json.customers.some((c) => c.phone === "551234567"),
+    "سؤال عن الطلب ينقل العميل لتمت المتابعة"
+  );
+  const pendingAfterAsk = await req("GET", "/customers?day=finance_link_pending");
+  assert.ok(
+    !pendingAfterAsk.json.customers.some((c) => c.phone === "551234567"),
+    "سؤال عن الطلب يخرجه من بدون متابعة"
+  );
 
   const askPlus = await req("POST", "/send-followup", {
     phone: "0551234567",
@@ -269,6 +280,7 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(askPlus.status, 200);
   assert.strictEqual(askPlus.json.sent, true);
+  assert.strictEqual(askPlus.json.tab, "finance_link_plus");
   assert.ok(
     String(sent[sent.length - 1].message).includes("نأسف لعدم تقديمكم للطلب"),
     "رسالة سؤال بلس"
@@ -277,6 +289,18 @@ async function req(method, path, body, token = "test-token") {
     String(sent[sent.length - 1].message).includes("انا بخدمتك"),
     "عرض الخدمة في سؤال بلس"
   );
+  const plusAfterAsk = await req("GET", "/customers?day=finance_link_plus");
+  assert.ok(
+    plusAfterAsk.json.customers.some((c) => c.phone === "551234567"),
+    "سؤال بلس ينقل العميل لمتابعة بلس"
+  );
+  const sentAfterAskPlus = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok(
+    !sentAfterAskPlus.json.customers.some((c) => c.phone === "551234567"),
+    "سؤال بلس يخرجه من تمت المتابعة"
+  );
+  customerLedger.setFollowupPlus("+966", "551234567", false);
+  customerLedger.setOutcomeNotes("+966", "551234567", "أخذ باقة");
 
   // عميل أخذ رابط التمويل — للمتابعة الجماعية
   customerLedger.recordInbound("+966", "550000001", "تمويل");

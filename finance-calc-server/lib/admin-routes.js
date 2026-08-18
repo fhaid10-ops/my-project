@@ -964,13 +964,30 @@ function createAdminRouter(deps) {
       customerLedger?.recordOutbound?.(countryCode, phone, message, {
         mode: isAskPlus ? "admin-ask-plus" : "admin-followup",
       });
+      const placed = customerLedger?.placeInLinkFollowup?.(
+        countryCode,
+        phone,
+        isAskPlus ? "plus" : "sent"
+      );
+      customerLedger?.flush?.();
+      const tab = isAskPlus ? "finance_link_plus" : "finance_link_sent";
       pushLog({
         action: isAskPlus ? "send-ask-plus" : "send-followup",
         phone,
         countryCode,
         preview: message.slice(0, 80),
+        tab,
       });
-      res.json({ ok: true, sent: true, phone, countryCode, kind: isAskPlus ? "ask-plus" : "followup" });
+      res.json({
+        ok: true,
+        sent: true,
+        phone,
+        countryCode,
+        kind: isAskPlus ? "ask-plus" : "followup",
+        tab,
+        followupPlus: Boolean(placed?.followupPlus),
+        outcome: placed?.outcome || "أخذ رابط التمويل",
+      });
     } catch (err) {
       res.status(500).json({
         ok: false,

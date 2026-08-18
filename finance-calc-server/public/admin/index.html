@@ -473,7 +473,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-18-ask-plus-btn";
+  const UI_VERSION = "2026-08-18-followup-move-tabs";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -1028,7 +1028,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     }
     if (act === "ask-order") {
       await api("/send-followup", { method: "POST", body: JSON.stringify({ phone }) });
-      alert("تم إرسال سؤال التقديم للعميل");
+      alert("تم الإرسال — العميل في «رابط — تمت المتابعة»");
       await refreshCustomers({ append: false });
       return;
     }
@@ -1037,7 +1037,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         method: "POST",
         body: JSON.stringify({ phone, kind: "ask-plus" }),
       });
-      alert("تم إرسال سؤال بلس للعميل");
+      alert("تم الإرسال — العميل في «رابط — متابعة بلس»");
       await refreshCustomers({ append: false });
       return;
     }
