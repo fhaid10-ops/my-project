@@ -134,6 +134,19 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   background: var(--accent); color: #fff; border-color: var(--accent);
 }
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.page-nav { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.followup-entry {
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 140px;
+}
+.followup-entry .btn { min-height: 44px; }
+.followup-home-hint {
+  margin: 0; font-size: .78rem; color: var(--muted); text-align: center; font-weight: 700;
+}
+.followup-page-head {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px;
+  align-items: center; margin-bottom: 14px;
+}
+.followup-page-head h2 { margin: 0; font-size: 1.2rem; }
 .phone-link {
   font-weight: 700; direction: ltr; unicode-bidi: plaintext;
   display: inline-block; color: var(--accent); text-decoration: none;
@@ -217,14 +230,21 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     <header class="topbar">
       <div>
         <p class="brand-mark">رائد الحربي</p>
-        <h1>العملاء</h1>
+        <h1 id="page-title">العملاء</h1>
         <p id="live-counts" class="muted" style="margin:8px 0 0;font-weight:700;color:var(--accent)">العدد المحفوظ: —</p>
       </div>
-      <button id="refresh-btn" class="btn secondary" type="button">تحديث</button>
+      <div class="page-nav">
+        <div class="followup-entry" id="followup-entry">
+          <button id="open-followup-btn" class="btn primary" type="button">المتابعة</button>
+          <p id="followup-home-hint" class="followup-home-hint">—</p>
+        </div>
+        <button id="refresh-btn" class="btn secondary" type="button">تحديث</button>
+      </div>
     </header>
 
     <div id="error-banner" class="error-banner"></div>
 
+    <div id="home-view">
     <div id="persistence-banner" class="card" style="margin-bottom:14px;display:none;border-color:rgba(157,58,45,.35);background:rgba(157,58,45,.06)">
       <h3 style="margin-top:0;color:var(--danger)">التخزين مؤقت — يتصفر بعد إعادة التشغيل</h3>
       <p class="muted" id="persistence-banner-text" style="margin-bottom:0">أضف Persistent Disk في Render على المسار <code>/var/data</code> ثم Environment: <code>CUSTOMERS_DATA_DIR=/var/data/kobri</code>. قبل أي نشر: نزّل بكب.</p>
@@ -248,34 +268,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         <p id="backup-status" class="status" hidden></p>
       </div>
     </details>
-
-    <div class="card" id="bulk-followup-card" style="margin-bottom:14px">
-      <h3 style="margin:0 0 6px;font-size:1.05rem">متابعة جماعية — أخذ رابط التمويل</h3>
-      <p class="muted" style="margin-bottom:12px">
-        يرسل لكل عملاء «أخذ رابط التمويل» الذين لم تُرسل لهم متابعة خلال نافذة التخطّي،
-        بتأخير آمن. الحصة اليومية تغطي قائمة أخذ الرابط كاملة (200+).
-      </p>
-      <label class="field">
-        <span>نص الرسالة</span>
-        <textarea id="bulk-followup-message" rows="4" placeholder="السلام عليكم..."></textarea>
-      </label>
-      <div class="btn-row" style="margin-bottom:12px;align-items:end">
-        <label class="field" style="margin:0;flex:1;min-width:140px">
-          <span>التأخير بين الرسائل (ثانية) — الأقل 8</span>
-          <input id="bulk-followup-delay-sec" type="number" min="8" step="1" value="10" />
-        </label>
-        <label class="field" style="margin:0;flex:1;min-width:140px">
-          <span>حد الدفعة (أقصى 30)</span>
-          <input id="bulk-followup-limit" type="number" min="1" max="30" step="1" value="30" />
-        </label>
-      </div>
-      <p class="muted" id="bulk-followup-quota" style="margin:0 0 12px">الحصة اليومية: —</p>
-      <div class="btn-row">
-        <button id="bulk-followup-send" class="btn primary" type="button">إرسال متابعة جماعية</button>
-        <button id="bulk-followup-refresh" class="btn secondary" type="button">تحديث الحصة</button>
-      </div>
-      <p id="bulk-followup-status" class="status" hidden></p>
-    </div>
 
     <div class="toolbar">
       <div class="tabs" id="customer-tabs">
@@ -351,12 +343,46 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         </table>
       </div>
     </div>
+    </div>
+
+    <div id="followup-view" hidden>
+      <div class="followup-page-head">
+        <h2>متابعة جماعية — أخذ رابط التمويل</h2>
+        <button id="back-home-btn" class="btn secondary" type="button">رجوع للوحة</button>
+      </div>
+      <div class="card" id="bulk-followup-card">
+        <p class="muted" style="margin-bottom:12px">
+          يرسل لكل عملاء «أخذ رابط التمويل» الذين لم تُرسل لهم متابعة خلال نافذة التخطّي،
+          بتأخير آمن. الحصة اليومية تغطي قائمة أخذ الرابط كاملة (200+).
+        </p>
+        <label class="field">
+          <span>نص الرسالة</span>
+          <textarea id="bulk-followup-message" rows="4" placeholder="السلام عليكم..."></textarea>
+        </label>
+        <div class="btn-row" style="margin-bottom:12px;align-items:end">
+          <label class="field" style="margin:0;flex:1;min-width:140px">
+            <span>التأخير بين الرسائل (ثانية) — الأقل 8</span>
+            <input id="bulk-followup-delay-sec" type="number" min="8" step="1" value="10" />
+          </label>
+          <label class="field" style="margin:0;flex:1;min-width:140px">
+            <span>حد الدفعة (أقصى 30)</span>
+            <input id="bulk-followup-limit" type="number" min="1" max="30" step="1" value="30" />
+          </label>
+        </div>
+        <p class="muted" id="bulk-followup-quota" style="margin:0 0 12px">الحصة اليومية: —</p>
+        <div class="btn-row">
+          <button id="bulk-followup-send" class="btn primary" type="button">إرسال متابعة جماعية</button>
+          <button id="bulk-followup-refresh" class="btn secondary" type="button">تحديث الحصة</button>
+        </div>
+        <p id="bulk-followup-status" class="status" hidden></p>
+      </div>
+    </div>
   </main>
 </div>
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-17-followup-quota";
+  const UI_VERSION = "2026-08-18-followup-page";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -389,6 +415,27 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   const refreshBtn = document.getElementById("refresh-btn");
   const customerSearch = document.getElementById("customer-search");
   const errorBanner = document.getElementById("error-banner");
+  const homeView = document.getElementById("home-view");
+  const followupView = document.getElementById("followup-view");
+  const followupEntry = document.getElementById("followup-entry");
+  const pageTitle = document.getElementById("page-title");
+
+  function showPage(name, { push = true } = {}) {
+    const followup = name === "followup";
+    if (homeView) homeView.hidden = followup;
+    if (followupView) followupView.hidden = !followup;
+    if (followupEntry) followupEntry.hidden = followup;
+    if (pageTitle) pageTitle.textContent = followup ? "المتابعة" : "العملاء";
+    const liveCounts = document.getElementById("live-counts");
+    if (liveCounts) liveCounts.hidden = followup;
+    if (push) {
+      const nextHash = followup ? "#followup" : "";
+      if ((location.hash || "") !== nextHash) {
+        const url = location.pathname + location.search + nextHash;
+        history.pushState({ page: name }, "", url);
+      }
+    }
+  }
 
   try {
     const backupPanel = document.getElementById("backup-panel");
@@ -753,12 +800,12 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       limit.max = String(safe.maxBatchSize || 30);
     }
     const quota = document.getElementById("bulk-followup-quota");
+    const sent = safe.dailySent ?? 0;
+    const daily = safe.dailyLimit ?? 250;
+    const rem = safe.dailyRemaining ?? Math.max(daily - sent, 0);
+    const linkTotal = safe.financeLinkTotal;
+    const pending = safe.financeLinkPending;
     if (quota) {
-      const sent = safe.dailySent ?? 0;
-      const daily = safe.dailyLimit ?? 250;
-      const rem = safe.dailyRemaining ?? Math.max(daily - sent, 0);
-      const linkTotal = safe.financeLinkTotal;
-      const pending = safe.financeLinkPending;
       const linkPart =
         linkTotal != null
           ? `أخذوا الرابط: ${linkTotal} · بانتظار متابعة: ${pending ?? "—"} · `
@@ -767,6 +814,13 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         `${linkPart}` +
         `الحصة اليومية: أُرسل ${sent} من ${daily} · المتبقي ${rem}` +
         ` · تخطّي من توبع خلال ${safe.skipIfFollowedUpWithinHours ?? 20} ساعة`;
+    }
+    const homeHint = document.getElementById("followup-home-hint");
+    if (homeHint) {
+      homeHint.textContent =
+        pending != null
+          ? `بانتظار متابعة: ${pending}`
+          : `الحصة: ${sent}/${daily}`;
     }
   }
 
@@ -1118,6 +1172,19 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       sendBtn.disabled = false;
     }
   });
+
+  document.getElementById("open-followup-btn").addEventListener("click", () => {
+    showPage("followup");
+    refreshAll().catch((err) => showError(err.message));
+  });
+  document.getElementById("back-home-btn").addEventListener("click", () => {
+    showPage("home");
+    refreshAll().catch((err) => showError(err.message));
+  });
+  window.addEventListener("popstate", () => {
+    showPage(location.hash === "#followup" ? "followup" : "home", { push: false });
+  });
+  showPage(location.hash === "#followup" ? "followup" : "home", { push: false });
 
   refreshAll().catch((err) => {
     showError(err.message);
