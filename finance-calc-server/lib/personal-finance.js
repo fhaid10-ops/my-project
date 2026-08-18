@@ -207,12 +207,23 @@ function mapSector(text) {
 
 function mapRealEstate(text) {
   const t = String(text || "").trim();
-  if (/قديم/.test(t)) return "old";
+  if (!t) return null;
+  if (/عقاري\s*قديم|قسطه\s*1667/.test(t) || /^(قديم)$/.test(t)) return "old";
   if (/غير\s*مدعوم/.test(t)) return "unsupported";
   if (/مدعوم/.test(t)) return "supported";
-  if (/لا\s*يوجد|بدون|ما\s*علي|ما\s*فيه|لايوجد/.test(t)) return "none";
-  // "يوجد" / "عندي" بدون تفاصيل = عنده عقاري (نحسبه غير مدعوم)
-  if (/يوجد|عندي|فيه/.test(t)) return "unsupported";
+  if (
+    /لا\s*يوجد|لايوجد/.test(t) ||
+    /بدون\s*(?:تمويل\s*)?عقاري/.test(t) ||
+    /ما\s*علي(?:ه|ك|ي)?\s*(?:تمويل\s*)?عقاري/.test(t) ||
+    /ما\s*فيه(?:ا)?\s*(?:تمويل\s*)?عقاري/.test(t) ||
+    /^(بدون)$/.test(t)
+  ) {
+    return "none";
+  }
+  // عنده عقاري بدون نوع واضح — لا نطابق «فيه» لوحدها (تطلع في المقاطع الصوتية)
+  if (/عقاري/.test(t) && /يوجد|عندي|(?:^|\s)فيه(?:\s|$)/.test(t)) {
+    return "unsupported";
+  }
   if (/^(لا|لأ)$/.test(t)) return "none";
   return null;
 }

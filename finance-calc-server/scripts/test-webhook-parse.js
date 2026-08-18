@@ -272,6 +272,54 @@ check("تعليق الصورة يبقى نصاً مع الرابط", () => {
   assert.strictEqual(got.isImage, true);
 });
 
+check("مقطع صوتي يُصنَّف isAudio", () => {
+  const got = extractIncomingMessage({
+    type: "message_received",
+    data: {
+      customer: { phone_number: "501234567", country_code: "+966" },
+      message: {
+        message_content_type: "Audio",
+        message: "فيه عقاري مدعوم وغير مدعوم وقديم ولا يوجد",
+        media_url: "https://cdn.interakt.ai/media/voice.ogg",
+      },
+    },
+  });
+  assert.strictEqual(got.isAudio, true);
+  assert.strictEqual(got.isImage, false);
+});
+
+check("اختيار العقاري لا يُحسب من قائمة منعكسة أو كلمة فيه لوحدها", () => {
+  const { parseRealEstateChoice, voiceInsteadOfRealEstateReply } = require("../lib/conversation");
+  const { mapRealEstate } = require("../lib/personal-finance");
+  const echo = `هل عليك تمويل عقاري اختر النوع من القائمة
+لا يوجد عقاري
+عقاري مدعوم
+عقاري غير مدعوم
+عقاري قديم`;
+  assert.strictEqual(parseRealEstateChoice(echo), null);
+  assert.strictEqual(mapRealEstate("فيه سؤال عن الراتب"), null);
+  assert.strictEqual(parseRealEstateChoice("عقاري مدعوم"), "supported");
+  assert.strictEqual(parseRealEstateChoice("لا يوجد"), "none");
+  const voice = voiceInsteadOfRealEstateReply({
+    flow: "personal_chat",
+    step: "real_estate",
+    salary: 8000,
+    commitments: 0,
+  });
+  assert.match(voice.reply, /المقطع الصوتي/);
+  assert.strictEqual(voice.draft.step, "real_estate");
+  assert.strictEqual(voice.interactive.kind, "list");
+  const start = startPersonalFinanceFlow();
+  const afterSector = advancePersonalFinanceFlow(start.draft, "مدني");
+  const afterGov = advancePersonalFinanceFlow(afterSector.draft, "حكومي");
+  const afterSalary = advancePersonalFinanceFlow(afterGov.draft, "8000");
+  const afterCommitments = advancePersonalFinanceFlow(afterSalary.draft, "0");
+  const skipped = advancePersonalFinanceFlow(afterCommitments.draft, echo);
+  assert.strictEqual(skipped.draft.step, "real_estate");
+  assert.ok(skipped.interactive);
+  assert.ok(!skipped.sessionData);
+});
+
 check("ضغط عسكري بدون مسودة يسأل الراتب بدل السكوت", () => {
   const {
     resumeFromSectorReply,

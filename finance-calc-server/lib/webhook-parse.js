@@ -245,6 +245,8 @@ function extractIncomingMessage(payload) {
   const contentType = String(
     messageObj.message_content_type || messageObj.type || data?.message_content_type || ""
   );
+  const isImage = looksLikeIncomingImage(contentType, mediaUrl, messageObj);
+  const isAudio = looksLikeIncomingAudio(contentType, mediaUrl, messageObj);
 
   return {
     text: String(text || ""),
@@ -252,7 +254,8 @@ function extractIncomingMessage(payload) {
     countryCode,
     contentType,
     mediaUrl,
-    isImage: looksLikeIncomingImage(contentType, mediaUrl, messageObj),
+    isImage,
+    isAudio,
     eventType: payload?.type || payload?.event || "",
   };
 }
@@ -288,6 +291,19 @@ function looksLikeIncomingImage(contentType, mediaUrl, messageObj = {}) {
   return false;
 }
 
+function looksLikeIncomingAudio(contentType, mediaUrl, messageObj = {}) {
+  const type = String(contentType || "").toLowerCase();
+  if (/audio|voice|ptt|ogg|opus/.test(type)) return true;
+  const mime = String(
+    messageObj.mime_type || messageObj.mimetype || messageObj?.audio?.mime_type || ""
+  ).toLowerCase();
+  if (mime.startsWith("audio/")) return true;
+  if (mediaUrl && /\.(ogg|opus|mp3|m4a|amr|wav|aac)(\?|$)/i.test(mediaUrl)) {
+    return true;
+  }
+  return false;
+}
+
 function hasInteractiveCustomerClick(payload = {}) {
   const data = payload?.data || payload || {};
   const messageObj = data.message || {};
@@ -314,5 +330,6 @@ module.exports = {
   extractIncomingMessage,
   pickMediaUrl,
   looksLikeIncomingImage,
+  looksLikeIncomingAudio,
   hasInteractiveCustomerClick,
 };

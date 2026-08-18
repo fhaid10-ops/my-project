@@ -183,7 +183,35 @@ function parseRealEstateChoice(raw) {
     return "unsupported";
   }
   if (/^(re_old|old)$/i.test(t) || /^4$/.test(t)) return "old";
+  // رسالة فيها أكثر من خيار (قائمة منعكسة أو تفريغ صوتي طويل) ≠ اختيار واحد
+  if (countRealEstateOptionKinds(t) > 1) return null;
   return mapRealEstate(t);
+}
+
+function countRealEstateOptionKinds(text) {
+  const t = String(text || "");
+  const kinds = new Set();
+  if (/عقاري\s*قديم|قسطه\s*1667|re_old/.test(t) || /^(قديم)$/.test(t)) {
+    kinds.add("old");
+  }
+  if (/غير\s*مدعوم/.test(t)) kinds.add("unsupported");
+  else if (/مدعوم/.test(t)) kinds.add("supported");
+  if (/لا\s*يوجد|لايوجد|بدون|ما\s*فيه|ما\s*علي|re_none/.test(t)) kinds.add("none");
+  return kinds.size;
+}
+
+function voiceInsteadOfRealEstateReply(draft) {
+  const state = {
+    ...(draft && typeof draft === "object" ? draft : {}),
+    step: "real_estate",
+  };
+  return {
+    ok: false,
+    reply: `ما أقدر أعتمد المقطع الصوتي هنا.
+اختر نوع العقاري من القائمة.`,
+    interactive: realEstateInteractive(),
+    draft: state,
+  };
 }
 
 function comboYesNoInteractive(bodyText) {
@@ -598,6 +626,8 @@ module.exports = {
   resumeFromSectorReply,
   realEstateInteractive,
   parseRealEstateChoice,
+  countRealEstateOptionKinds,
+  voiceInsteadOfRealEstateReply,
   parseSalaryReply,
   salaryPrompt,
   invalidSalaryPrompt,

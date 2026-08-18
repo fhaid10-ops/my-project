@@ -32,6 +32,7 @@ const {
   startPersonalFinanceFlow,
   advancePersonalFinanceFlow,
   resumeFromSectorReply,
+  voiceInsteadOfRealEstateReply,
 } = require("./lib/conversation");
 const {
   looksLikeStartDebtPurchase,
@@ -358,7 +359,7 @@ app.post("/webhook/interakt", async (req, res) => {
     const payload = req.body || {};
     const type = payload?.type || payload?.event || "";
     const incoming = extractIncomingMessage(payload);
-    let { text, phone, countryCode, contentType, eventType, mediaUrl, isImage } =
+    let { text, phone, countryCode, contentType, eventType, mediaUrl, isImage, isAudio } =
       incoming;
 
     console.log("[webhook]", {
@@ -366,6 +367,7 @@ app.post("/webhook/interakt", async (req, res) => {
       phone,
       contentType,
       isImage: Boolean(isImage),
+      isAudio: Boolean(isAudio),
       hasMedia: Boolean(mediaUrl),
       preview: String(text || "").slice(0, 80),
       messageKeys: Object.keys(payload?.data?.message || {}),
@@ -405,13 +407,13 @@ app.post("/webhook/interakt", async (req, res) => {
       }
     }
 
-    if (!text && !isImage) return;
+    if (!text && !isImage && !isAudio) return;
 
     let result = null;
     const yesNo = looksLikeYesNoReply(text);
     const currentSession = getSession(countryCode, phone);
     const draft = getDraft(countryCode, phone);
-    const inboundPreview = text || "[صورة]";
+    const inboundPreview = text || (isImage ? "[صورة]" : isAudio ? "[صوت]" : "");
 
     // سجل العميل في لوحة التحكم (اليوم / أمس)
     customerLedger.recordInbound(countryCode, phone, inboundPreview, {
@@ -424,7 +426,7 @@ app.post("/webhook/interakt", async (req, res) => {
         draft?.civilianSubtype || currentSession?.civilianSubtype || null,
     });
 
-    if (!text) return;
+    if (!text && !(isAudio && draft?.step === "real_estate")) return;
     // داخل مسار/اختيار قائمة: الرقم 1 له معنى ثاني (لا نعيد القائمة)
     const inActiveChoice =
       (draft?.flow === "main_menu" &&
@@ -507,6 +509,10 @@ app.post("/webhook/interakt", async (req, res) => {
     } else if (isChatPaused(countryCode, phone)) {
       // محادثة موقوفة: لا نرد إلا بعد سلام / قائمة / اختصار
       return;
+    } else if (isAudio && draft?.step === "real_estate") {
+      // مقطع صوتي بدل اختيار القائمة — لا نحسب تلقائيًا
+      result = voiceInsteadOfRealEstateReply(draft);
+      if (result.draft) saveDraft(countryCode, phone, result.draft);
     } else if (
       draft?.flow === "main_menu" &&
       draft.step === "awaiting_amount_examples_sector"
