@@ -235,7 +235,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     display: inline-flex; align-items: center; justify-content: center;
     text-align: center; text-decoration: none;
   }
-  tbody td.actions .wa-btn { display: none; }
   .work-choices { width: 100%; }
   .work-choice { flex: 1 1 calc(33% - 6px); min-height: 36px; padding: 6px 8px; font-size: .78rem; }
   .phone-link { font-size: 1.05rem; padding: 2px 0; }
@@ -474,7 +473,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-18-compact-card";
+  const UI_VERSION = "2026-08-18-ask-plus-btn";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -861,7 +860,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <textarea class="notes-input" data-notes-phone="${row.phone}" rows="1" placeholder="اكتب ملاحظة حرة...">${freeNotes}</textarea>
         </td>
         <td class="actions" data-label="إجراءات">
-          <a class="btn secondary small wa-btn" href="${escapeHtml(whatsappUrl(row))}" rel="noopener noreferrer">واتساب بزنس</a>
+          <button class="btn secondary small" data-act="ask-plus" data-phone="${row.phone}" type="button" title="يرسل: السلام عليكم / نأسف لعدم تقديمكم للطلب">سؤال بلس</button>
           <button class="btn primary small" data-act="ask-order" data-phone="${row.phone}" type="button" title="يرسل: السلام عليكم / هل تم تقديم الطلب / ارسل رقم الطلب">سؤال عن الطلب</button>
           <button class="btn secondary small" data-act="${row.archived ? "unarchive" : "archive"}" data-phone="${row.phone}" type="button">${row.archived ? "إلغاء الأرشفة" : "أرشفة"}</button>
           <button class="btn secondary small" data-act="${row.manual ? "unmanual" : "manual"}" data-phone="${row.phone}" type="button">${row.manual ? "إلغاء اليدوي" : "يدوي"}</button>
@@ -1030,6 +1029,15 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     if (act === "ask-order") {
       await api("/send-followup", { method: "POST", body: JSON.stringify({ phone }) });
       alert("تم إرسال سؤال التقديم للعميل");
+      await refreshCustomers({ append: false });
+      return;
+    }
+    if (act === "ask-plus") {
+      await api("/send-followup", {
+        method: "POST",
+        body: JSON.stringify({ phone, kind: "ask-plus" }),
+      });
+      alert("تم إرسال سؤال بلس للعميل");
       await refreshCustomers({ append: false });
       return;
     }

@@ -946,23 +946,31 @@ function createAdminRouter(deps) {
     try {
       const { phone, countryCode } = normalizePhoneParts(req.body || {});
       if (!phone) return res.status(400).json({ ok: false, error: "رقم الجوال مطلوب" });
+      const kind = String(req.body?.kind || "").trim().toLowerCase();
+      const isAskPlus =
+        kind === "ask-plus" || kind === "ask_plus" || kind === "سؤال بلس";
       const message =
         String(req.body?.message || "").trim() ||
-        CONFIG.followUp?.electronicMessage ||
-        `السلام عليكم
+        (isAskPlus
+          ? CONFIG.followUp?.askPlusMessage ||
+            `السلام عليكم
+نأسف لعدم تقديمكم للطلب
+في حال لديك اي استفسارات، انا بخدمتك.`
+          : CONFIG.followUp?.electronicMessage ||
+            `السلام عليكم
 هل تم تقديم الطلب
-في حال تم التقديم ارسل رقم الطلب`;
+في حال تم التقديم ارسل رقم الطلب`);
       await sendInteraktText(countryCode, phone, message);
       customerLedger?.recordOutbound?.(countryCode, phone, message, {
-        mode: "admin-followup",
+        mode: isAskPlus ? "admin-ask-plus" : "admin-followup",
       });
       pushLog({
-        action: "send-followup",
+        action: isAskPlus ? "send-ask-plus" : "send-followup",
         phone,
         countryCode,
         preview: message.slice(0, 80),
       });
-      res.json({ ok: true, sent: true, phone, countryCode });
+      res.json({ ok: true, sent: true, phone, countryCode, kind: isAskPlus ? "ask-plus" : "followup" });
     } catch (err) {
       res.status(500).json({
         ok: false,

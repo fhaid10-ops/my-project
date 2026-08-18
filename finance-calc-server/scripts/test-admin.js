@@ -263,6 +263,21 @@ async function req(method, path, body, token = "test-token") {
     "طلب رقم الطلب"
   );
 
+  const askPlus = await req("POST", "/send-followup", {
+    phone: "0551234567",
+    kind: "ask-plus",
+  });
+  assert.strictEqual(askPlus.status, 200);
+  assert.strictEqual(askPlus.json.sent, true);
+  assert.ok(
+    String(sent[sent.length - 1].message).includes("نأسف لعدم تقديمكم للطلب"),
+    "رسالة سؤال بلس"
+  );
+  assert.ok(
+    String(sent[sent.length - 1].message).includes("انا بخدمتك"),
+    "عرض الخدمة في سؤال بلس"
+  );
+
   // عميل أخذ رابط التمويل — للمتابعة الجماعية
   customerLedger.recordInbound("+966", "550000001", "تمويل");
   customerLedger.setOutcomeNotes("+966", "550000001", "أخذ رابط التمويل");
