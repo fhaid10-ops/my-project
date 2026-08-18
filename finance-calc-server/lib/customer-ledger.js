@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const {
   AUTO_OUTCOME_LABELS,
+  OUTCOMES,
   OUTCOME_TAB_FILTERS,
   outcomeLabelForTab,
 } = require("./customer-outcome");
@@ -86,6 +87,11 @@ const DEFAULT_BACKUP_DIR = path.join(DEFAULT_DATA_DIR, "backups");
 
 function pad(n) {
   return String(n).padStart(2, "0");
+}
+
+function hasOrderTicket(row) {
+  if (String(row?.orderNumber || "").replace(/\D/g, "")) return true;
+  return String(row?.outcome || "").trim() === OUTCOMES.ORDER_NUMBER;
 }
 
 /** تاريخ تقويمي في توقيت الرياض YYYY-MM-DD */
@@ -532,6 +538,11 @@ function createCustomerLedger(options = {}) {
   function placeInLinkFollowup(countryCode, phone, bucket = "sent") {
     const row = getOrCreate(countryCode, phone);
     if (!row) return null;
+    if (String(row.orderNumber || "").replace(/\D/g, "")) {
+      row.outcome = OUTCOMES.ORDER_NUMBER;
+      scheduleSave();
+      return row;
+    }
     const plus = bucket === "plus";
     row.followupPlus = plus;
     row.followupPlusAt = plus ? new Date().toISOString() : null;
@@ -562,11 +573,17 @@ function createCustomerLedger(options = {}) {
     if (!digits) {
       row.orderNumber = null;
       row.orderNumberAt = null;
+      if (String(row.outcome || "").trim() === OUTCOMES.ORDER_NUMBER) {
+        row.outcome = "";
+      }
       scheduleSave();
       return row;
     }
     row.orderNumber = digits.slice(0, 8);
     row.orderNumberAt = new Date().toISOString();
+    row.outcome = OUTCOMES.ORDER_NUMBER;
+    row.followupPlus = false;
+    row.followupPlusAt = null;
     scheduleSave();
     return row;
   }
@@ -700,6 +717,9 @@ function createCustomerLedger(options = {}) {
         if (wantManual) return isManual && !isArchived && !isRejected;
         if (wantArchive) return isArchived;
         if (isArchived || isManual || isRejected) return false;
+        const orderTicket = hasOrderTicket(row);
+        if (outcomeLabel === OUTCOMES.ORDER_NUMBER) return orderTicket;
+        if (orderTicket) return false;
         if (outcomeLabel) {
           return String(row.outcome || "").trim() === outcomeLabel;
         }
@@ -761,11 +781,13 @@ function createCustomerLedger(options = {}) {
     const archivePack = listByDay("archive");
     const manualPack = listByDay("manual");
     const rejectedPack = listByDay("rejected");
+    const orderPack = listByDay("order_number");
     const activeRows = [...customers.values()].filter(
-      (r) => !r.archived && !r.manual && !r.rejected
+      (r) => !r.archived && !r.manual && !r.rejected && !hasOrderTicket(r)
     );
     const outcomeCounts = {};
     for (const [key, label] of Object.entries(OUTCOME_TAB_FILTERS)) {
+      if (key === "order_number") continue;
       outcomeCounts[key] = activeRows.filter(
         (r) => String(r.outcome || "").trim() === label
       ).length;
@@ -781,6 +803,7 @@ function createCustomerLedger(options = {}) {
         archive: archivePack.count,
         manual: manualPack.count,
         rejected: rejectedPack.count,
+        order_number: orderPack.count,
         ...outcomeCounts,
       },
     };

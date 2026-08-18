@@ -225,12 +225,23 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(order.status, 200);
   assert.strictEqual(order.json.orderNumber, "10171234");
-  const afterOrder = await req("GET", "/customers?day=today");
+  assert.strictEqual(order.json.outcome, "رقم طلب");
+  const orderTab = await req("GET", "/customers?day=order_number");
   assert.ok(
-    afterOrder.json.customers.some(
+    orderTab.json.customers.some(
       (c) => c.phone === "551234567" && c.orderNumber === "10171234"
     )
   );
+  const todayAfterOrder = await req("GET", "/customers?day=today");
+  assert.ok(
+    !todayAfterOrder.json.customers.some((c) => c.phone === "551234567"),
+    "رقم الطلب يخرج العميل من سجل اليوم"
+  );
+  const clearOrder = await req("POST", "/customers/order-number", {
+    phone: "0551234567",
+    orderNumber: "",
+  });
+  assert.strictEqual(clearOrder.json.orderNumber, null);
 
   const exported = await req("GET", "/customers/export");
   assert.strictEqual(exported.status, 200);

@@ -42,17 +42,25 @@ const ordered = ledger.setOrderNumber("+966", "508031055", "10171234");
 assert.ok(ordered);
 assert.strictEqual(ordered.orderNumber, "10171234");
 assert.ok(ordered.orderNumberAt);
+assert.strictEqual(ordered.outcome, "رقم طلب");
+assert.ok(ledger.listByDay("order_number").count >= 1);
+assert.strictEqual(ledger.summary().counts.order_number, 1);
+assert.ok(
+  !ledger.listByDay("today").customers.some((c) => c.phone === "508031055"),
+  "صاحب رقم الطلب لا يبقى في سجل اليوم"
+);
 
 const todayPack = ledger.listByDay("today");
-assert.ok(todayPack.count >= 1);
 assert.strictEqual(todayPack.today, today);
 assert.strictEqual(todayPack.yesterday, yesterday);
 
-ledger.setOutcomeNotes("+966", "508031055", "رقم طلب");
-assert.ok(ledger.listByDay("order_number").count >= 1);
-assert.strictEqual(ledger.listByDay("order_number").outcome, "رقم طلب");
-assert.strictEqual(ledger.summary().counts.order_number, 1);
 ledger.setOutcomeNotes("+966", "508031055", "أخذ باقة");
+assert.ok(
+  ledger.listByDay("order_number").count >= 1,
+  "وجود رقم الطلب يبقيهم في قسم رقم طلب"
+);
+assert.strictEqual(ledger.listByDay("package").count, 0);
+ledger.setOrderNumber("+966", "508031055", "");
 assert.strictEqual(ledger.listByDay("order_number").count, 0);
 assert.ok(ledger.listByDay("package").count >= 1);
 assert.strictEqual(ledger.summary().counts.package, 1);

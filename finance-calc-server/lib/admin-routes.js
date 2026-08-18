@@ -601,6 +601,7 @@ function createAdminRouter(deps) {
       countryCode,
       orderNumber: row.orderNumber,
       orderNumberAt: row.orderNumberAt,
+      outcome: row.outcome || "",
     });
   });
 
