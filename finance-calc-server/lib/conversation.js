@@ -58,6 +58,7 @@ function startPersonalFinanceFlow(options = {}) {
           ],
         }
       : null,
+    sendTextThenInteractive: Boolean(askSector),
     draft: {
       flow: "personal_chat",
       step: "sector",

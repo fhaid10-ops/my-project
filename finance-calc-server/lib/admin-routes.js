@@ -5,10 +5,23 @@ const path = require("path");
 const express = require("express");
 const CONFIG = require("../config");
 
+function extractPhoneDigits(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  const fromQuery = s.match(/[?&#/]phone=(\d{9,15})/i);
+  if (fromQuery) return fromQuery[1];
+  const fromIntent = s.match(/(?:^|[?&#])phone=(\d{9,15})/i);
+  if (fromIntent) return fromIntent[1];
+  const fromWaMe = s.match(
+    /(?:wa\.me\/|api\.whatsapp\.com\/send\?phone=|whatsapp:\/\/send\?phone=)(\d{9,15})/i
+  );
+  if (fromWaMe) return fromWaMe[1];
+  return s.replace(/\D/g, "");
+}
+
 function normalizePhoneParts(input = {}) {
-  let phone = String(input.phone || input.phoneNumber || "")
-    .replace(/\D/g, "")
-    .replace(/^0+/, "");
+  let phone = extractPhoneDigits(input.phone || input.phoneNumber || "");
+  phone = phone.replace(/^0+/, "");
   let countryCode = String(input.countryCode || "+966").trim();
   if (!countryCode.startsWith("+")) countryCode = `+${countryCode}`;
   if (phone.startsWith("966") && phone.length > 9) {
@@ -1006,8 +1019,8 @@ function createAdminRouter(deps) {
       resumeChat(countryCode, phone);
       clearDraft(countryCode, phone);
       clearSession(countryCode, phone);
-      if (result.draft) saveDraft(countryCode, phone, result.draft);
       await sendResultReply(countryCode, phone, result);
+      if (result.draft) saveDraft(countryCode, phone, result.draft);
       customerLedger?.recordOutbound?.(
         countryCode,
         phone,
@@ -1274,4 +1287,5 @@ module.exports = {
   createAdminRouter,
   mountAdmin,
   normalizePhoneParts,
+  extractPhoneDigits,
 };

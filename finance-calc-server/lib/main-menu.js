@@ -142,6 +142,8 @@ function showMainMenu(text) {
     flow: "main_menu",
     reply: numberedMenuFallback(body),
     interactive: mainMenuInteractive(body),
+    // النص أولًا: قائمة InteractiveList تفشل إذا ما فيه جلسة واتساب 24 ساعة
+    sendTextThenInteractive: true,
     draft: { flow: "main_menu", step: "awaiting_choice" },
     clearSession: true,
     resumeChat: true,

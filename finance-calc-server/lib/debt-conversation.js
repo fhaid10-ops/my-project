@@ -52,6 +52,7 @@ function startDebtPurchaseFlow(options = {}) {
           ],
         }
       : null,
+    sendTextThenInteractive: Boolean(askSector),
     draft: {
       flow: "debt_chat",
       step: "sector",

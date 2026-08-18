@@ -10,6 +10,16 @@ const parts = normalizePhoneParts({ phone: "0501812339" });
 assert.strictEqual(parts.phone, "501812339");
 assert.strictEqual(parts.countryCode, "+966");
 
+const intentParts = normalizePhoneParts({
+  phone:
+    "intent://send/?phone=966579478016#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url=https%3A%2F%2Fwa.me%2F966579478016;end",
+});
+assert.strictEqual(intentParts.phone, "579478016");
+assert.strictEqual(intentParts.countryCode, "+966");
+
+const waMeParts = normalizePhoneParts({ phone: "https://wa.me/966579478016" });
+assert.strictEqual(waMeParts.phone, "579478016");
+
 const sessions = new Map();
 const drafts = new Map();
 const pausedChats = new Set();

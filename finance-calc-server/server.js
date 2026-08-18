@@ -315,17 +315,34 @@ async function sendResultReply(countryCode, phone, result) {
     if (result.followUpReply) {
       await sendInteraktText(countryCode, phone, result.followUpReply);
     }
-    await sendInteraktInteractive(countryCode, phone, result.interactive);
-    return result.followUpReply
-      ? "text+followup+interactive"
-      : "text+interactive";
+    try {
+      await sendInteraktInteractive(countryCode, phone, result.interactive);
+      return result.followUpReply
+        ? "text+followup+interactive"
+        : "text+interactive";
+    } catch (err) {
+      console.error("[reply:interactive-fail]", phone, err.message, err.details || "");
+      return result.followUpReply ? "text+followup" : "text";
+    }
   }
   if (result?.interactive) {
-    await sendInteraktInteractive(countryCode, phone, result.interactive);
-    if (result.followUpReply) {
-      await sendInteraktText(countryCode, phone, result.followUpReply);
+    try {
+      await sendInteraktInteractive(countryCode, phone, result.interactive);
+      if (result.followUpReply) {
+        await sendInteraktText(countryCode, phone, result.followUpReply);
+      }
+      return result.followUpReply ? "interactive+followup" : "interactive";
+    } catch (err) {
+      console.error("[reply:interactive-fail]", phone, err.message, err.details || "");
+      if (result?.reply) {
+        await sendInteraktText(countryCode, phone, result.reply);
+        if (result.followUpReply) {
+          await sendInteraktText(countryCode, phone, result.followUpReply);
+        }
+        return result.followUpReply ? "fallback-text+followup" : "fallback-text";
+      }
+      throw err;
     }
-    return result.followUpReply ? "interactive+followup" : "interactive";
   }
   if (result?.reply) {
     await sendInteraktText(countryCode, phone, result.reply);

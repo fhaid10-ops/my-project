@@ -52,6 +52,8 @@ assert.ok(
   !welcome.interactive.rows.some((r) => /إيقاف الرد/.test(r.title))
 );
 assert.strictEqual(welcome.draft.flow, "main_menu");
+assert.strictEqual(welcome.sendTextThenInteractive, true);
+assert.match(welcome.reply, /1- تمويل شخصي/);
 
 assert.strictEqual(parseMainMenuChoice("1"), "1");
 assert.strictEqual(parseMainMenuChoice("تمويل شخصي"), "1");
