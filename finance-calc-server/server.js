@@ -447,37 +447,13 @@ app.post("/webhook/interakt", async (req, res) => {
     } else if (!text && !(isAudio && draft?.step === "real_estate")) {
       return;
     }
-    // داخل مسار/اختيار قائمة: الرقم 1 له معنى ثاني (لا نعيد القائمة)
-    const inActiveChoice =
-      (draft?.flow === "main_menu" &&
-        (draft.step === "awaiting_choice" ||
-          draft.step === "awaiting_amount_examples_sector" ||
-          draft.step === "awaiting_amount_examples_civilian_subtype" ||
-          draft.step === "awaiting_amount_examples_pick" ||
-          draft.step === "awaiting_amount_examples_cta" ||
-          draft.step === "awaiting_service_stop_qualify" ||
-          draft.step === "awaiting_service_stop_agent")) ||
-      (draft?.flow === "personal_chat" &&
-        draft.step &&
-        draft.step !== "done") ||
-      (draft?.flow === "debt_chat" && draft.step && draft.step !== "done") ||
-      currentSession?.awaitingCombo ||
-      currentSession?.awaitingComboInterest ||
-      currentSession?.awaitingDebtContinue ||
-      currentSession?.awaitingLowerAmountConfirm ||
-      currentSession?.awaitingLowerAmountEntry ||
-      currentSession?.awaitingLowerAmountTerm ||
-      draft?.awaitingCombo ||
-      draft?.awaitingComboInterest ||
-      draft?.awaitingDebtContinue;
-
-    // السلام / قائمة / اختصار المكتب (1) → القائمة الرئيسية
+    // السلام / قائمة / الرقم 1 → القائمة الرئيسية حتى لو داخل مسار
     if (result) {
       // صورة بدون رقم مقروء — رد جاهز
     } else if (
       looksLikeShowMainMenu(text) ||
       staffMenuShortcut ||
-      (!inActiveChoice && looksLikeMenuShortcut(text))
+      looksLikeMenuShortcut(text)
     ) {
       result = showMainMenu(text);
       resumeChat(countryCode, phone);

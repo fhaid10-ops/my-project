@@ -29,8 +29,8 @@ function looksLikeMainMenuTrigger(text) {
 }
 
 /**
- * اختصار المكتب لعرض القائمة للعميل — اكتب: 1
- * (يُستخدم أيضًا إذا العميل كتب 1 وهو مو داخل مسار)
+ * اختصار عرض القائمة — اكتب: 1
+ * يعمل من المكتب أو من العميل، حتى لو داخل مسار حسبة
  */
 function looksLikeMenuShortcut(text) {
   const t = normalizeDigits(String(text || "").trim());
