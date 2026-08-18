@@ -473,7 +473,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-18-followup-move-tabs";
+  const UI_VERSION = "2026-08-18-clarify-actions";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -861,14 +861,14 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         </td>
         <td class="actions" data-label="إجراءات">
           <button class="btn secondary small" data-act="ask-plus" data-phone="${row.phone}" type="button" title="يرسل: السلام عليكم / نأسف لعدم تقديمكم للطلب">سؤال بلس</button>
-          <button class="btn primary small" data-act="ask-order" data-phone="${row.phone}" type="button" title="يرسل: السلام عليكم / هل تم تقديم الطلب / ارسل رقم الطلب">سؤال عن الطلب</button>
+          <button class="btn secondary small" data-act="ask-order" data-phone="${row.phone}" type="button" title="متابعة: هل تم تقديم الطلب؟ ينقل لتبويب تمت المتابعة">سؤال عن الطلب</button>
           <button class="btn secondary small" data-act="${row.archived ? "unarchive" : "archive"}" data-phone="${row.phone}" type="button">${row.archived ? "إلغاء الأرشفة" : "أرشفة"}</button>
           <button class="btn secondary small" data-act="${row.manual ? "unmanual" : "manual"}" data-phone="${row.phone}" type="button">${row.manual ? "إلغاء اليدوي" : "يدوي"}</button>
           <button class="btn danger small" data-act="${row.rejected ? "unreject" : "reject"}" data-phone="${row.phone}" type="button">${row.rejected ? "إلغاء الرفض" : "رفض"}</button>
           <button class="btn secondary small" data-act="${row.followupPlus ? "unplus" : "plus"}" data-phone="${row.phone}" type="button">${row.followupPlus ? "إلغاء بلس" : "متابعة بلس"}</button>
           <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
-          <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button">${paused ? "تشغيل" : "إيقاف"}</button>
-          <button class="btn ghost small" data-act="reset" data-phone="${row.phone}" type="button">تصفير</button>
+          <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button" title="${paused ? "يشغّل الرد الآلي من البوت على هذا الرقم" : "يوقف رد البوت على هذا الرقم فقط، تقدر ترد أنت"}">${paused ? "تشغيل البوت" : "إيقاف البوت"}</button>
+          <button class="btn ghost small" data-act="reset" data-phone="${row.phone}" type="button" title="يمسح مسودة الحسبة ويبدأ العميل من القائمة، بدون حذف السجل">تصفير الجلسة</button>
         </td>
       </tr>`;
     }).join("");
