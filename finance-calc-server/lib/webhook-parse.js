@@ -210,15 +210,33 @@ function extractIncomingMessage(payload) {
   text = normalizeDigits(text);
   text = extractChoiceFromMultiline(text);
 
+  const user = data?.user || payload?.user || {};
+  const traits = customer?.traits || user?.traits || {};
   let phone =
     customer?.phone_number ||
     customer?.phoneNumber ||
     customer?.trailing_phone ||
     customer?.channel_phone_number ||
+    customer?.whatsapp_number ||
+    customer?.full_phone_number ||
+    customer?.phone ||
+    traits.phone ||
+    traits.phone_number ||
+    traits.whatsapp_number ||
+    user?.phoneNumber ||
+    user?.phone_number ||
     data?.customer_number ||
+    data?.phoneNumber ||
+    data?.phone_number ||
+    payload?.phoneNumber ||
     "";
   let countryCode =
-    customer?.country_code || customer?.countryCode || "+966";
+    customer?.country_code ||
+    customer?.countryCode ||
+    traits.country_code ||
+    user?.countryCode ||
+    data?.countryCode ||
+    "+966";
 
   phone = String(phone).replace(/\D/g, "");
   if (phone.startsWith("966") && phone.length > 9) {

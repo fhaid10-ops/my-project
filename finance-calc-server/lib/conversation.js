@@ -39,9 +39,9 @@ function looksLikeStartPersonalFinance(text) {
 }
 
 function startPersonalFinanceFlow(options = {}) {
-  // افتراضيًا صامت: Interakt يعرض أزرار القطاع (مدني/متقاعد/عسكري)
-  // حتى لا تتكرر الرسالة مرتين
-  const askSector = options.askSector === true;
+  // الكوبري يسأل القطاع مباشرة (ما نعتمد على Auto Reply في Interakt)
+  // ضغط «تمويل شخصي» من القائمة ما يطابق كلمة Auto Reply، فيصير سكوت
+  const askSector = options.askSector !== false;
   const sectorBody = "اختر";
   return {
     ok: true,
@@ -560,8 +560,8 @@ ${restartHint()}`,
     return finishPersonalFlow(state);
   }
 
-  // خطوة غير معروفة → نعيد من القطاع
-  return startPersonalFinanceFlow();
+  // خطوة غير معروفة → نعيد من القطاع مع الأزرار
+  return startPersonalFinanceFlow({ askSector: true });
 }
 
 function finishPersonalFlow(state) {

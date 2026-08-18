@@ -391,7 +391,14 @@ app.post("/webhook/interakt", async (req, res) => {
       return;
     }
 
-    if (!phone) return;
+    if (!phone) {
+      console.log("[webhook:skip:no-phone]", {
+        type: type || eventType,
+        keys: Object.keys(payload?.data || {}),
+        customerKeys: Object.keys(payload?.data?.customer || {}),
+      });
+      return;
+    }
 
     if (isImage && mediaUrl && !looksLikeApplicationOrderNumber(text)) {
       try {
@@ -507,7 +514,8 @@ app.post("/webhook/interakt", async (req, res) => {
       result = applyApplicationOrderNumber(countryCode, phone, orderNumber);
       if (isChatPaused(countryCode, phone)) return;
     } else if (isChatPaused(countryCode, phone)) {
-      // محادثة موقوفة: لا نرد إلا بعد سلام / قائمة / اختصار
+      // محادثة موقوفة من اللوحة: لا نرد إلا بعد سلام / قائمة / اختصار
+      console.log("[webhook:skip:paused]", phone);
       return;
     } else if (isAudio && draft?.step === "real_estate") {
       // مقطع صوتي بدل اختيار القائمة — لا نحسب تلقائيًا
@@ -586,10 +594,10 @@ app.post("/webhook/interakt", async (req, res) => {
         clearSession(countryCode, phone);
         result = menuResult;
       } else if (menuResult.startFlow === "personal") {
-        result = startPersonalFinanceFlow();
+        result = startPersonalFinanceFlow({ askSector: true });
         saveDraft(countryCode, phone, result.draft);
       } else if (menuResult.startFlow === "debt") {
-        result = startDebtPurchaseFlow();
+        result = startDebtPurchaseFlow({ askSector: true });
         saveDraft(countryCode, phone, result.draft);
       } else {
         result = menuResult;
@@ -679,7 +687,7 @@ app.post("/webhook/interakt", async (req, res) => {
       }
     } else if (looksLikeStartPersonalFinance(text)) {
       clearSession(countryCode, phone);
-      result = startPersonalFinanceFlow();
+      result = startPersonalFinanceFlow({ askSector: true });
       saveDraft(countryCode, phone, result.draft);
     } else if (looksLikeStartDebtPurchase(text)) {
       clearSession(countryCode, phone);
@@ -748,34 +756,43 @@ app.post("/webhook/interakt", async (req, res) => {
     } else if (looksLikeAmountChoice(text)) {
       const sessionData = getSession(countryCode, phone);
       if (sessionData?.awaitingCombo || sessionData?.awaitingComboInterest) return;
-      if (!sessionData?.maxAmount && !sessionData?.rounded) return;
-      const amount = parseAmountChoice(text);
-      result = calculateSelectedAmount(sessionData || {}, amount);
-      // احفظ الجلسة عشان يقدر يغيّر المبلغ لاحقًا (مثل من 15,000 إلى 10,000)
-      if (result?.ok && result.data) {
-        saveSession(countryCode, phone, result.data);
-      }
-    } else if (!draft && parseMainMenuChoice(text)) {
-      // عناوين القائمة بدون مسودة — نتجاهل الأرقام وحدها لتجنب التضارب
-      const choice = parseMainMenuChoice(text);
-      if (/^[1-7]$/.test(normalizeDigits(text).trim())) return;
-      const menuResult = handleMainMenuChoice(choice);
-      if (menuResult.pauseChat) {
-        pauseChat(countryCode, phone);
-        result = menuResult;
-      } else if (menuResult.startFlow === "personal") {
-        result = startPersonalFinanceFlow();
-        saveDraft(countryCode, phone, result.draft);
-      } else if (menuResult.startFlow === "debt") {
-        result = startDebtPurchaseFlow();
+      if (!sessionData?.maxAmount && !sessionData?.rounded) {
+        result = showMainMenu("قائمة");
         saveDraft(countryCode, phone, result.draft);
       } else {
-        result = menuResult;
-        if (result.draft) saveDraft(countryCode, phone, result.draft);
+        const amount = parseAmountChoice(text);
+        result = calculateSelectedAmount(sessionData || {}, amount);
+        // احفظ الجلسة عشان يقدر يغيّر المبلغ لاحقًا (مثل من 15,000 إلى 10,000)
+        if (result?.ok && result.data) {
+          saveSession(countryCode, phone, result.data);
+        }
+      }
+    } else if (!draft && parseMainMenuChoice(text)) {
+      // عناوين القائمة بدون مسودة — الرقم وحده (2–7) نعرض القائمة بدل بدء مسار بالخطأ
+      const choice = parseMainMenuChoice(text);
+      if (/^[1-7]$/.test(normalizeDigits(text).trim())) {
+        result = showMainMenu("قائمة");
+        saveDraft(countryCode, phone, result.draft);
+      } else {
+        const menuResult = handleMainMenuChoice(choice);
+        if (menuResult.pauseChat) {
+          pauseChat(countryCode, phone);
+          result = menuResult;
+        } else if (menuResult.startFlow === "personal") {
+          result = startPersonalFinanceFlow({ askSector: true });
+          saveDraft(countryCode, phone, result.draft);
+        } else if (menuResult.startFlow === "debt") {
+          result = startDebtPurchaseFlow({ askSector: true });
+          saveDraft(countryCode, phone, result.draft);
+        } else {
+          result = menuResult;
+          if (result.draft) saveDraft(countryCode, phone, result.draft);
+        }
       }
     } else {
       console.log("[webhook:unhandled]", phone, String(text || "").slice(0, 80));
-      return;
+      result = showMainMenu("قائمة");
+      saveDraft(countryCode, phone, result.draft);
     }
 
     if (!result?.reply && !result?.interactive) return;

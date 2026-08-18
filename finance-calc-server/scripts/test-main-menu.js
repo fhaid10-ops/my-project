@@ -20,6 +20,10 @@ assert.strictEqual(looksLikeGreeting("السلام"), true);
 assert.strictEqual(looksLikeGreeting("السلام."), true);
 assert.strictEqual(looksLikeGreeting("سلام"), true);
 assert.strictEqual(looksLikeGreeting("مرحبا"), true);
+assert.strictEqual(looksLikeGreeting("وعليكم السلام"), true);
+assert.strictEqual(looksLikeGreeting("صباح الخير"), true);
+assert.strictEqual(looksLikeGreeting("مساء الخير"), true);
+assert.strictEqual(looksLikeGreeting("هلا والله"), true);
 assert.strictEqual(looksLikeGreeting("تمويل شخصي"), false);
 
 assert.strictEqual(looksLikeShowMainMenu("السلام عليكم"), true);

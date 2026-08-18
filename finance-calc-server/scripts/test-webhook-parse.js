@@ -82,7 +82,7 @@ check("mapSector يفهم مدني مع رمز السهم", () => {
 });
 
 check("ضغط مدني يكمل لسؤال الراتب", () => {
-  const start = startPersonalFinanceFlow();
+  const start = startPersonalFinanceFlow({ askSector: false });
   assert.strictEqual(start.reply, null);
   assert.strictEqual(start.interactive, null);
   const subtype = advancePersonalFinanceFlow(start.draft, "مدني");
@@ -333,6 +333,29 @@ check("ضغط عسكري بدون مسودة يسأل الراتب بدل الس
   const civilian = resumeFromSectorReply("مدني");
   assert.strictEqual(civilian.draft.step, "civilian_subtype");
   assert.ok(civilian.interactive);
+});
+
+check("بداية التمويل الشخصي ترسل أزرار القطاع من الكوبري", () => {
+  const start = startPersonalFinanceFlow();
+  assert.strictEqual(start.reply, "اختر");
+  assert.ok(start.interactive);
+  assert.strictEqual(start.interactive.kind, "buttons");
+  assert.ok(
+    start.interactive.buttons.some((b) => b.title === "مدني")
+  );
+});
+
+check("رقم الجوال من user.phoneNumber إذا ما فيه customer", () => {
+  const got = extractIncomingMessage({
+    type: "message_received",
+    data: {
+      user: { phoneNumber: "0501234567", countryCode: "966" },
+      message: { message: "السلام عليكم" },
+    },
+  });
+  assert.strictEqual(got.phone, "501234567");
+  assert.strictEqual(got.countryCode, "+966");
+  assert.strictEqual(got.text, "السلام عليكم");
 });
 
 check("ضغط زر بدون button_text يُعتبر نقرة عميل", () => {
