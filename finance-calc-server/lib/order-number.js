@@ -108,6 +108,13 @@ function buildOrderNumberAckReply(configMessages = {}) {
 0595243553`;
 }
 
+function buildOrderImageMissReply(configMessages = {}) {
+  const custom = configMessages.orderImageUnreadable;
+  if (typeof custom === "string" && custom.trim()) return custom.trim();
+  return `ما قدرت أقرأ رقم الطلب من الصورة.
+أرسل رقم الطلب (8 أرقام ويبدأ بـ 101).`;
+}
+
 module.exports = {
   ORDER_PREFIX,
   ORDER_DIGITS,
@@ -116,4 +123,5 @@ module.exports = {
   looksLikeApplicationOrderNumber,
   extractOrderNumberFromOcr,
   buildOrderNumberAckReply,
+  buildOrderImageMissReply,
 };

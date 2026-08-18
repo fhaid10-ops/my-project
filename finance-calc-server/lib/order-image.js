@@ -93,19 +93,32 @@ async function downloadImage(url, { fetchImpl = fetch } = {}) {
   return buf;
 }
 
+const OCR_LANGS = ["ara+eng", "eng"];
+
+async function createOcrWorker(create) {
+  let lastErr;
+  for (const lang of OCR_LANGS) {
+    try {
+      const worker = await create(lang, 1, {
+        cachePath: TESSDATA_CACHE,
+        logger: () => {},
+      });
+      console.log("[order-image] ocr lang", lang);
+      return worker;
+    } catch (err) {
+      lastErr = err;
+      console.error("[order-image] ocr lang fail", lang, err.message || err);
+    }
+  }
+  throw lastErr || new Error("ocr worker failed");
+}
+
 async function getWorker(createWorkerFn) {
   if (!workerPromise) {
     workerPromise = (async () => {
       const { createWorker } = require("tesseract.js");
       const create = createWorkerFn || createWorker;
-      const worker = await create("eng", 1, {
-        cachePath: TESSDATA_CACHE,
-        logger: () => {},
-      });
-      await worker.setParameters({
-        tessedit_char_whitelist: "0123456789",
-      });
-      return worker;
+      return createOcrWorker(create);
     })().catch((err) => {
       workerPromise = null;
       throw err;
@@ -156,6 +169,7 @@ async function readOrderNumberFromImage(url, deps = {}) {
 
 module.exports = {
   MAX_IMAGE_BYTES,
+  OCR_LANGS,
   isOcrEnabled,
   isSafeMediaUrl,
   looksLikeImageBuffer,

@@ -72,6 +72,7 @@ const {
   looksLikeApplicationOrderNumber,
   parseApplicationOrderNumber,
   buildOrderNumberAckReply,
+  buildOrderImageMissReply,
 } = require("./lib/order-number");
 const { readOrderNumberFromImage } = require("./lib/order-image");
 const CONFIG = require("./config");
@@ -400,6 +401,7 @@ app.post("/webhook/interakt", async (req, res) => {
       return;
     }
 
+    let orderImageMiss = false;
     if (isImage && mediaUrl && !looksLikeApplicationOrderNumber(text)) {
       try {
         const fromImage = await readOrderNumberFromImage(mediaUrl);
@@ -407,9 +409,11 @@ app.post("/webhook/interakt", async (req, res) => {
           console.log("[order-image:ok]", phone, fromImage);
           text = fromImage;
         } else {
+          orderImageMiss = true;
           console.log("[order-image:miss]", phone);
         }
       } catch (err) {
+        orderImageMiss = true;
         console.error("[order-image:fail]", phone, err.message || err);
       }
     }
@@ -433,7 +437,16 @@ app.post("/webhook/interakt", async (req, res) => {
         draft?.civilianSubtype || currentSession?.civilianSubtype || null,
     });
 
-    if (!text && !(isAudio && draft?.step === "real_estate")) return;
+    if (!text && isImage && orderImageMiss) {
+      if (isChatPaused(countryCode, phone)) return;
+      result = {
+        ok: true,
+        reply: buildOrderImageMissReply(CONFIG.messages),
+        offer: "order_image_miss",
+      };
+    } else if (!text && !(isAudio && draft?.step === "real_estate")) {
+      return;
+    }
     // داخل مسار/اختيار قائمة: الرقم 1 له معنى ثاني (لا نعيد القائمة)
     const inActiveChoice =
       (draft?.flow === "main_menu" &&
@@ -459,7 +472,9 @@ app.post("/webhook/interakt", async (req, res) => {
       draft?.awaitingDebtContinue;
 
     // السلام / قائمة / اختصار المكتب (1) → القائمة الرئيسية
-    if (
+    if (result) {
+      // صورة بدون رقم مقروء — رد جاهز
+    } else if (
       looksLikeShowMainMenu(text) ||
       staffMenuShortcut ||
       (!inActiveChoice && looksLikeMenuShortcut(text))
@@ -512,7 +527,6 @@ app.post("/webhook/interakt", async (req, res) => {
       // رقم طلب التقديم (يبدأ بـ 101 وطوله 8) — قبل المسارات والمبلغ
       const orderNumber = parseApplicationOrderNumber(text);
       result = applyApplicationOrderNumber(countryCode, phone, orderNumber);
-      if (isChatPaused(countryCode, phone)) return;
     } else if (isChatPaused(countryCode, phone)) {
       // محادثة موقوفة من اللوحة: لا نرد إلا بعد سلام / قائمة / اختصار
       console.log("[webhook:skip:paused]", phone);

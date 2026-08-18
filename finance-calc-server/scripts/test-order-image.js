@@ -4,6 +4,7 @@ const {
   looksLikeImageBuffer,
   downloadImage,
   readOrderNumberFromImage,
+  OCR_LANGS,
 } = require("../lib/order-image");
 
 function check(name, fn) {
@@ -87,6 +88,29 @@ async function run() {
       }
     );
     assert.strictEqual(got, null);
+  });
+
+  await check("OCR وهمي يقرأ أرقام عربية هندية ١٠١٧١٩١٥", async () => {
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+    const got = await readOrderNumberFromImage(
+      "https://cdn.interakt.ai/media/sfc.jpg",
+      {
+        fetchImpl: async () => ({
+          ok: true,
+          headers: {
+            get: (name) => (name === "content-type" ? "image/jpeg" : null),
+          },
+          arrayBuffer: async () => jpeg,
+        }),
+        recognizeFn: async () =>
+          "تم تقديم الطلب بنجاح\nرقم الطلب ١٠١٧١٩١٥\n22651973.30",
+      }
+    );
+    assert.strictEqual(got, "10171915");
+  });
+
+  await check("OCR يجرب العربية ثم الإنجليزية", () => {
+    assert.deepStrictEqual(OCR_LANGS, ["ara+eng", "eng"]);
   });
 
   if (!process.exitCode) {

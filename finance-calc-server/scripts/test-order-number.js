@@ -4,6 +4,7 @@ const {
   looksLikeApplicationOrderNumber,
   extractOrderNumberFromOcr,
   buildOrderNumberAckReply,
+  buildOrderImageMissReply,
 } = require("../lib/order-number");
 const CONFIG = require("../config");
 
@@ -38,5 +39,18 @@ assert.strictEqual(extractOrderNumberFromOcr("I0I78456"), "10178456"); // I→1,
 assert.strictEqual(extractOrderNumberFromOcr("10101234 و 10178456"), "10178456");
 assert.strictEqual(extractOrderNumberFromOcr("فاتورة 8000"), null);
 assert.strictEqual(extractOrderNumberFromOcr(""), null);
+assert.strictEqual(extractOrderNumberFromOcr("١٠١٧١٩١٥"), "10171915");
+assert.strictEqual(
+  extractOrderNumberFromOcr(
+    "تم تقديم الطلب بنجاح\nمؤهل حتى ٢٢,٦٥١,٩٧٣.٣٠\nرقم الطلب ١٠١٧١٩١٥"
+  ),
+  "10171915"
+);
+assert.strictEqual(parseApplicationOrderNumber("١٠١٧١٩١٥"), "10171915");
+assert.strictEqual(parseApplicationOrderNumber("رقم الطلب ١٠١٧١٩١٥"), "10171915");
+
+const miss = buildOrderImageMissReply(CONFIG.messages);
+assert.match(miss, /ما قدرت أقرأ رقم الطلب/);
+assert.match(miss, /8 أرقام/);
 
 console.log("OK: order number ack (101 + 8 digits)");
