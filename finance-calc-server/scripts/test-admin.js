@@ -2,13 +2,19 @@ const assert = require("assert");
 const express = require("express");
 const os = require("os");
 const path = require("path");
-const { createAdminRouter, normalizePhoneParts } = require("../lib/admin-routes");
+const { createAdminRouter, normalizePhoneParts, parsePhoneList, isSaudiMobile } = require("../lib/admin-routes");
 const { showMainMenu } = require("../lib/main-menu");
 const { createCustomerLedger } = require("../lib/customer-ledger");
 
 const parts = normalizePhoneParts({ phone: "0501812339" });
 assert.strictEqual(parts.phone, "501812339");
 assert.strictEqual(parts.countryCode, "+966");
+assert.strictEqual(isSaudiMobile("559526221"), true);
+assert.strictEqual(isSaudiMobile("115033469"), false);
+assert.deepStrictEqual(
+  parsePhoneList("+966 55 952 6221\n050 429 7151\n+966 11 503 3469").map((p) => p.phone),
+  ["559526221", "504297151", "115033469"]
+);
 
 const sessions = new Map();
 const drafts = new Map();
@@ -475,6 +481,25 @@ async function req(method, path, body, token = "test-token") {
   );
   const plusAfterBulk = await req("GET", "/customers?day=finance_link_plus");
   assert.ok((plusAfterBulk.json.counts?.finance_link_plus || 0) >= 1);
+  CONFIG.outbound = prevOutbound;
+
+  CONFIG.outbound = {
+    ...prevOutbound,
+    minDelayMs: 0,
+    delayMs: 0,
+    maxBatchSize: 10,
+    dailyLimit: 250,
+    skipIfFollowedUpWithinHours: 0,
+  };
+  const blast = await req("POST", "/bulk-followup", {
+    phones: ["+966 55 952 6221", "0115033469", "0504297151"],
+    message: "تجربة جماعية",
+    delayMs: 0,
+    limit: 10,
+  });
+  assert.strictEqual(blast.status, 200, blast.json?.error || "blast ok");
+  assert.strictEqual(blast.json.sent, 2, "جوالان فقط");
+  assert.ok(blast.json.skipped >= 1, "تخطي الثابت");
   CONFIG.outbound = prevOutbound;
 
   const menu = await req("POST", "/send-menu", { phone: "0551234567" });

@@ -17,6 +17,24 @@ function normalizePhoneParts(input = {}) {
   return { phone, countryCode };
 }
 
+function isSaudiMobile(phone) {
+  return /^5\d{8}$/.test(String(phone || ""));
+}
+
+function parsePhoneList(raw) {
+  const text = Array.isArray(raw) ? raw.join("\n") : String(raw || "");
+  const chunks = text.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+  const seen = new Set();
+  const phones = [];
+  for (const chunk of chunks) {
+    const parts = normalizePhoneParts({ phone: chunk });
+    if (!parts.phone || seen.has(parts.phone)) continue;
+    seen.add(parts.phone);
+    phones.push(parts);
+  }
+  return phones;
+}
+
 function createAdminRouter(deps) {
   const {
     adminToken,
@@ -329,6 +347,7 @@ function createAdminRouter(deps) {
       brand: CONFIG.brand?.name || "رائد الحربي",
       followUpPreview: CONFIG.followUp?.electronicMessage || "",
       followUpPlusPreview: CONFIG.followUp?.plusMessage || "",
+      followUpBlastPreview: CONFIG.followUp?.blastMessage || "",
       outboundDelayMs: getBulkFollowupSafeConfig().delayMs,
       outboundSafe: (() => {
         const safe = getBulkFollowupSafeConfig();
@@ -1088,24 +1107,33 @@ function createAdminRouter(deps) {
         followupPlus: Boolean(row.followupPlus),
       }));
     } else {
-      const phones = Array.isArray(req.body?.phones) ? req.body.phones : [];
-      candidates = phones.map((p) => {
-        if (p && typeof p === "object") {
-          return {
-            phone: p.phone,
-            countryCode: p.countryCode,
-            lastOutboundAt: p.lastOutboundAt || null,
-            lastOutboundPreview: p.lastOutboundPreview || "",
-          };
+      const phones = parsePhoneList(
+        Array.isArray(req.body?.phones) ? req.body.phones : req.body?.phones || ""
+      );
+      const byPhone = new Map();
+      if (customerLedger) {
+        const pack = customerLedger.listByDay("all");
+        for (const row of pack.customers || []) {
+          const key = String(row.phone || "").replace(/\D/g, "");
+          if (key) byPhone.set(key, row);
         }
-        return { phone: p, countryCode: req.body?.countryCode };
+      }
+      candidates = phones.map((p) => {
+        const row = byPhone.get(p.phone);
+        return {
+          phone: p.phone,
+          countryCode: p.countryCode,
+          lastOutboundAt: row?.lastOutboundAt || null,
+          lastOutboundPreview: row?.lastOutboundPreview || "",
+          followupPlus: Boolean(row?.followupPlus),
+        };
       });
     }
 
     if (!candidates.length) {
       return res.status(400).json({
         ok: false,
-        error: "لا يوجد عملاء للإرسال (تأكد من تبويب أخذ رابط التمويل)",
+        error: "لا يوجد أرقام للإرسال (الصق قائمة الجوالات أو استخدم تبويب أخذ رابط التمويل)",
       });
     }
 
@@ -1117,6 +1145,10 @@ function createAdminRouter(deps) {
       const parts = normalizePhoneParts(raw);
       if (!parts.phone) {
         skipped.push({ phone: String(raw.phone || ""), reason: "رقم غير صالح" });
+        continue;
+      }
+      if (!isSaudiMobile(parts.phone)) {
+        skipped.push({ phone: parts.phone, reason: "ليس جوال واتساب" });
         continue;
       }
       if (isPlusWave) {
@@ -1274,4 +1306,6 @@ module.exports = {
   createAdminRouter,
   mountAdmin,
   normalizePhoneParts,
+  parsePhoneList,
+  isSaudiMobile,
 };
