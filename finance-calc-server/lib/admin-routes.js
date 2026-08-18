@@ -35,6 +35,18 @@ function parsePhoneList(raw) {
   return phones;
 }
 
+function toInteraktAudienceCsv(raw) {
+  const rows = parsePhoneList(raw).filter((p) => isSaudiMobile(p.phone));
+  const lines = ["countryCode,phoneNumber"];
+  for (const p of rows) {
+    lines.push(`${p.countryCode},${p.phone}`);
+  }
+  return {
+    csv: `${lines.join("\n")}\n`,
+    count: rows.length,
+  };
+}
+
 function createAdminRouter(deps) {
   const {
     adminToken,
@@ -1308,4 +1320,5 @@ module.exports = {
   normalizePhoneParts,
   parsePhoneList,
   isSaudiMobile,
+  toInteraktAudienceCsv,
 };

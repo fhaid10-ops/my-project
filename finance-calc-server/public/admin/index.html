@@ -427,21 +427,17 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         <button id="back-home-btn" class="btn secondary" type="button">رجوع للوحة</button>
       </div>
       <div class="card" id="bulk-blast-card" style="margin-bottom:14px">
-        <h3 style="margin:0 0 8px;font-size:1.05rem">رسائل جماعية — متابعة تقديم</h3>
+        <h3 style="margin:0 0 8px;font-size:1.05rem">عملاء جدد — حملة إنترأكت</h3>
         <p class="muted" style="margin-bottom:12px">
-          مو حملة ترحيب. رسالة متابعة «هل تم تقديم الطلب» لقائمة أرقام تلصقها هنا.
-          يُتخطى الثابت/غير الجوال، وبنفس التأخير والحصة اليومية.
+          لا ترسل لعملاء جدد من لوحة التحكم (رسالة عادية) — هذا يحظر الواتساب.
+          حمّل CSV وارفعه في إنترأكت: Campaigns → Audience → القالب المعتمد (نظامي).
         </p>
         <label class="field">
           <span>الأرقام</span>
           <textarea id="bulk-blast-phones" rows="8" placeholder="+9665xxxxxxxx&#10;05xxxxxxxx" dir="ltr" style="text-align:left"></textarea>
         </label>
-        <label class="field">
-          <span>نص الرسالة</span>
-          <textarea id="bulk-blast-message" rows="5" placeholder="السلام عليكم..."></textarea>
-        </label>
         <div class="btn-row">
-          <button id="bulk-blast-send" class="btn primary" type="button">إرسال القائمة</button>
+          <button id="bulk-blast-csv" class="btn primary" type="button">تحميل CSV لإنترأكت</button>
         </div>
         <p id="bulk-blast-status" class="status" hidden></p>
       </div>
@@ -492,7 +488,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-19-followup-blast";
+  const UI_VERSION = "2026-08-19-interakt-csv";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -997,10 +993,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       plusQuota.textContent =
         `مؤهلون لمتابعة بلس الآن: ${plusEligible ?? "—"} · في التبويب: ${plusCount ?? "—"} · المتبقي من الحصة ${rem}`;
     }
-    const blastMsg = document.getElementById("bulk-blast-message");
-    if (blastMsg && !blastMsg.dataset.touched) {
-      blastMsg.value = status?.followUpBlastPreview || blastMsg.value || "";
-    }
     const homeHint = document.getElementById("followup-home-hint");
     if (homeHint) {
       homeHint.textContent =
@@ -1434,62 +1426,42 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   const bulkDelay = document.getElementById("bulk-followup-delay-sec");
   const bulkLimit = document.getElementById("bulk-followup-limit");
   const bulkPlusMsg = document.getElementById("bulk-followup-plus-message");
-  const bulkBlastMsg = document.getElementById("bulk-blast-message");
-  [bulkMsg, bulkDelay, bulkLimit, bulkPlusMsg, bulkBlastMsg].forEach((el) => {
+  [bulkMsg, bulkDelay, bulkLimit, bulkPlusMsg].forEach((el) => {
     if (!el) return;
     el.addEventListener("input", () => {
       el.dataset.touched = "1";
     });
   });
 
-  document.getElementById("bulk-blast-send").addEventListener("click", async () => {
+  document.getElementById("bulk-blast-csv").addEventListener("click", () => {
     const statusEl = document.getElementById("bulk-blast-status");
     const phonesRaw = String(document.getElementById("bulk-blast-phones").value || "").trim();
-    const message = String(bulkBlastMsg.value || "").trim();
-    const delaySec = Math.max(Number(bulkDelay.value || 10), 8);
-    const maxBatch = Math.max(Number(bulkLimit.max || 30), 1);
-    const limit = Math.min(Math.max(Number(bulkLimit.value || maxBatch), 1), maxBatch);
-    const phones = phonesRaw.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
-    if (!phones.length) {
-      alert("الصق أرقام الجوال أولًا");
+    const chunks = phonesRaw.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+    const seen = new Set();
+    const lines = ["countryCode,phoneNumber"];
+    for (const chunk of chunks) {
+      let phone = String(chunk).replace(/\D/g, "").replace(/^0+/, "");
+      if (phone.startsWith("966") && phone.length > 9) phone = phone.slice(3);
+      if (!/^5\d{8}$/.test(phone) || seen.has(phone)) continue;
+      seen.add(phone);
+      lines.push(`+966,${phone}`);
+    }
+    if (lines.length < 2) {
+      alert("ما فيه جوالات صالحة (يبدأ بـ 05)");
       return;
     }
-    if (!message) {
-      alert("اكتب نص الرسالة أولًا");
-      return;
-    }
-    const ok = confirm(
-      `إرسال رسالة جماعية لـ ${phones.length} رقم؟\n` +
-        `التأخير: ${delaySec} ثانية · حد الدفعة: ${limit}`
-    );
-    if (!ok) return;
+    const csv = `${lines.join("\n")}\n`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "interakt-audience.csv";
+    a.click();
+    URL.revokeObjectURL(url);
     statusEl.hidden = false;
-    statusEl.className = "status";
-    statusEl.textContent = "جاري إرسال القائمة... قد يستغرق وقتًا بسبب التأخير الآمن";
-    const sendBtn = document.getElementById("bulk-blast-send");
-    sendBtn.disabled = true;
-    try {
-      const result = await api("/bulk-followup", {
-        method: "POST",
-        body: JSON.stringify({
-          phones,
-          message,
-          delayMs: delaySec * 1000,
-          limit,
-        }),
-      });
-      statusEl.className = "status ok";
-      statusEl.textContent =
-        `تم: ${result.sent || 0} · فشل: ${result.failed || 0} · تخطّي: ${result.skipped || 0}` +
-        (result.deferred ? ` · مؤجّل: ${result.deferred}` : "") +
-        (result.hint ? ` · ${result.hint}` : "");
-      await refreshAll();
-    } catch (err) {
-      statusEl.className = "status bad";
-      statusEl.textContent = err.message;
-    } finally {
-      sendBtn.disabled = false;
-    }
+    statusEl.className = "status ok";
+    statusEl.textContent =
+      `تم تحميل ${lines.length - 1} رقم. ارفع الملف في إنترأكت كحملة بقالب معتمد — لا ترسل من اللوحة.`;
   });
 
   document.getElementById("bulk-followup-refresh").addEventListener("click", async () => {

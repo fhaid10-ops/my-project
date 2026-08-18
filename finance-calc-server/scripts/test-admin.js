@@ -2,7 +2,7 @@ const assert = require("assert");
 const express = require("express");
 const os = require("os");
 const path = require("path");
-const { createAdminRouter, normalizePhoneParts, parsePhoneList, isSaudiMobile } = require("../lib/admin-routes");
+const { createAdminRouter, normalizePhoneParts, parsePhoneList, isSaudiMobile, toInteraktAudienceCsv } = require("../lib/admin-routes");
 const { showMainMenu } = require("../lib/main-menu");
 const { createCustomerLedger } = require("../lib/customer-ledger");
 
@@ -15,6 +15,11 @@ assert.deepStrictEqual(
   parsePhoneList("+966 55 952 6221\n050 429 7151\n+966 11 503 3469").map((p) => p.phone),
   ["559526221", "504297151", "115033469"]
 );
+const interaktCsv = toInteraktAudienceCsv("+966 55 952 6221\n0115033469\n0504297151");
+assert.strictEqual(interaktCsv.count, 2);
+assert.match(interaktCsv.csv, /^countryCode,phoneNumber\n/);
+assert.match(interaktCsv.csv, /\+966,559526221/);
+assert.doesNotMatch(interaktCsv.csv, /115033469/);
 
 const sessions = new Map();
 const drafts = new Map();
