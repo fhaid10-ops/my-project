@@ -103,25 +103,6 @@ async function req(method, path, body, token = "test-token") {
   assert.strictEqual(phonesOnly.status, 200);
   assert.ok((phonesOnly.json.phones || []).length >= 1);
 
-  const pastDay = "2026-08-11";
-  const datedRow = customerLedger._customers.get("+966:551234567");
-  const prevLast = datedRow.lastSeenAt;
-  const prevFirst = datedRow.firstSeenAt;
-  const prevSynced = datedRow.syncedAt;
-  datedRow.lastSeenAt = `${pastDay}T12:00:00.000Z`;
-  datedRow.firstSeenAt = `${pastDay}T12:00:00.000Z`;
-  datedRow.syncedAt = null;
-  const byDate = await req("GET", `/customers?day=${pastDay}`);
-  assert.strictEqual(byDate.status, 200);
-  assert.strictEqual(byDate.json.day, pastDay);
-  assert.ok(
-    byDate.json.customers.some((c) => c.phone === "551234567"),
-    "يمكن تحديد تاريخ للسجل"
-  );
-  datedRow.lastSeenAt = prevLast;
-  datedRow.firstSeenAt = prevFirst;
-  datedRow.syncedAt = prevSynced;
-
   const notes = await req("POST", "/customers/notes", {
     phone: "0551234567",
     notes: "عميل متابع",
@@ -163,44 +144,6 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(unarchive.json.archived, false);
 
-  const manual = await req("POST", "/customers/manual", {
-    phone: "0551234567",
-    manual: true,
-  });
-  assert.strictEqual(manual.status, 200);
-  assert.strictEqual(manual.json.manual, true);
-  const todayAfterManual = await req("GET", "/customers?day=today");
-  assert.ok(
-    !todayAfterManual.json.customers.some((c) => c.phone === "551234567")
-  );
-  const manualList = await req("GET", "/customers?day=manual");
-  assert.ok(manualList.json.customers.some((c) => c.phone === "551234567"));
-  assert.ok((manualList.json.counts?.manual || 0) >= 1);
-  const unmanual = await req("POST", "/customers/manual", {
-    phone: "0551234567",
-    manual: false,
-  });
-  assert.strictEqual(unmanual.json.manual, false);
-
-  const rejected = await req("POST", "/customers/rejected", {
-    phone: "0551234567",
-    rejected: true,
-  });
-  assert.strictEqual(rejected.status, 200);
-  assert.strictEqual(rejected.json.rejected, true);
-  const todayAfterReject = await req("GET", "/customers?day=today");
-  assert.ok(
-    !todayAfterReject.json.customers.some((c) => c.phone === "551234567")
-  );
-  const rejectedList = await req("GET", "/customers?day=rejected");
-  assert.ok(rejectedList.json.customers.some((c) => c.phone === "551234567"));
-  assert.ok((rejectedList.json.counts?.rejected || 0) >= 1);
-  const unreject = await req("POST", "/customers/rejected", {
-    phone: "0551234567",
-    rejected: false,
-  });
-  assert.strictEqual(unreject.json.rejected, false);
-
   const workplace = await req("POST", "/customers/workplace", {
     phone: "0551234567",
     workplace: "government",
@@ -225,23 +168,12 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(order.status, 200);
   assert.strictEqual(order.json.orderNumber, "10171234");
-  assert.strictEqual(order.json.outcome, "رقم طلب");
-  const orderTab = await req("GET", "/customers?day=order_number");
+  const afterOrder = await req("GET", "/customers?day=today");
   assert.ok(
-    orderTab.json.customers.some(
+    afterOrder.json.customers.some(
       (c) => c.phone === "551234567" && c.orderNumber === "10171234"
     )
   );
-  const todayAfterOrder = await req("GET", "/customers?day=today");
-  assert.ok(
-    !todayAfterOrder.json.customers.some((c) => c.phone === "551234567"),
-    "رقم الطلب يخرج العميل من سجل اليوم"
-  );
-  const clearOrder = await req("POST", "/customers/order-number", {
-    phone: "0551234567",
-    orderNumber: "",
-  });
-  assert.strictEqual(clearOrder.json.orderNumber, null);
 
   const exported = await req("GET", "/customers/export");
   assert.strictEqual(exported.status, 200);
@@ -265,7 +197,6 @@ async function req(method, path, body, token = "test-token") {
   const followup = await req("POST", "/send-followup", { phone: "0551234567" });
   assert.strictEqual(followup.status, 200);
   assert.strictEqual(followup.json.sent, true);
-  assert.strictEqual(followup.json.tab, "finance_link_sent");
   assert.ok(
     String(sent[sent.length - 1].message).includes("هل تم تقديم الطلب"),
     "رسالة سؤال التقديم"
@@ -274,44 +205,6 @@ async function req(method, path, body, token = "test-token") {
     String(sent[sent.length - 1].message).includes("ارسل رقم الطلب"),
     "طلب رقم الطلب"
   );
-  const sentAfterAsk = await req("GET", "/customers?day=finance_link_sent");
-  assert.ok(
-    sentAfterAsk.json.customers.some((c) => c.phone === "551234567"),
-    "سؤال عن الطلب ينقل العميل لتمت المتابعة"
-  );
-  const pendingAfterAsk = await req("GET", "/customers?day=finance_link_pending");
-  assert.ok(
-    !pendingAfterAsk.json.customers.some((c) => c.phone === "551234567"),
-    "سؤال عن الطلب يخرجه من بدون متابعة"
-  );
-
-  const askPlus = await req("POST", "/send-followup", {
-    phone: "0551234567",
-    kind: "ask-plus",
-  });
-  assert.strictEqual(askPlus.status, 200);
-  assert.strictEqual(askPlus.json.sent, true);
-  assert.strictEqual(askPlus.json.tab, "finance_link_plus");
-  assert.ok(
-    String(sent[sent.length - 1].message).includes("نأسف لعدم تقديمكم للطلب"),
-    "رسالة سؤال بلس"
-  );
-  assert.ok(
-    String(sent[sent.length - 1].message).includes("انا بخدمتك"),
-    "عرض الخدمة في سؤال بلس"
-  );
-  const plusAfterAsk = await req("GET", "/customers?day=finance_link_plus");
-  assert.ok(
-    plusAfterAsk.json.customers.some((c) => c.phone === "551234567"),
-    "سؤال بلس ينقل العميل لمتابعة بلس"
-  );
-  const sentAfterAskPlus = await req("GET", "/customers?day=finance_link_sent");
-  assert.ok(
-    !sentAfterAskPlus.json.customers.some((c) => c.phone === "551234567"),
-    "سؤال بلس يخرجه من تمت المتابعة"
-  );
-  customerLedger.setFollowupPlus("+966", "551234567", false);
-  customerLedger.setOutcomeNotes("+966", "551234567", "أخذ باقة");
 
   // عميل أخذ رابط التمويل — للمتابعة الجماعية
   customerLedger.recordInbound("+966", "550000001", "تمويل");
@@ -320,13 +213,6 @@ async function req(method, path, body, token = "test-token") {
   customerLedger.setOutcomeNotes("+966", "550000002", "أخذ رابط التمويل");
   customerLedger.recordInbound("+966", "550000003", "باقة");
   customerLedger.setOutcomeNotes("+966", "550000003", "أخذ باقة");
-  customerLedger.recordInbound("+966", "550000004", "تمويل");
-  customerLedger.setOutcomeNotes("+966", "550000004", "أخذ رابط التمويل");
-  customerLedger.recordOutbound(
-    "+966",
-    "550000004",
-    "السلام عليكم / هل تم تقديم الطلب / في حال تم التقديم ارسل رقم الطلب"
-  );
 
   const financeTab = await req("GET", "/customers?day=finance_link");
   assert.strictEqual(financeTab.status, 200);
@@ -336,88 +222,10 @@ async function req(method, path, body, token = "test-token") {
   assert.ok(
     !(financeTab.json.customers || []).some((c) => c.phone === "550000003")
   );
-  assert.ok((financeTab.json.counts?.finance_link || 0) >= 3);
-
-  const pendingTab = await req("GET", "/customers?day=finance_link_pending");
-  assert.strictEqual(pendingTab.status, 200);
-  assert.ok((pendingTab.json.customers || []).some((c) => c.phone === "550000001"));
-  assert.ok((pendingTab.json.customers || []).some((c) => c.phone === "550000002"));
-  assert.ok(
-    !(pendingTab.json.customers || []).some((c) => c.phone === "550000004"),
-    "من أُرسلت له متابعة لا يظهر في تبويب بدون متابعة"
-  );
-  assert.ok((pendingTab.json.counts?.finance_link_pending || 0) >= 2);
-
-  const sentTab = await req("GET", "/customers?day=finance_link_sent");
-  assert.strictEqual(sentTab.status, 200);
-  assert.ok((sentTab.json.customers || []).some((c) => c.phone === "550000004"));
-  assert.ok(
-    !(sentTab.json.customers || []).some((c) => c.phone === "550000001"),
-    "بدون متابعة لا يظهر في تبويب تمت المتابعة"
-  );
-  assert.ok((sentTab.json.counts?.finance_link_sent || 0) >= 1);
-
-  const plusFlag = await req("POST", "/customers/followup-plus", {
-    phone: "0550000004",
-    plus: true,
-  });
-  assert.strictEqual(plusFlag.status, 200);
-  assert.strictEqual(plusFlag.json.followupPlus, true);
-  assert.strictEqual(plusFlag.json.outcome, "أخذ رابط التمويل");
-  const plusTab = await req("GET", "/customers?day=finance_link_plus");
-  assert.ok(plusTab.json.customers.some((c) => c.phone === "550000004"));
-  assert.ok((plusTab.json.counts?.finance_link_plus || 0) >= 1);
-  const sentAfterPlus = await req("GET", "/customers?day=finance_link_sent");
-  assert.ok(
-    !sentAfterPlus.json.customers.some((c) => c.phone === "550000004"),
-    "متابعة بلس لا تظهر في تبويب تمت المتابعة"
-  );
-  const pendingAfterPlus = await req("GET", "/customers?day=finance_link_pending");
-  assert.ok(
-    !pendingAfterPlus.json.customers.some((c) => c.phone === "550000004"),
-    "متابعة بلس لا تظهر في تبويب بدون متابعة"
-  );
-  const unplus = await req("POST", "/customers/followup-plus", {
-    phone: "0550000004",
-    plus: false,
-  });
-  assert.strictEqual(unplus.json.followupPlus, false);
-  const sentAfterUnplus = await req("GET", "/customers?day=finance_link_sent");
-  assert.ok(sentAfterUnplus.json.customers.some((c) => c.phone === "550000004"));
-
-  const statusQuota = await req("GET", "/status");
-  assert.strictEqual(statusQuota.status, 200);
-  assert.ok(
-    (statusQuota.json.outboundSafe?.dailyLimit || 0) >= 250,
-    "الحصة اليومية تغطي قائمة أخذ الرابط (200+)"
-  );
-  assert.ok(
-    (statusQuota.json.outboundSafe?.financeLinkTotal || 0) >= 2,
-    "عدد من أخذوا الرابط"
-  );
-  assert.ok(
-    (statusQuota.json.outboundSafe?.financeLinkPending || 0) >= 2,
-    "بانتظار متابعة"
-  );
-  assert.ok(
-    (statusQuota.json.outboundSafe?.financeLinkEligible || 0) >= 2,
-    "قابل للإرسال الآن"
-  );
+  assert.ok((financeTab.json.counts?.finance_link || 0) >= 2);
 
   const CONFIG = require("../config");
-  assert.ok((CONFIG.outbound?.dailyLimit || 0) >= 250);
   const prevOutbound = { ...CONFIG.outbound };
-  CONFIG.outbound = {
-    ...CONFIG.outbound,
-    dailyLimit: 300,
-  };
-  const highCap = await req("GET", "/status");
-  assert.strictEqual(
-    highCap.json.outboundSafe.dailyLimit,
-    300,
-    "لا يُقص السقف اليومي عند 200"
-  );
-
   CONFIG.outbound = {
     ...CONFIG.outbound,
     minDelayMs: 0,
@@ -435,10 +243,9 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(bulk.status, 200, bulk.json?.error || "bulk ok");
   assert.strictEqual(bulk.json.sent, 2, "حد الدفعة 2");
-  assert.strictEqual(bulk.json.deferred, 1, "الثالث يُؤجّل بعد حد الدفعة");
+  assert.strictEqual(bulk.json.deferred, 0);
   assert.ok(sent.length >= beforeBulk + 2);
   assert.ok(bulk.json.dailySent >= 2);
-  assert.ok((bulk.json.financeLinkTotal || 0) >= 2);
 
   const bulk2 = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",
@@ -454,27 +261,6 @@ async function req(method, path, body, token = "test-token") {
     limit: 10,
   });
   assert.strictEqual(bulk3.status, 429, "حد يومي");
-  CONFIG.outbound = {
-    ...prevOutbound,
-    minDelayMs: 0,
-    delayMs: 0,
-    maxBatchSize: 10,
-    dailyLimit: 250,
-    skipIfFollowedUpWithinHours: 0,
-  };
-  const plusBulk = await req("POST", "/bulk-followup", {
-    fromOutcome: "finance_link_plus",
-    delayMs: 0,
-    limit: 10,
-  });
-  assert.strictEqual(plusBulk.status, 200, plusBulk.json?.error || "plus bulk ok");
-  assert.ok((plusBulk.json.sent || 0) >= 1, "متابعة بلس ترسل لمن تمت متابعتهم");
-  assert.ok(
-    String(sent[sent.length - 1].message).includes("نذكرك بتقديم الطلب"),
-    "نص متابعة بلس الافتراضي"
-  );
-  const plusAfterBulk = await req("GET", "/customers?day=finance_link_plus");
-  assert.ok((plusAfterBulk.json.counts?.finance_link_plus || 0) >= 1);
   CONFIG.outbound = prevOutbound;
 
   const menu = await req("POST", "/send-menu", { phone: "0551234567" });

@@ -64,15 +64,19 @@ function looksLikeRestartFlow(text) {
   });
 }
 
+function brandName() {
+  return CONFIG.brand?.name || "عبدالرحمن الرشيدي";
+}
+
 function welcomeBody(text) {
   if (looksLikeGreeting(text)) {
     return `وعليكم السلام ورحمة الله وبركاته
 
-مرحبا معاك رائد الحربي.
+مرحبا معاك ${brandName()}.
 مانوع استفسارك؟
 اختر من القائمة:`;
   }
-  return `مرحبا معاك رائد الحربي.
+  return `مرحبا معاك ${brandName()}.
 مانوع استفسارك؟
 اختر من القائمة:`;
 }
@@ -368,7 +372,7 @@ function serviceStopInfoReply() {
 • ما عليك عقاري
 • شركة تسددلك جميع التزاماتك
 
-للتواصل: ${CONFIG.brand?.contactPhone || "0562393866"}`;
+للتواصل: ${CONFIG.brand?.contactPhone || "0595243553"}`;
 }
 
 function assistantContactReply() {
@@ -386,11 +390,11 @@ function assistantContactReply() {
   const name =
     CONFIG.financing?.branchEmployeeName ||
     CONFIG.brand?.name ||
-    "رائد الحربي";
+    "عبدالرحمن الرشيدي";
   const phone =
     CONFIG.financing?.branchEmployeePhone ||
     CONFIG.brand?.contactPhone ||
-    "0562393866";
+    "0595243553";
   const tpl = CONFIG.templates?.assistantContact;
   if (typeof tpl === "function") return tpl(name, phone);
   return `رقم المساعد — ${name}:

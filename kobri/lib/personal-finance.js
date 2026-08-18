@@ -715,12 +715,12 @@ function replyPropertyComboInterestDecision(choice, sessionBase = {}) {
 function replyPropertyComboDecision(choice) {
   if (choice === "yes") {
     const agentName =
-      CONFIG.financing?.propertyComboAgentName || "أبو شايع";
+      CONFIG.financing?.propertyComboAgentName || "عبدالرحمن الرشيدي";
     const agentPhone =
       CONFIG.financing?.propertyComboAgentPhone || "0562393866";
     const footer =
       CONFIG.financing?.propertyComboContactFooter ||
-      "من طرف رائد الحربي\nربي يسر أمرك";
+      "من طرف عبدالرحمن الرشيدي\nربي يسر أمرك";
     const direct = CONFIG.messages?.propertyComboAgentDirect;
     const reply =
       typeof direct === "function"

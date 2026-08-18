@@ -5,5 +5,7 @@ patches/*/*.idsig
 
 finance-calc-server/.env
 finance-calc-server/node_modules/
+kobri/.env
+kobri/node_modules/
 *.zip
 

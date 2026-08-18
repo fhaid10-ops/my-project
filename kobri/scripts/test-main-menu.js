@@ -32,6 +32,8 @@ assert.strictEqual(looksLikeMenuShortcut("تمويل"), false);
 
 const welcome = showMainMenu("السلام عليكم");
 assert.ok(welcome.reply.includes("وعليكم السلام"));
+assert.ok(welcome.reply.includes("عبدالرحمن الرشيدي"));
+assert.ok(!welcome.reply.includes("رائد الحربي"));
 assert.ok(welcome.interactive);
 assert.strictEqual(welcome.interactive.kind, "list");
 assert.strictEqual(welcome.interactive.rows.length, 7);
@@ -69,8 +71,9 @@ assert.strictEqual(amounts.draft.step, "awaiting_amount_examples_sector");
 const hours = handleMainMenuChoice("5");
 assert.ok(hours.reply.includes("الأحد") || hours.reply.includes("دوام"));
 const assistant = handleMainMenuChoice("7");
-assert.ok(assistant.reply.includes("ماجد"));
-assert.ok(assistant.reply.includes("0507009290"));
+assert.ok(assistant.reply.includes("عبدالرحمن الرشيدي"));
+assert.ok(assistant.reply.includes("0595243553"));
+assert.ok(!assistant.reply.includes("0501812339"));
 assert.ok(!assistant.reply.includes("0562393866"));
 
 const {

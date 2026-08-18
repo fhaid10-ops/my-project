@@ -16,19 +16,19 @@ module.exports = {
   // عام
   // ---------------------------------------------------------------------------
   brand: {
-    name: "رائد الحربي",
-    contactPhone: "0562393866",
-    contactHint: "من طرف رائد الحربي",
+    name: "عبدالرحمن الرشيدي",
+    contactPhone: "0595243553",
+    contactHint: "من طرف عبدالرحمن الرشيدي",
     /** أرقام المساعدين — خيار «رقم المساعد» في القائمة */
     assistants: [
-      { name: "ماجد", phone: "0507009290" },
+      { name: "عبدالرحمن الرشيدي", phone: "0595243553" },
     ],
     /** عدّل نصوص الخيارات 2 و 4 و 5 من هنا */
     debtPurchaseInfo: `لطلب شراء المديونية فضلاً تواصل معنا على الرقم:
-0562393866
+0595243553
 
 وأرسل:
-من طرف رائد الحربي — شراء مديونية`,
+من طرف عبدالرحمن الرشيدي — شراء مديونية`,
     workingHours: `ساعات ووقت الدوام الرسمي:
 
 من الأحد إلى الخميس
@@ -37,7 +37,7 @@ module.exports = {
 
 معرض السديري للسيارات
 
-للتواصل مع عبدالرحمن:
+للتواصل مع عبدالرحمن الرشيدي:
 0595243553`,
   },
 
@@ -230,25 +230,25 @@ module.exports = {
     personalPortalUrl: "https://portal.sfco.com.sa/?DSA=SF1695",
     /** رمز الموظف في التقديم الإلكتروني */
     personalEmployeeCode: "SF1695",
-    employeeName: "عبدالرحمن",
-    employeePhone: "0507009290",
+    employeeName: "عبدالرحمن الرشيدي",
+    employeePhone: "0595243553",
     /** التمويل الشخصي — تقديم إلكتروني واستفسارات المسار الشخصي */
-    personalAgentName: "عبدالرحمن",
+    personalAgentName: "عبدالرحمن الرشيدي",
     personalAgentPhone: "0595243553",
     /** شراء المديونية — بعد موافقة العميل على الإكمال */
-    debtPurchaseAgentName: "ماجد",
-    debtPurchaseAgentPhone: "0507009290",
+    debtPurchaseAgentName: "عبدالرحمن الرشيدي",
+    debtPurchaseAgentPhone: "0595243553",
     /** زيارة الفرع — بعد اختيار التقديم بالفرع */
-    branchEmployeeName: "ماجد",
-    branchEmployeePhone: "0507009290",
+    branchEmployeeName: "عبدالرحمن الرشيدي",
+    branchEmployeePhone: "0595243553",
     /** باقة عقاري + شخصي — عند قبول العرض والتواصل */
-    propertyComboAgentName: "أبو شايع",
+    propertyComboAgentName: "عبدالرحمن الرشيدي",
     propertyComboAgentPhone: "0562393866",
-    propertyComboContactFooter: "من طرف رائد الحربي\nربي يسر أمرك",
+    propertyComboContactFooter: "من طرف عبدالرحمن الرشيدي\nربي يسر أمرك",
     /** إيقاف الخدمات — المندوب عند رغبة العميل بالتواصل */
-    serviceStopAgentName: "أبو شايع",
+    serviceStopAgentName: "عبدالرحمن الرشيدي",
     serviceStopAgentPhone: "0562393866",
-    serviceStopContactHint: "من طرف رائد الحربي",
+    serviceStopContactHint: "من طرف عبدالرحمن الرشيدي",
   },
 
   // ---------------------------------------------------------------------------
@@ -318,12 +318,6 @@ module.exports = {
     electronicMessage: `السلام عليكم
 هل تم تقديم الطلب
 في حال تم التقديم ارسل رقم الطلب`,
-    plusMessage: `السلام عليكم
-نذكرك بتقديم الطلب على الرابط
-في حال تم التقديم ارسل رقم الطلب`,
-    askPlusMessage: `السلام عليكم
-نأسف لعدم تقديمكم للطلب
-في حال لديك اي استفسارات، انا بخدمتك.`,
   },
 
   /**
@@ -337,11 +331,8 @@ module.exports = {
     minDelayMs: 8000,
     /** أقصى عدد رسائل في دفعة واحدة */
     maxBatchSize: 30,
-    /**
-     * سقف يومي لرسائل المتابعة الجماعية.
-     * يكفي لتغطية تبويب «أخذ رابط التمويل» (200+) مع الإبقاء على التأخير الآمن.
-     */
-    dailyLimit: 250,
+    /** سقف يومي لرسائل المتابعة الجماعية */
+    dailyLimit: 80,
     /** تخطّي من أُرسلت له متابعة خلال هذه الساعات */
     skipIfFollowedUpWithinHours: 20,
     pollMs: 2500,
@@ -374,7 +365,7 @@ module.exports = {
     nonText:
       "الرد على الأسئلة يكون بالكتابة (اكتب رقم الخيار أو نص الإجابة).",
 
-    start: `مرحبا معاك رائد الحربي.
+    start: `مرحبا معاك عبدالرحمن الرشيدي.
 
 مانوع استفسارك؟
 
@@ -640,7 +631,7 @@ ${url}`;
     orderNumberRecorded: `تم استلام رقم الطلب
 سيتم الرد في أقرب وقت ممكن 
 لمتابعة الطلب  ارسل رقم الطلب إلى 
- عبدالرحمن 
+ عبدالرحمن الرشيدي 
 0595243553`,
 
     contactEmployeeQuestion: `هل ترغب بالتواصل مع الموظف؟
@@ -691,15 +682,15 @@ ${url}`;
       `رقم المساعد — ${name}:
 ${phone}
 
-رائد الحربي`,
+عبدالرحمن الرشيدي`,
 
     assistantContacts: (assistants = []) => {
       const lines = (assistants || [])
         .filter((a) => a && a.name && a.phone)
         .map((a) => `رقم المساعد — ${a.name}:\n${a.phone}`);
       if (!lines.length) {
-        return `رقم المساعد — رائد الحربي:
-0562393866`;
+        return `رقم المساعد — عبدالرحمن الرشيدي:
+0595243553`;
       }
       return lines.join("\n\n");
     },
@@ -847,12 +838,12 @@ ${portalUrl}
 ${phone}
 
 شاكرين تواصلكم.
-رائد الحربي`,
+عبدالرحمن الرشيدي`,
 
     serviceStopAgentContact: (agentName, agentPhone, attribution) =>
       `للتواصل مع المندوب ${agentName}:
 ${agentPhone}
-${attribution || "من طرف رائد الحربي"}`,
+${attribution || "من طرف عبدالرحمن الرشيدي"}`,
 
     serviceStopDeclined: () => "تشرفنا بك وبالتوفيق",
 
@@ -871,7 +862,7 @@ ${attribution || "من طرف رائد الحربي"}`,
 2- لا`,
 
     applicationCompleteNoEmployee:
-      "شكراً لك. بالتوفيق في إجراءات التقديم.\n\nرائد الحربي",
+      "شكراً لك. بالتوفيق في إجراءات التقديم.\n\nعبدالرحمن الرشيدي",
 
     propertySuccess: (phone, hint) =>
       `أنت مؤهل مبدئيًا للاستكمال.
