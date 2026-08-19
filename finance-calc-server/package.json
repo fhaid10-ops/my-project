@@ -17,8 +17,10 @@
     "test:order-image": "node scripts/test-order-image.js",
     "test:chat-state": "node scripts/test-chat-state.js",
     "test:post-result-menu": "node scripts/test-post-result-menu.js",
+    "simulate": "node scripts/simulate-chat.js",
+    "test:simulate": "node scripts/simulate-chat.js",
     "backup:customers": "node -e \"require('./lib/customer-ledger').createCustomerLedger().createSnapshot('cli')\"",
-    "test": "npm run test:calc && npm run test:webhook && npm run test:debt && npm run test:menu && npm run test:amounts && npm run test:admin && npm run test:ledger && npm run test:combo && npm run test:order && npm run test:order-image && npm run test:chat-state && npm run test:post-result-menu"
+    "test": "npm run test:calc && npm run test:webhook && npm run test:debt && npm run test:menu && npm run test:amounts && npm run test:admin && npm run test:ledger && npm run test:combo && npm run test:order && npm run test:order-image && npm run test:chat-state && npm run test:post-result-menu && npm run test:simulate"
   },
   "type": "commonjs",
   "dependencies": {

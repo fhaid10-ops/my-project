@@ -3,6 +3,7 @@ const {
   isSafeMediaUrl,
   looksLikeImageBuffer,
   downloadImage,
+  inspectOrderImage,
   readOrderNumberFromImage,
   OCR_LANGS,
 } = require("../lib/order-image");
@@ -126,6 +127,25 @@ async function run() {
       }
     );
     assert.strictEqual(got, "10171992");
+  });
+
+  await check("inspectOrderImage يرجع النص مع الرقم", async () => {
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+    const got = await inspectOrderImage(
+      "https://cdn.interakt.ai/media/thanks.jpg",
+      {
+        fetchImpl: async () => ({
+          ok: true,
+          headers: {
+            get: (name) => (name === "content-type" ? "image/jpeg" : null),
+          },
+          arrayBuffer: async () => jpeg,
+        }),
+        recognizeFn: async () => "بارك الله فيك",
+      }
+    );
+    assert.strictEqual(got.orderNumber, null);
+    assert.match(got.ocrText, /بارك الله فيك/);
   });
 
   await check("OCR يجرب العربية ثم الإنجليزية", () => {

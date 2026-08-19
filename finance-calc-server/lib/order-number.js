@@ -122,6 +122,44 @@ function buildOrderImageMissReply(configMessages = {}) {
 أرسل رقم الطلب (8 أرقام ويبدأ بـ 101).`;
 }
 
+function looksLikeThanksOrBlessing(text) {
+  const t = String(text || "").trim();
+  if (!t) return false;
+  return /شكر[اأإاًٍُِ]*|مشكور[ةا]?|يعطيك\s*العافي[ةه]|بارك\s*الله|جزاك\s*الله|تسلم(?:ين|ون)?|الله\s*يبارك|الله\s*يعافيك|\bthanks\b|\bthank\s*you\b|\bthx\b/i.test(
+    t
+  );
+}
+
+function looksLikeOrderScreenshot(text) {
+  const t = normalizeDigits(String(text || ""));
+  if (!t.trim()) return false;
+  if (extractOrderCandidate(t)) return true;
+  return /رقم\s*الطلب|رقم\s*طلب(?:ك|ي)|طلبك\s*الحالي|تم\s*تقديم\s*الطلب|صندوق\s*التنمية|\bsfco\b|application\s*(?:no|number)|request\s*number/i.test(
+    t
+  );
+}
+
+/**
+ * اطلب رقم الطلب من الصورة فقط إذا بان إنها شاشة تقديم/طلب.
+ * صور الشكر والصور الفارغة ما نلحّ عليها.
+ */
+function shouldAskForOrderNumberFromImage({
+  caption,
+  ocrText,
+  orderNumber,
+} = {}) {
+  if (orderNumber) return false;
+  const combined = `${caption || ""}\n${ocrText || ""}`;
+  if (looksLikeOrderScreenshot(combined)) return true;
+  if (
+    looksLikeThanksOrBlessing(caption) ||
+    looksLikeThanksOrBlessing(ocrText)
+  ) {
+    return false;
+  }
+  return false;
+}
+
 module.exports = {
   ORDER_PREFIX,
   ORDER_DIGITS,
@@ -131,4 +169,7 @@ module.exports = {
   extractOrderNumberFromOcr,
   buildOrderNumberAckReply,
   buildOrderImageMissReply,
+  looksLikeThanksOrBlessing,
+  looksLikeOrderScreenshot,
+  shouldAskForOrderNumberFromImage,
 };
