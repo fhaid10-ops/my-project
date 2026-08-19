@@ -5,6 +5,7 @@ const {
   typedTextShowsMenuAfterAmountResult,
   hasQualifyingAmountResult,
 } = require("../lib/personal-finance");
+const { advancePersonalFinanceFlow } = require("../lib/conversation");
 
 const parsed = parsePersonalFinanceMessage(`الراتب: 8000
 الالتزامات: 1500
@@ -88,5 +89,30 @@ assert.strictEqual(
   false,
   "عنوان زر المدة يبقى اختيار مدة"
 );
+
+const salaryDraft = {
+  flow: "personal_chat",
+  step: "salary",
+  jobCategory: "civilian",
+  civilianSubtype: "government",
+};
+assert.strictEqual(
+  typedTextShowsMenuAfterAmountResult(session, "15000", false, salaryDraft),
+  false,
+  "الراتب أثناء المسار ما يرجع القائمة حتى لو فيه مبلغ قديم"
+);
+assert.strictEqual(
+  typedTextShowsMenuAfterAmountResult(session, "S20000", false, salaryDraft),
+  false
+);
+
+const start = { flow: "personal_chat", step: "sector" };
+const afterCivilian = advancePersonalFinanceFlow(start, "مدني");
+const afterGov = advancePersonalFinanceFlow(afterCivilian.draft, "حكومي");
+assert.strictEqual(afterGov.draft.step, "salary");
+const afterSalary = advancePersonalFinanceFlow(afterGov.draft, "15000");
+assert.ok(afterSalary.ok);
+assert.strictEqual(afterSalary.draft.step, "commitments");
+assert.match(afterSalary.reply, /التزام/);
 
 console.log("OK: بعد نتيجة المبلغ الكتابة الحرة تعيد القائمة");

@@ -994,15 +994,25 @@ function looksLikePostResultInteractivePick(text, session) {
   return false;
 }
 
+function isActiveIntakeDraft(draft) {
+  const flow = draft?.flow;
+  const step = draft?.step;
+  if (!flow || !step || step === "done") return false;
+  return flow === "personal_chat" || flow === "debt_chat";
+}
+
 /**
  * بعد نتيجة أعلى مبلغ: أي نص يكتبه العميل → القائمة الرئيسية.
  * ضغط قائمة «اختر مبلغ أقل» / أزرار المدة يبقى كما هو.
+ * أثناء جمع الراتب/الالتزامات لا نقطع المسار حتى لو بقيت جلسة مبلغ قديمة.
  */
 function typedTextShowsMenuAfterAmountResult(
   session,
   text,
-  interactiveClick = false
+  interactiveClick = false,
+  draft = null
 ) {
+  if (isActiveIntakeDraft(draft)) return false;
   if (!hasQualifyingAmountResult(session)) return false;
   if (interactiveClick) return false;
   if (looksLikePostResultInteractivePick(text, session)) return false;
@@ -1286,6 +1296,7 @@ module.exports = {
   parseAmountChoice,
   looksLikeAmountChoice,
   hasQualifyingAmountResult,
+  isActiveIntakeDraft,
   typedTextShowsMenuAfterAmountResult,
   calculateSelectedAmount,
   confirmLowerAmountSuggestion,

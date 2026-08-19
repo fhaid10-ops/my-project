@@ -593,9 +593,11 @@ app.post("/webhook/interakt", async (req, res) => {
         result = menuResult;
       } else if (menuResult.startFlow === "personal") {
         // Interakt Auto Reply يرسل أزرار القطاع على «تمويل شخصي» — لا نكررها
+        clearSession(countryCode, phone);
         result = startPersonalFinanceFlow({ askSector: false });
         saveDraft(countryCode, phone, result.draft);
       } else if (menuResult.startFlow === "debt") {
+        clearSession(countryCode, phone);
         result = startDebtPurchaseFlow({ askSector: false });
         saveDraft(countryCode, phone, result.draft);
       } else {
@@ -638,7 +640,8 @@ app.post("/webhook/interakt", async (req, res) => {
       typedTextShowsMenuAfterAmountResult(
         currentSession,
         text,
-        interactiveClick
+        interactiveClick,
+        draft
       )
     ) {
       // بعد نتيجة المبلغ: الكتابة الحرة (مثل S20000) تعيد القائمة
@@ -801,9 +804,11 @@ app.post("/webhook/interakt", async (req, res) => {
           pauseChat(countryCode, phone);
           result = menuResult;
         } else if (menuResult.startFlow === "personal") {
+          clearSession(countryCode, phone);
           result = startPersonalFinanceFlow({ askSector: false });
           saveDraft(countryCode, phone, result.draft);
         } else if (menuResult.startFlow === "debt") {
+          clearSession(countryCode, phone);
           result = startDebtPurchaseFlow({ askSector: false });
           result = startDebtPurchaseFlow({ askSector: true });
           saveDraft(countryCode, phone, result.draft);
