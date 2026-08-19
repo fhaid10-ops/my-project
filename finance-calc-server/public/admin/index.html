@@ -165,6 +165,17 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   align-items: center; margin-bottom: 14px;
 }
 .followup-page-head h2 { margin: 0; font-size: 1.2rem; }
+.bulk-receipt-list {
+  list-style: none; margin: 0; padding: 0; max-height: 280px; overflow: auto;
+  font-size: .9rem;
+}
+.bulk-receipt-list li {
+  display: flex; justify-content: space-between; gap: 10px; padding: 6px 0;
+  border-bottom: 1px solid var(--line, rgba(0,0,0,.08));
+  direction: ltr;
+}
+.bulk-receipt-list .ok { color: var(--accent); font-weight: 700; }
+.bulk-receipt-list .fail { color: var(--danger); font-weight: 700; }
 .phone-link {
   font-weight: 700; direction: ltr; unicode-bidi: plaintext;
   display: inline-block; color: var(--accent); text-decoration: none;
@@ -466,6 +477,12 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <button id="bulk-followup-refresh" class="btn secondary" type="button">تحديث الحصة</button>
         </div>
         <p id="bulk-followup-status" class="status" hidden></p>
+        <div id="bulk-receipt" class="bulk-receipt" hidden>
+          <h3 style="margin:12px 0 8px;font-size:1rem">إيصال الإرسال — هل وصلت؟</h3>
+          <p class="muted" id="bulk-receipt-summary" style="margin:0 0 8px">لا يوجد إرسال بعد من هذه الجلسة.</p>
+          <p class="muted" style="margin:0 0 8px">اللوحة تؤكد أن إنترأكت قبل الرسالة. تسليم واتساب يظهر في إنترأكت أو عند العميل.</p>
+          <ul id="bulk-receipt-list" class="bulk-receipt-list"></ul>
+        </div>
       </div>
       <div class="card" id="bulk-followup-plus-card" style="margin-top:14px">
         <h3 style="margin:0 0 8px;font-size:1.05rem">متابعة بلس</h3>
@@ -488,7 +505,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-19-followup-no-30";
+  const UI_VERSION = "2026-08-19-followup-receipt";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -748,7 +765,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     return `<div class="work-choices note-choices">${buttons}</div>`;
   }
   function sendDateOf(row) {
-    return row.lastInboundAt || row.lastSeenAt || row.syncedAt || row.firstSeenAt || null;
+    return row.lastOutboundAt || row.lastInboundAt || row.lastSeenAt || row.syncedAt || row.firstSeenAt || null;
   }
   function escapeHtml(s) {
     return String(s || "")
@@ -868,7 +885,11 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <div class="meta-line">${paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${row.manual ? ' <span class="badge manual">يدوي</span>' : ""}${row.rejected ? ' <span class="badge rejected">رفض</span>' : ""}${row.followupPlus ? ' <span class="badge plus">متابعة بلس</span>' : ""}</div>
           <div class="meta-line" style="margin-top:6px">${followupBadgesHtml(row)}</div>
         </td>
-        <td data-label="تاريخ الإرسال">${formatTime(sendDateOf(row))}</td>
+        <td data-label="تاريخ الإرسال">${formatTime(sendDateOf(row))}${
+          row.lastOutboundPreview
+            ? `<div class="meta-line">آخر رسالة منا: ${escapeHtml(String(row.lastOutboundPreview).slice(0, 90))}</div>`
+            : `<div class="meta-line">لا توجد رسالة صادرة محفوظة</div>`
+        }</td>
         <td data-label="جهة العمل">${workplaceChoicesHtml(row)}</td>
         <td data-label="رقم الطلب">
           <input class="order-input" data-order-phone="${row.phone}" type="text" inputmode="numeric" maxlength="8" placeholder="101xxxxx" value="${orderNumber}" />
@@ -952,6 +973,42 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     showError("");
   }
 
+  function renderBulkReceipt(job) {
+    const box = document.getElementById("bulk-receipt");
+    const summary = document.getElementById("bulk-receipt-summary");
+    const list = document.getElementById("bulk-receipt-list");
+    if (!box || !summary || !list) return;
+    const rows = job?.results || [];
+    if (!job || (!job.queued && !rows.length && !job.startedAt)) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    const sent = job.sent || rows.filter((r) => r.ok).length;
+    const failed = job.failed || rows.filter((r) => !r.ok).length;
+    const when = job.finishedAt || job.startedAt;
+    summary.textContent =
+      (job.running ? "جاري الإرسال الآن: " : "آخر إرسال: ") +
+      `قبل إنترأكت ${sent} · فشل ${failed}` +
+      (job.queued ? ` · الطابور ${job.queued}` : "") +
+      (when ? ` · ${formatTime(when)}` : "");
+    if (!rows.length) {
+      list.innerHTML = "<li class='muted'>ما زال بدون أرقام في الإيصال</li>";
+      return;
+    }
+    list.innerHTML = rows
+      .slice()
+      .reverse()
+      .map((r) => {
+        const phone = escapeHtml(r.phone || "");
+        if (r.ok) {
+          return `<li><span>0${phone}</span><span class="ok">وصلت لإنترأكت${r.interakt?.id ? ` · ${escapeHtml(String(r.interakt.id).slice(0, 16))}` : ""}</span></li>`;
+        }
+        return `<li><span>0${phone}</span><span class="fail">فشل: ${escapeHtml(r.error || "غير معروف")}</span></li>`;
+      })
+      .join("");
+  }
+
   function applyBulkFollowupDefaults(status) {
     const safe = status?.outboundSafe || {};
     const msg = document.getElementById("bulk-followup-message");
@@ -1003,6 +1060,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           ? `بانتظار متابعة: ${pending}`
           : `الحصة: ${sent}/${daily}`;
     }
+    renderBulkReceipt(status?.bulkJob);
   }
 
   async function refreshAll() {
@@ -1550,6 +1608,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         applyBulkFollowupDefaults(status);
         updateLiveCounts(status.counts, status.persistence);
         job = status.bulkJob || {};
+        renderBulkReceipt(job);
         const queued = job.queued || result.queued || 0;
         statusEl.textContent =
           `جاري الإرسال لكل بدون متابعة... ${job.sent || 0} من ${queued}` +
@@ -1559,6 +1618,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       const finalStatus = await api("/status");
       job = finalStatus.bulkJob || job;
       applyBulkFollowupDefaults(finalStatus);
+      renderBulkReceipt(job);
+      setCustomerTab("finance_link_sent");
       await refreshAll();
       statusEl.className = job.error ? "status" : "status ok";
       if (job.error) statusEl.style.color = "var(--danger)";

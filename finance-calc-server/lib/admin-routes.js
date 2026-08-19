@@ -89,10 +89,14 @@ function createAdminRouter(deps) {
     startedAt: null,
     finishedAt: null,
     hint: "",
+    results: [],
   };
 
   function snapshotBulkJob() {
-    return { ...bulkFollowupJob };
+    return {
+      ...bulkFollowupJob,
+      results: (bulkFollowupJob.results || []).slice(0, 250),
+    };
   }
 
   function riyadhDayKey(d = new Date()) {
@@ -1245,7 +1249,7 @@ function createAdminRouter(deps) {
       for (let i = 0; i < toSend.length; i += 1) {
         const parts = toSend[i];
         try {
-          await sendInteraktText(parts.countryCode, parts.phone, message);
+          const interakt = await sendInteraktText(parts.countryCode, parts.phone, message);
           customerLedger?.recordOutbound?.(
             parts.countryCode,
             parts.phone,
@@ -1262,7 +1266,17 @@ function createAdminRouter(deps) {
             );
           }
           usage.count += 1;
-          results.push({ phone: parts.phone, ok: true });
+          results.push({
+            phone: parts.phone,
+            ok: true,
+            at: new Date().toISOString(),
+            interakt: interakt && typeof interakt === "object"
+              ? {
+                  result: interakt.result ?? interakt.ok ?? null,
+                  id: interakt.id || interakt.messageId || null,
+                }
+              : null,
+          });
           pushLog({
             action: isPlusWave ? "bulk-followup-plus" : "bulk-followup",
             phone: parts.phone,
@@ -1273,12 +1287,14 @@ function createAdminRouter(deps) {
           results.push({
             phone: parts.phone,
             ok: false,
+            at: new Date().toISOString(),
             error: err.message,
           });
         }
         bulkFollowupJob.sent = results.filter((r) => r.ok).length;
         bulkFollowupJob.failed = results.filter((r) => !r.ok).length;
         bulkFollowupJob.lastPhone = parts.phone;
+        bulkFollowupJob.results = results.slice();
         if (i < toSend.length - 1 && delayMs > 0) {
           await new Promise((r) => setTimeout(r, delayMs));
         }
@@ -1348,6 +1364,7 @@ function createAdminRouter(deps) {
       bulkFollowupJob.startedAt = new Date().toISOString();
       bulkFollowupJob.finishedAt = null;
       bulkFollowupJob.hint = `جاري الإرسال لـ ${toSend.length} بدون متابعة`;
+      bulkFollowupJob.results = [];
       res.json({
         ok: true,
         started: true,

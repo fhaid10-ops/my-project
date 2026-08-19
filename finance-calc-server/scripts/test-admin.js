@@ -564,6 +564,10 @@ async function waitBulkJob(timeoutMs = 3000) {
   assert.ok((sendAll.json.queued || 0) >= 2, "يطابور كل بدون متابعة");
   const job = await waitBulkJob();
   assert.ok((job.sent || 0) >= 2, "أرسل لكل بدون متابعة");
+  assert.ok(
+    (job.results || []).some((r) => r.ok && r.phone === "550000007"),
+    "الإيصال يذكر 007 بعد قبول إنترأكت"
+  );
   const pendingAfterAll = await req("GET", "/customers?day=finance_link_pending");
   assert.ok(
     !(pendingAfterAll.json.customers || []).some((c) => c.phone === "550000007"),
