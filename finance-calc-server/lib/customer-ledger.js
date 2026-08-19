@@ -14,6 +14,41 @@ const {
 
 const TIMEZONE = "Asia/Riyadh";
 const MAX_CUSTOMERS = 5000;
+
+/** رسالة متابعة التقديم — تُستخدم لتصنيف تبويب «تمت المتابعة» وللبيانات القديمة */
+function looksLikeFollowupMessage(text) {
+  const s = String(text || "");
+  return /هل تم تقديم الطلب/i.test(s) || /ارسل رقم الطلب/i.test(s);
+}
+
+function isFollowupOutboundMode(mode) {
+  const m = String(mode || "");
+  return (
+    m === "admin-followup" ||
+    m === "admin-bulk-followup" ||
+    m === "admin-ask-plus" ||
+    m === "admin-bulk-followup-plus"
+  );
+}
+
+function outboundEventIsFollowup(event) {
+  if (!event || event.type !== "outbound") return false;
+  return (
+    isFollowupOutboundMode(event.mode) || looksLikeFollowupMessage(event.text)
+  );
+}
+
+/**
+ * هل أُرسلت المتابعة الأولى لهذا العميل؟
+ * العلم followupSent ثابت — لا يُلغى إذا ردّ البوت برسالة لاحقة.
+ */
+function hasFirstFollowup(row) {
+  if (!row) return false;
+  if (row.followupSent || row.followupPlus) return true;
+  if (looksLikeFollowupMessage(row.lastOutboundPreview)) return true;
+  const events = Array.isArray(row.events) ? row.events : [];
+  return events.some(outboundEventIsFollowup);
+}
 const MAX_EVENTS_PER_CUSTOMER = 40;
 const MAX_BACKUPS = 20;
 const LOCAL_DATA_DIR = path.join(__dirname, "..", "data");
@@ -400,11 +435,19 @@ function createCustomerLedger(options = {}) {
       rejectedAt: row.rejectedAt || null,
       followupPlus: Boolean(row.followupPlus),
       followupPlusAt: row.followupPlusAt || null,
+      followupSent: Boolean(row.followupSent),
+      followupSentAt: row.followupSentAt || null,
       dayKey: row.dayKey || calendarDayKey(new Date(row.lastSeenAt || Date.now())),
       source: row.source || null,
       syncedAt: row.syncedAt || null,
       events: Array.isArray(row.events) ? row.events.slice(0, MAX_EVENTS_PER_CUSTOMER) : [],
     };
+    if (!normalized.followupSent && hasFirstFollowup(normalized)) {
+      normalized.followupSent = true;
+      const fromEvent = (normalized.events || []).find(outboundEventIsFollowup);
+      normalized.followupSentAt =
+        normalized.followupSentAt || fromEvent?.at || normalized.lastOutboundAt;
+    }
     return migrateOutcomeFromNotes(normalized);
   }
 
@@ -526,7 +569,11 @@ function createCustomerLedger(options = {}) {
     const next = Boolean(plus);
     row.followupPlus = next;
     row.followupPlusAt = next ? new Date().toISOString() : null;
-    if (next) clearIsolation(row, "followupPlus");
+    if (next) {
+      row.followupSent = true;
+      row.followupSentAt = row.followupSentAt || new Date().toISOString();
+      clearIsolation(row, "followupPlus");
+    }
     scheduleSave();
     return row;
   }
@@ -546,6 +593,8 @@ function createCustomerLedger(options = {}) {
     const plus = bucket === "plus";
     row.followupPlus = plus;
     row.followupPlusAt = plus ? new Date().toISOString() : null;
+    row.followupSent = true;
+    row.followupSentAt = row.followupSentAt || new Date().toISOString();
     clearIsolation(row, plus ? "followupPlus" : "");
     row.outcome = "أخذ رابط التمويل";
     scheduleSave();
@@ -662,6 +711,10 @@ function createCustomerLedger(options = {}) {
     row.lastOutboundAt = now;
     row.lastOutboundPreview = text;
     row.outboundCount += 1;
+    if (isFollowupOutboundMode(meta.mode) || looksLikeFollowupMessage(text)) {
+      row.followupSent = true;
+      row.followupSentAt = row.followupSentAt || now;
+    }
     pushEvent(row, {
       type: "outbound",
       text,
@@ -892,6 +945,8 @@ function createCustomerLedger(options = {}) {
           rejectedAt: existing.rejectedAt || incoming.rejectedAt || null,
           followupPlus: Boolean(existing.followupPlus || incoming.followupPlus),
           followupPlusAt: existing.followupPlusAt || incoming.followupPlusAt || null,
+          followupSent: Boolean(existing.followupSent || incoming.followupSent),
+          followupSentAt: existing.followupSentAt || incoming.followupSentAt || null,
           orderNumber: existing.orderNumber || incoming.orderNumber || null,
           orderNumberAt:
             existing.orderNumberAt || incoming.orderNumberAt || null,
@@ -1030,5 +1085,7 @@ module.exports = {
   shiftDayKey,
   resolveCustomersDataDir,
   isDurableDir,
+  looksLikeFollowupMessage,
+  hasFirstFollowup,
   TIMEZONE,
 };

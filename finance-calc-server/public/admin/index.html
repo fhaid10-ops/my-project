@@ -443,8 +443,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       </div>
       <div class="card" id="bulk-followup-card">
         <p class="muted" style="margin-bottom:12px">
-          يرسل لكل عملاء «أخذ رابط التمويل» الذين لم تُرسل لهم متابعة خلال نافذة التخطّي،
-          بتأخير آمن. الحصة اليومية تغطي قائمة أخذ الرابط كاملة (200+).
+          يرسل لعملاء «رابط — بدون متابعة» فقط. بعد الإرسال ينتقلون إلى «رابط — تمت المتابعة»
+          ويبقون هناك حتى لو ردّ البوت لاحقاً. حد الدفعة 30 — أعد الإرسال لإكمال الباقي.
         </p>
         <label class="field">
           <span>نص الرسالة</span>
@@ -488,7 +488,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-19-interakt-csv";
+  const UI_VERSION = "2026-08-19-followup-sticky";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -633,9 +633,12 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     const s = String(text || "");
     return /هل تم تقديم الطلب/i.test(s) || /ارسل رقم الطلب/i.test(s);
   }
+  function hasFirstFollowup(row) {
+    return Boolean(row?.followupSent) || looksLikeFollowupMessage(row?.lastOutboundPreview);
+  }
   /** نفس منطق التخطي في السيرفر: متابعة خلال 20 ساعة */
   function followupStatusOf(row, withinHours = 20) {
-    if (!looksLikeFollowupMessage(row?.lastOutboundPreview)) {
+    if (!hasFirstFollowup(row)) {
       return { sent: false, label: "لم تُرسل متابعة", at: null };
     }
     const at = row.lastOutboundAt ? Date.parse(row.lastOutboundAt) : NaN;
@@ -1488,9 +1491,9 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       return;
     }
     const ok = confirm(
-      `إرسال متابعة جماعية لعملاء «أخذ رابط التمويل»؟\n` +
+      `إرسال متابعة لعملاء «رابط — بدون متابعة»؟\n` +
         `التأخير: ${delaySec} ثانية · حد الدفعة: ${limit}\n` +
-        `سيُتخطى من أُرسلت له متابعة مؤخرًا.`
+        `بعد الإرسال ينتقلون إلى «رابط — تمت المتابعة».`
     );
     if (!ok) return;
 

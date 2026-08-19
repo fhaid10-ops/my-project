@@ -134,6 +134,16 @@ assert.strictEqual(ledger._customers.get("+966:508031055").followupPlus, false);
 const sentPlace = ledger.placeInLinkFollowup("+966", "508031055", "sent");
 assert.strictEqual(sentPlace.outcome, "أخذ رابط التمويل");
 assert.strictEqual(sentPlace.followupPlus, false);
+assert.strictEqual(sentPlace.followupSent, true);
+assert.ok(sentPlace.followupSentAt);
+ledger.recordOutbound("+966", "508031055", "القائمة الرئيسية", {
+  mode: "admin-menu",
+});
+assert.strictEqual(
+  ledger._customers.get("+966:508031055").followupSent,
+  true,
+  "رسالة البوت اللاحقة لا تُخرج العميل من تمت المتابعة"
+);
 assert.ok(
   ledger.listByDay("finance_link").customers.some((r) => r.phone === "508031055")
 );

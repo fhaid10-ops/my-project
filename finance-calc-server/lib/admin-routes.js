@@ -4,6 +4,10 @@
 const path = require("path");
 const express = require("express");
 const CONFIG = require("../config");
+const {
+  looksLikeFollowupMessage,
+  hasFirstFollowup,
+} = require("./customer-ledger");
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
@@ -126,15 +130,14 @@ function createAdminRouter(deps) {
     return bulkFollowupDaily;
   }
 
-  function looksLikeFollowupMessage(text) {
-    const s = String(text || "");
-    return /هل تم تقديم الطلب/i.test(s) || /ارسل رقم الطلب/i.test(s);
-  }
-
   function wasFollowedUpRecently(row, skipMs, now = Date.now()) {
-    if (!(skipMs > 0) || !row?.lastOutboundAt) return false;
-    if (!looksLikeFollowupMessage(row.lastOutboundPreview)) return false;
-    const lastAt = Date.parse(row.lastOutboundAt);
+    if (!(skipMs > 0) || !hasFirstFollowup(row)) return false;
+    const stamp =
+      row.followupSentAt ||
+      (looksLikeFollowupMessage(row.lastOutboundPreview)
+        ? row.lastOutboundAt
+        : null);
+    const lastAt = Date.parse(stamp);
     return Number.isFinite(lastAt) && now - lastAt < skipMs;
   }
 
@@ -154,12 +157,15 @@ function createAdminRouter(deps) {
         plus += 1;
         continue;
       }
-      const followed = looksLikeFollowupMessage(row.lastOutboundPreview);
-      if (!followed) pending += 1;
-      else sentCount += 1;
-      if (wasFollowedUpRecently(row, skipMs, now)) skippedRecent += 1;
-      else eligible += 1;
-      if (followed && !wasFollowedUpRecently(row, skipMs, now)) plusEligible += 1;
+      const followed = hasFirstFollowup(row);
+      if (!followed) {
+        pending += 1;
+        eligible += 1;
+      } else {
+        sentCount += 1;
+        if (wasFollowedUpRecently(row, skipMs, now)) skippedRecent += 1;
+        else plusEligible += 1;
+      }
     }
     return {
       financeLinkTotal: rows.length,
@@ -416,13 +422,11 @@ function createAdminRouter(deps) {
       );
     } else if (followupSplit === "pending") {
       customers = customers.filter(
-        (row) =>
-          !row.followupPlus && !looksLikeFollowupMessage(row.lastOutboundPreview)
+        (row) => !row.followupPlus && !hasFirstFollowup(row)
       );
     } else if (followupSplit === "sent") {
       customers = customers.filter(
-        (row) =>
-          !row.followupPlus && looksLikeFollowupMessage(row.lastOutboundPreview)
+        (row) => !row.followupPlus && hasFirstFollowup(row)
       );
     }
     const phonesOnly =
@@ -493,6 +497,8 @@ function createAdminRouter(deps) {
         rejectedAt: row.rejectedAt || null,
         followupPlus: Boolean(row.followupPlus),
         followupPlusAt: row.followupPlusAt || null,
+        followupSent: Boolean(row.followupSent) || hasFirstFollowup(row),
+        followupSentAt: row.followupSentAt || null,
         orderNumber:
           row.orderNumber ||
           sessionRow?.data?.orderNumber ||
@@ -1117,7 +1123,15 @@ function createAdminRouter(deps) {
         lastOutboundAt: row.lastOutboundAt || null,
         lastOutboundPreview: row.lastOutboundPreview || "",
         followupPlus: Boolean(row.followupPlus),
+        followupSent: Boolean(row.followupSent),
+        followupSentAt: row.followupSentAt || null,
+        events: row.events || [],
       }));
+      if (isFinanceLinkWave) {
+        candidates = candidates.filter(
+          (row) => !row.followupPlus && !hasFirstFollowup(row)
+        );
+      }
     } else {
       const phones = parsePhoneList(
         Array.isArray(req.body?.phones) ? req.body.phones : req.body?.phones || ""
@@ -1138,6 +1152,9 @@ function createAdminRouter(deps) {
           lastOutboundAt: row?.lastOutboundAt || null,
           lastOutboundPreview: row?.lastOutboundPreview || "",
           followupPlus: Boolean(row?.followupPlus),
+          followupSent: Boolean(row?.followupSent),
+          followupSentAt: row?.followupSentAt || null,
+          events: row?.events || [],
         };
       });
     }
@@ -1145,7 +1162,11 @@ function createAdminRouter(deps) {
     if (!candidates.length) {
       return res.status(400).json({
         ok: false,
-        error: "لا يوجد أرقام للإرسال (الصق قائمة الجوالات أو استخدم تبويب أخذ رابط التمويل)",
+        error: isFinanceLinkWave
+          ? "لا يوجد عملاء في «رابط — بدون متابعة»"
+          : isPlusWave
+            ? "لا يوجد عملاء مؤهلون لمتابعة بلس"
+            : "لا يوجد أرقام للإرسال (الصق قائمة الجوالات أو استخدم تبويب أخذ رابط التمويل)",
       });
     }
 
@@ -1168,12 +1189,15 @@ function createAdminRouter(deps) {
           skipped.push({ phone: parts.phone, reason: "في متابعة بلس مسبقاً" });
           continue;
         }
-        if (!looksLikeFollowupMessage(raw.lastOutboundPreview)) {
+        if (!hasFirstFollowup(raw)) {
           skipped.push({ phone: parts.phone, reason: "لم تُرسل المتابعة الأولى" });
           continue;
         }
       } else if (raw.followupPlus) {
         skipped.push({ phone: parts.phone, reason: "في متابعة بلس" });
+        continue;
+      } else if (isFinanceLinkWave && hasFirstFollowup(raw)) {
+        skipped.push({ phone: parts.phone, reason: "تمت المتابعة مسبقاً" });
         continue;
       }
       if (wasFollowedUpRecently(raw, skipMs, now)) {
@@ -1203,6 +1227,12 @@ function createAdminRouter(deps) {
         );
         if (isPlusWave) {
           customerLedger?.setFollowupPlus?.(parts.countryCode, parts.phone, true);
+        } else if (isFinanceLinkWave) {
+          customerLedger?.placeInLinkFollowup?.(
+            parts.countryCode,
+            parts.phone,
+            "sent"
+          );
         }
         usage.count += 1;
         results.push({ phone: parts.phone, ok: true });
@@ -1224,6 +1254,7 @@ function createAdminRouter(deps) {
       }
     }
 
+    customerLedger?.flush?.();
     const financeStats = getFinanceLinkFollowupStats();
     res.json({
       ok: true,

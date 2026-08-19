@@ -329,6 +329,10 @@ async function req(method, path, body, token = "test-token") {
   customerLedger.setOutcomeNotes("+966", "550000001", "أخذ رابط التمويل");
   customerLedger.recordInbound("+966", "550000002", "تمويل");
   customerLedger.setOutcomeNotes("+966", "550000002", "أخذ رابط التمويل");
+  customerLedger.recordInbound("+966", "550000005", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000005", "أخذ رابط التمويل");
+  customerLedger.recordInbound("+966", "550000006", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000006", "أخذ رابط التمويل");
   customerLedger.recordInbound("+966", "550000003", "باقة");
   customerLedger.setOutcomeNotes("+966", "550000003", "أخذ باقة");
   customerLedger.recordInbound("+966", "550000004", "تمويل");
@@ -439,6 +443,8 @@ async function req(method, path, body, token = "test-token") {
   };
 
   const beforeBulk = sent.length;
+  const pendingBeforeBulk = await req("GET", "/customers?day=finance_link_pending");
+  const pendingBeforeCount = pendingBeforeBulk.json.counts?.finance_link_pending || 0;
   const bulk = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",
     delayMs: 0,
@@ -446,10 +452,40 @@ async function req(method, path, body, token = "test-token") {
   });
   assert.strictEqual(bulk.status, 200, bulk.json?.error || "bulk ok");
   assert.strictEqual(bulk.json.sent, 2, "حد الدفعة 2");
-  assert.strictEqual(bulk.json.deferred, 1, "الثالث يُؤجّل بعد حد الدفعة");
+  assert.strictEqual(bulk.json.deferred, 2, "الباقي من بدون متابعة يُؤجّل بعد حد الدفعة");
   assert.ok(sent.length >= beforeBulk + 2);
   assert.ok(bulk.json.dailySent >= 2);
   assert.ok((bulk.json.financeLinkTotal || 0) >= 2);
+  assert.ok(
+    !(bulk.json.results || []).some((r) => r.phone === "550000004"),
+    "لا يُعاد الإرسال لمن تمت متابعتهم مسبقاً"
+  );
+  const pendingAfterBulk = await req("GET", "/customers?day=finance_link_pending");
+  assert.strictEqual(
+    pendingAfterBulk.json.counts?.finance_link_pending,
+    pendingBeforeCount - 2,
+    "الدفعة تنقل من بدون متابعة إلى تمت المتابعة"
+  );
+  const movedPhone = (bulk.json.results || []).find((r) => r.ok)?.phone;
+  assert.ok(movedPhone, "رقم نُقل بعد الإرسال");
+  const sentAfterBulk = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok(
+    (sentAfterBulk.json.customers || []).some((c) => c.phone === movedPhone),
+    "بعد الإرسال الجماعي يظهر في تمت المتابعة"
+  );
+  customerLedger.recordOutbound("+966", movedPhone, "القائمة الرئيسية", {
+    mode: "admin-menu",
+  });
+  const sentAfterBot = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok(
+    (sentAfterBot.json.customers || []).some((c) => c.phone === movedPhone),
+    "رد البوت لا يُرجع العميل لتبويب بدون متابعة"
+  );
+  const pendingAfterBot = await req("GET", "/customers?day=finance_link_pending");
+  assert.ok(
+    !(pendingAfterBot.json.customers || []).some((c) => c.phone === movedPhone),
+    "رد البوت لا يُظهر العميل في بدون متابعة"
+  );
 
   const bulk2 = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",
