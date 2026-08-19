@@ -965,6 +965,50 @@ function looksLikeAmountChoice(text) {
   return parseAmountChoice(text) != null;
 }
 
+function hasQualifyingAmountResult(session) {
+  if (!session || typeof session !== "object") return false;
+  if (session.awaitingCombo || session.awaitingComboInterest) return false;
+  return Boolean(
+    session.awaitingAmountChoice ||
+      session.awaitingLowerAmountTerm ||
+      session.awaitingLowerAmountConfirm ||
+      session.awaitingLowerAmountEntry ||
+      Number(session.maxAmount) > 0 ||
+      Number(session.rounded) > 0
+  );
+}
+
+function looksLikePostResultInteractivePick(text, session) {
+  const t = normalizeDigits(String(text || "")).trim();
+  if (!t) return false;
+  if (/^amt_\d+$/i.test(t)) return true;
+  if (/^term_\d+$/i.test(t)) return true;
+  if (/^want_lower_amount$/i.test(t)) return true;
+  if (/^lower_yes$|^lower_no$/i.test(t)) return true;
+  if (looksLikeWantLowerAmount(t)) return true;
+  if (/مبلغ\s*أقل/i.test(t)) return true;
+  if (session?.awaitingLowerAmountTerm) {
+    const allowed = session.availableYearsForAmount;
+    if (parseLoanTermChoice(t, allowed)) return true;
+  }
+  return false;
+}
+
+/**
+ * بعد نتيجة أعلى مبلغ: أي نص يكتبه العميل → القائمة الرئيسية.
+ * ضغط قائمة «اختر مبلغ أقل» / أزرار المدة يبقى كما هو.
+ */
+function typedTextShowsMenuAfterAmountResult(
+  session,
+  text,
+  interactiveClick = false
+) {
+  if (!hasQualifyingAmountResult(session)) return false;
+  if (interactiveClick) return false;
+  if (looksLikePostResultInteractivePick(text, session)) return false;
+  return true;
+}
+
 function buildSelectedAmountSuccess(sessionData, amount, months) {
   const rate = Number(sessionData?.rate);
   const jobCategory = sessionData?.jobCategory;
@@ -1241,6 +1285,8 @@ module.exports = {
   calculatePersonalFinance,
   parseAmountChoice,
   looksLikeAmountChoice,
+  hasQualifyingAmountResult,
+  typedTextShowsMenuAfterAmountResult,
   calculateSelectedAmount,
   confirmLowerAmountSuggestion,
   parseLoanTermChoice,

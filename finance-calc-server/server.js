@@ -16,6 +16,7 @@ const {
   calculatePersonalFinance,
   looksLikeAmountChoice,
   parseAmountChoice,
+  typedTextShowsMenuAfterAmountResult,
   calculateSelectedAmount,
   confirmLowerAmountSuggestion,
   looksLikeWantLowerAmount,
@@ -633,6 +634,21 @@ app.post("/webhook/interakt", async (req, res) => {
         comboDecision: yesNo,
       });
       clearDraft(countryCode, phone);
+    } else if (
+      typedTextShowsMenuAfterAmountResult(
+        currentSession,
+        text,
+        interactiveClick
+      )
+    ) {
+      // بعد نتيجة المبلغ: الكتابة الحرة (مثل S20000) تعيد القائمة
+      console.log(
+        "[webhook:post-result-typed-menu]",
+        phone,
+        String(text || "").slice(0, 80)
+      );
+      result = showMainMenu("قائمة");
+      saveDraft(countryCode, phone, result.draft);
     } else if (yesNo && currentSession?.awaitingLowerAmountConfirm) {
       result = confirmLowerAmountSuggestion(currentSession, yesNo);
       if (result?.data) {
