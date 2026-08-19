@@ -415,7 +415,11 @@ function advancePersonalFinanceFlow(draft, text) {
   const raw = String(text || "").trim();
 
   // إعادة بدء من داخل المحادثة (لا تفسّر "تمويل" كقطاع)
+  // إذا هو أصلًا في سؤال القطاع، لا نعيد إرسال الأزرار (نقرة القائمة تجي مرتين من Interakt)
   if (looksLikeStartPersonalFinance(raw)) {
+    if (step === "sector") {
+      return { ok: true, silent: true, draft: state };
+    }
     return startPersonalFinanceFlow({ askSector: true });
   }
 

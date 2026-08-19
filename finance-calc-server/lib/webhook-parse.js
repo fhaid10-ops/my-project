@@ -178,7 +178,7 @@ function extractChoiceFromMultiline(text) {
     .filter(Boolean);
   const last = lines[lines.length - 1] || "";
   if (
-    /^(مدني|متقاعد|عسكري|[1-4]|لا يوجد|مدعوم|غير مدعوم|قديم|نعم|لا|civilian|retired|military)$/i.test(
+    /^(مدني|متقاعد|عسكري|[1-4]|لا يوجد|مدعوم|غير مدعوم|قديم|نعم|لا|civilian|retired|military|تمويل شخصي|شراء مديونية|مبالغ التمويل|إيقاف خدمات|ايقاف خدمات|ساعات الدوام|موقعنا|رقم المساعد|menu_[1-7])$/i.test(
       last
     )
   ) {
@@ -191,6 +191,18 @@ function extractChoiceFromMultiline(text) {
     }
   }
   return text;
+}
+
+function extractTrailingMenuChoice(text) {
+  const t = String(text || "").trim();
+  if (!t || t.length < 12) return t;
+  const re =
+    /(تمويل شخصي|شراء مديونية|مبالغ التمويل|إيقاف خدمات|ايقاف خدمات|ساعات الدوام|موقعنا|رقم المساعد)$/i;
+  const m = t.match(re);
+  if (!m) return t;
+  const choice = m[1];
+  if (t.length <= choice.length) return t;
+  return choice;
 }
 
 function extractIncomingMessage(payload) {
@@ -206,9 +218,10 @@ function extractIncomingMessage(payload) {
     asTrimmedString(data?.text) ||
     "";
 
+  text = extractChoiceFromMultiline(String(text || "").replace(/\r/g, ""));
   text = normalizeIncomingText(text);
   text = normalizeDigits(text);
-  text = extractChoiceFromMultiline(text);
+  text = extractTrailingMenuChoice(text);
 
   const user = data?.user || payload?.user || {};
   const traits = customer?.traits || user?.traits || {};

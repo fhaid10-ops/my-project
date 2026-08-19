@@ -98,6 +98,9 @@ function advanceDebtPurchaseFlow(draft, text) {
   const raw = String(text || "").trim();
 
   if (looksLikeStartDebtPurchase(raw)) {
+    if (step === "sector") {
+      return { ok: true, silent: true, draft: state };
+    }
     return startDebtPurchaseFlow();
   }
 

@@ -125,15 +125,16 @@ check("سيناريو الزر الفاشل سابقًا", () => {
   assert.strictEqual(next.draft.step, "civilian_subtype");
 });
 
-check("تمويل أثناء خطوة القطاع يعيد البدء بدون رد مكرر", () => {
+check("تمويل أثناء خطوة القطاع لا يعيد إرسال الأزرار", () => {
   const stuck = {
     flow: "personal_chat",
     step: "sector",
   };
-  const next = advancePersonalFinanceFlow(stuck, "تمويل");
+  const next = advancePersonalFinanceFlow(stuck, "تمويل شخصي");
   assert.strictEqual(next.draft.step, "sector");
-  assert.ok(!next.draft.jobCategory);
-  assert.ok(next.interactive?.kind === "buttons" || next.reply === null);
+  assert.strictEqual(next.silent, true);
+  assert.ok(!next.interactive);
+  assert.ok(!next.reply);
 });
 
 check("مدني راتبه أقل من 4000 يرفض فورًا", () => {
@@ -382,6 +383,35 @@ check("ضغط زر بدون button_text يُعتبر نقرة عميل", () => {
     }),
     false
   );
+});
+
+check("آخر سطر تمويل شخصي يُستخرج من نص القائمة", () => {
+  const got = extractIncomingMessage({
+    type: "message_received",
+    data: {
+      customer: { phone_number: "579478016", country_code: "+966" },
+      message: {
+        message:
+          "مرحبا معاك رائد الحربي.\nمانوع استفسارك؟\nاختر من القائمة:\nتمويل شخصي",
+      },
+    },
+  });
+  assert.strictEqual(got.text, "تمويل شخصي");
+});
+
+check("جسم القائمة المعاد لا يُعتبر رسالة جديدة", () => {
+  const { looksLikeEchoedMenuBody, createInboundDedupe } = require("../lib/inbound-dedupe");
+  assert.strictEqual(
+    looksLikeEchoedMenuBody(
+      "مرحبا معاك رائد الحربي.\nمانوع استفسارك؟\nاختر من القائمة:"
+    ),
+    true
+  );
+  assert.strictEqual(looksLikeEchoedMenuBody("تمويل شخصي"), false);
+  const dedupe = createInboundDedupe({ windowMs: 5000 });
+  assert.strictEqual(dedupe.isDuplicate("+966", "579478016", "تمويل شخصي"), false);
+  assert.strictEqual(dedupe.isDuplicate("+966", "579478016", "تمويل شخصي"), true);
+  assert.strictEqual(dedupe.isDuplicate("+966", "579478016", "مدني"), false);
 });
 
 if (!process.exitCode) {

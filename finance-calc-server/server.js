@@ -75,6 +75,7 @@ const {
   buildOrderImageMissReply,
 } = require("./lib/order-number");
 const { readOrderNumberFromImage } = require("./lib/order-image");
+const { createInboundDedupe, looksLikeEchoedMenuBody } = require("./lib/inbound-dedupe");
 const CONFIG = require("./config");
 
 function normalizeEnvValue(value) {
@@ -95,6 +96,7 @@ const ADMIN_TOKEN = normalizeEnvValue(process.env.ADMIN_TOKEN);
 
 const customerLedger = createCustomerLedger();
 const chatState = createChatState();
+const inboundDedupe = createInboundDedupe();
 const sessions = chatState.sessions;
 const drafts = chatState.drafts;
 const pausedChats = chatState.pausedChats;
@@ -418,6 +420,11 @@ app.post("/webhook/interakt", async (req, res) => {
       }
     }
 
+    if (inboundDedupe.isDuplicate(countryCode, phone, text)) {
+      console.log("[webhook:skip:duplicate]", phone, String(text || "").slice(0, 40));
+      return;
+    }
+
     if (!text && !isImage && !isAudio) return;
 
     let result = null;
@@ -676,10 +683,18 @@ app.post("/webhook/interakt", async (req, res) => {
         saveDraft(countryCode, phone, parsed);
       }
     } else if (looksLikeStartPersonalFinance(text)) {
+      if (draft?.flow === "personal_chat" && (draft.step === "sector" || !draft.step)) {
+        console.log("[webhook:skip:already-personal-sector]", phone);
+        return;
+      }
       clearSession(countryCode, phone);
       result = startPersonalFinanceFlow({ askSector: true });
       saveDraft(countryCode, phone, result.draft);
     } else if (looksLikeStartDebtPurchase(text)) {
+      if (draft?.flow === "debt_chat" && (draft.step === "sector" || !draft.step)) {
+        console.log("[webhook:skip:already-debt-sector]", phone);
+        return;
+      }
       clearSession(countryCode, phone);
       result = startDebtPurchaseFlow();
       saveDraft(countryCode, phone, result.draft);
@@ -780,6 +795,10 @@ app.post("/webhook/interakt", async (req, res) => {
         }
       }
     } else {
+      if (looksLikeEchoedMenuBody(text)) {
+        console.log("[webhook:skip:menu-echo]", phone);
+        return;
+      }
       console.log("[webhook:unhandled]", phone, String(text || "").slice(0, 80));
       result = showMainMenu("قائمة");
       saveDraft(countryCode, phone, result.draft);
