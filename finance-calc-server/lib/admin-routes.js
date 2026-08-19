@@ -257,6 +257,83 @@ function createAdminRouter(deps) {
     };
   }
 
+  function toAdminCustomer(row, { includeEvents = false } = {}) {
+    const key = sessionKey(row.countryCode, row.phone);
+    const sessionRow = sessions.get(key);
+    const draftRow = drafts.get(key);
+    const liveCompany =
+      draftRow?.data?.companyName || sessionRow?.data?.companyName || null;
+    const liveJob =
+      draftRow?.data?.jobCategory || sessionRow?.data?.jobCategory || null;
+    const liveSubtype =
+      draftRow?.data?.civilianSubtype ||
+      sessionRow?.data?.civilianSubtype ||
+      null;
+    const out = {
+      key: row.key,
+      phone: row.phone,
+      countryCode: row.countryCode,
+      firstSeenAt: row.firstSeenAt,
+      lastSeenAt: row.lastSeenAt,
+      lastInboundAt: row.lastInboundAt || null,
+      lastOutboundAt: row.lastOutboundAt || null,
+      lastInboundText: row.lastInboundText || "",
+      lastOutboundPreview: row.lastOutboundPreview || "",
+      inboundCount: row.inboundCount || 0,
+      outboundCount: row.outboundCount || 0,
+      flow: row.flow || null,
+      step: row.step || null,
+      maxAmount: row.maxAmount ?? null,
+      companyName: row.companyName || liveCompany || null,
+      jobCategory: row.jobCategory || liveJob || null,
+      civilianSubtype: row.civilianSubtype || liveSubtype || null,
+      outcome: row.outcome || "",
+      notes: row.notes || "",
+      archived: Boolean(row.archived),
+      archivedAt: row.archivedAt || null,
+      manual: Boolean(row.manual),
+      manualAt: row.manualAt || null,
+      rejected: Boolean(row.rejected),
+      rejectedAt: row.rejectedAt || null,
+      followupPlus: Boolean(row.followupPlus),
+      followupPlusAt: row.followupPlusAt || null,
+      followupSent: Boolean(row.followupSent) || hasFirstFollowup(row),
+      followupSentAt: row.followupSentAt || null,
+      orderNumber: row.orderNumber || sessionRow?.data?.orderNumber || null,
+      orderNumberAt: row.orderNumberAt || sessionRow?.data?.orderNumberAt || null,
+      source: row.source || null,
+      syncedAt: row.syncedAt || null,
+      dayKey: row.dayKey || null,
+      paused: pausedChats.has(key),
+      live: {
+        session: sessionRow
+          ? {
+              savedAt: sessionRow.savedAt,
+              maxAmount:
+                sessionRow.data?.maxAmount || sessionRow.data?.rounded || null,
+              offer: sessionRow.data?.offer || null,
+            }
+          : null,
+        draft: draftRow
+          ? {
+              savedAt: draftRow.savedAt,
+              flow: draftRow.data?.flow || null,
+              step: draftRow.data?.step || null,
+            }
+          : null,
+      },
+    };
+    if (includeEvents) {
+      out.events = (row.events || []).slice(0, 40).map((e) => ({
+        type: e.type || null,
+        at: e.at || null,
+        text: String(e.text || "").slice(0, 400),
+        mode: e.mode || null,
+      }));
+    }
+    return out;
+  }
+
   function pushLog(entry) {
     activityLog.unshift({
       ...entry,
@@ -527,77 +604,7 @@ function createAdminRouter(deps) {
       : Math.min(Math.max(Number(req.query.limit || 100), 1), 500);
     const offset = Math.max(Number(req.query.offset || 0), 0);
     const slice = customers.slice(offset, offset + limit);
-    const enriched = slice.map((row) => {
-      const key = sessionKey(row.countryCode, row.phone);
-      const sessionRow = sessions.get(key);
-      const draftRow = drafts.get(key);
-      const liveCompany =
-        draftRow?.data?.companyName || sessionRow?.data?.companyName || null;
-      const liveJob =
-        draftRow?.data?.jobCategory || sessionRow?.data?.jobCategory || null;
-      const liveSubtype =
-        draftRow?.data?.civilianSubtype ||
-        sessionRow?.data?.civilianSubtype ||
-        null;
-      return {
-        key: row.key,
-        phone: row.phone,
-        countryCode: row.countryCode,
-        firstSeenAt: row.firstSeenAt,
-        lastSeenAt: row.lastSeenAt,
-        lastInboundAt: row.lastInboundAt || null,
-        lastOutboundAt: row.lastOutboundAt || null,
-        lastInboundText: row.lastInboundText || "",
-        lastOutboundPreview: row.lastOutboundPreview || "",
-        inboundCount: row.inboundCount || 0,
-        outboundCount: row.outboundCount || 0,
-        flow: row.flow || null,
-        step: row.step || null,
-        maxAmount: row.maxAmount ?? null,
-        companyName: row.companyName || liveCompany || null,
-        jobCategory: row.jobCategory || liveJob || null,
-        civilianSubtype: row.civilianSubtype || liveSubtype || null,
-        outcome: row.outcome || "",
-        notes: row.notes || "",
-        archived: Boolean(row.archived),
-        archivedAt: row.archivedAt || null,
-        manual: Boolean(row.manual),
-        manualAt: row.manualAt || null,
-        rejected: Boolean(row.rejected),
-        rejectedAt: row.rejectedAt || null,
-        followupPlus: Boolean(row.followupPlus),
-        followupPlusAt: row.followupPlusAt || null,
-        followupSent: Boolean(row.followupSent) || hasFirstFollowup(row),
-        followupSentAt: row.followupSentAt || null,
-        orderNumber:
-          row.orderNumber ||
-          sessionRow?.data?.orderNumber ||
-          null,
-        orderNumberAt:
-          row.orderNumberAt || sessionRow?.data?.orderNumberAt || null,
-        source: row.source || null,
-        syncedAt: row.syncedAt || null,
-        dayKey: row.dayKey || null,
-        paused: pausedChats.has(key),
-        live: {
-          session: sessionRow
-            ? {
-                savedAt: sessionRow.savedAt,
-                maxAmount:
-                  sessionRow.data?.maxAmount || sessionRow.data?.rounded || null,
-                offer: sessionRow.data?.offer || null,
-              }
-            : null,
-          draft: draftRow
-            ? {
-                savedAt: draftRow.savedAt,
-                flow: draftRow.data?.flow || null,
-                step: draftRow.data?.step || null,
-              }
-            : null,
-        },
-      };
-    });
+    const enriched = slice.map((row) => toAdminCustomer(row));
     res.json({
       ok: true,
       timezone: pack.timezone,
@@ -611,6 +618,32 @@ function createAdminRouter(deps) {
       counts: withFinanceLinkCounts(summary.counts),
       customers: enriched,
       persistence: customerLedger.persistenceInfo?.() || null,
+    });
+  });
+
+  router.get("/customers/lookup", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({
+        ok: false,
+        error: "سجل العملاء غير مفعّل على هذا السيرفر",
+      });
+    }
+    const { phone } = normalizePhoneParts({
+      phone: req.query.phone || req.query.q || "",
+    });
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: "اكتب رقم الجوال" });
+    }
+    const row = customerLedger.findByPhone(phone);
+    if (!row) {
+      return res.status(404).json({
+        ok: false,
+        error: "ما لقينا هالرقم في السجل",
+      });
+    }
+    res.json({
+      ok: true,
+      customer: toAdminCustomer(row, { includeEvents: true }),
     });
   });
 

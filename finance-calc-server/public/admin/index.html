@@ -197,7 +197,48 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   border-radius: 12px; border: 1px solid rgba(157,58,45,.35);
   background: rgba(157,58,45,.08); color: var(--danger); font-weight: 600;
 }
-@media (max-width: 720px) {
+.home-search {
+  margin-bottom: 14px;
+}
+.home-search-row {
+  display: flex; gap: 10px; align-items: stretch;
+}
+.home-search-row input {
+  flex: 1; min-width: 0; min-height: 48px; font-size: 1.05rem;
+  direction: ltr; text-align: left;
+}
+.home-search-row .btn { min-width: 96px; }
+.dash-tabs {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px; margin-bottom: 14px; width: 100%;
+}
+.dash-tabs .tab {
+  width: 100%; min-width: 0; min-height: 72px;
+  justify-content: center; padding: 12px 8px;
+}
+.list-page-head {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px;
+  align-items: center; margin-bottom: 14px;
+}
+.list-page-head h2 { margin: 0; font-size: 1.15rem; }
+.customer-profile .profile-phone {
+  font-size: 1.45rem; font-weight: 700; margin: 0 0 8px;
+}
+.customer-profile .profile-grid {
+  display: grid; gap: 14px;
+}
+.event-log {
+  list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto;
+}
+.event-log li {
+  padding: 8px 0; border-bottom: 1px solid var(--line);
+  font-size: .9rem;
+}
+.event-log .ev-meta { color: var(--muted); font-size: .78rem; margin-bottom: 4px; }
+.row-open { font-weight: 700; }
+@media (min-width: 720px) {
+  .dash-tabs { grid-template-columns: repeat(4, 1fr); }
+}
   .main { padding: 14px 12px 40px; }
   .topbar { flex-direction: column; gap: 10px; margin-bottom: 14px; }
   .topbar .btn, .btn-row .btn, .toolbar .btn { width: 100%; }
@@ -208,7 +249,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   .ledger-date-bar .field { width: 100%; }
   .ledger-date-bar input[type="date"] { width: 100%; min-width: 0; }
   .tabs { width: 100%; }
+  .dash-tabs { grid-template-columns: repeat(2, 1fr); }
   .tab { flex: 1 1 auto; text-align: center; min-height: 54px; justify-content: center; }
+  .home-search-row { flex-wrap: wrap; }
+  .home-search-row .btn { width: 100%; }
   .toolbar { align-items: stretch; }
   .card { padding: 14px; }
   .note-choices { max-width: none; width: 100%; }
@@ -259,10 +303,20 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 <body>
 <div class="app">
   <main class="main">
+    <form id="jump-form" class="card home-search">
+      <label class="field" style="margin:0">
+        <span>رقم العميل — اكتب الجوال وادخل على صفحته</span>
+        <div class="home-search-row">
+          <input id="jump-phone" type="search" inputmode="tel" autocomplete="off" placeholder="05xxxxxxxx" />
+          <button class="btn primary" type="submit">دخول</button>
+        </div>
+      </label>
+      <p id="jump-status" class="status" hidden></p>
+    </form>
     <header class="topbar">
       <div>
         <p class="brand-mark">رائد الحربي</p>
-        <h1 id="page-title">العملاء</h1>
+        <h1 id="page-title">الرئيسية</h1>
         <p id="live-counts" class="muted" style="margin:8px 0 0;font-weight:700;color:var(--accent)">العدد المحفوظ: —</p>
       </div>
       <div class="page-nav">
@@ -282,28 +336,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       <p class="muted" id="persistence-banner-text" style="margin-bottom:0">أضف Persistent Disk في Render على المسار <code>/var/data</code> ثم Environment: <code>CUSTOMERS_DATA_DIR=/var/data/kobri</code>. قبل أي نشر: نزّل بكب.</p>
     </div>
 
-    <details class="card backup-panel" id="backup-panel" style="margin-bottom:14px" open>
-      <summary>النسخ الاحتياطي وجلب السابق</summary>
-      <div>
-        <p class="muted">قبل أي نشر جديد: نزّل بكب. بعد النشر: استورد الملف. زر Interakt يجلب <strong>الأرقام والأسماء فقط</strong>.</p>
-        <p class="muted" id="persistence-line" style="margin-top:8px">حالة الحفظ: —</p>
-        <div class="btn-row">
-          <button id="export-customers" class="btn primary" type="button">تنزيل بكب</button>
-          <button id="backup-now" class="btn secondary" type="button">حفظ نسخة الآن</button>
-          <button id="sync-interakt" class="btn secondary" type="button">جلب من Interakt (30 يوم)</button>
-        </div>
-        <label class="field" style="margin-top:14px">
-          <span>استيراد بكب (الصق محتوى ملف JSON)</span>
-          <textarea id="import-json" rows="4" placeholder='{"customers":[...]}'></textarea>
-        </label>
-        <button id="import-customers" class="btn secondary" type="button">استيراد ودمج</button>
-        <p id="backup-status" class="status" hidden></p>
-      </div>
-    </details>
-
-    <div class="toolbar">
-      <div class="tabs" id="customer-tabs">
-        <button class="tab active" data-day="today" type="button">
+    <div class="tabs dash-tabs" id="customer-tabs">
+        <button class="tab" data-day="today" type="button">
           <span class="tab-label">اليوم</span>
           <span class="tab-count" id="tab-count-today">—</span>
         </button>
@@ -356,8 +390,35 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <span class="tab-count" id="tab-count-rejected">—</span>
         </button>
       </div>
-      <input id="customer-search" class="search" type="search" placeholder="بحث برقم الجوال أو الطلب أو جهة العمل أو وش صار أو ملاحظة" />
+    <p class="muted" style="margin:0 0 14px">اضغط أي قائمة لفتح كل عملائها. رقم العميل من الخانة فوق يفتح صفحته كاملة.</p>
+    <details class="card backup-panel" id="backup-panel" style="margin-bottom:14px">
+      <summary>النسخ الاحتياطي وجلب السابق</summary>
+      <div>
+        <p class="muted">قبل أي نشر جديد: نزّل بكب. بعد النشر: استورد الملف. زر Interakt يجلب <strong>الأرقام والأسماء فقط</strong>.</p>
+        <p class="muted" id="persistence-line" style="margin-top:8px">حالة الحفظ: —</p>
+        <div class="btn-row">
+          <button id="export-customers" class="btn primary" type="button">تنزيل بكب</button>
+          <button id="backup-now" class="btn secondary" type="button">حفظ نسخة الآن</button>
+          <button id="sync-interakt" class="btn secondary" type="button">جلب من Interakt (30 يوم)</button>
+        </div>
+        <label class="field" style="margin-top:14px">
+          <span>استيراد بكب (الصق محتوى ملف JSON)</span>
+          <textarea id="import-json" rows="4" placeholder='{"customers":[...]}'></textarea>
+        </label>
+        <button id="import-customers" class="btn secondary" type="button">استيراد ودمج</button>
+        <p id="backup-status" class="status" hidden></p>
+      </div>
+    </details>
     </div>
+
+    <div id="list-view" hidden>
+      <div class="list-page-head">
+        <h2 id="list-title">العملاء</h2>
+        <button id="back-home-from-list" class="btn secondary" type="button">الرئيسية</button>
+      </div>
+      <div class="toolbar">
+        <input id="customer-search" class="search" type="search" placeholder="تصفية القائمة برقم أو ملاحظة" />
+      </div>
     <div class="ledger-date-bar">
       <label class="field">
         <span>تاريخ السجل</span>
@@ -430,6 +491,14 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         </table>
       </div>
     </div>
+    </div>
+
+    <div id="customer-view" hidden>
+      <div class="list-page-head">
+        <h2 id="customer-page-title">صفحة العميل</h2>
+        <button id="back-from-customer" class="btn secondary" type="button">رجوع</button>
+      </div>
+      <div id="customer-page-body" class="customer-profile"></div>
     </div>
 
     <div id="followup-view" hidden>
@@ -518,7 +587,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-19-followup-interakt";
+  const UI_VERSION = "2026-08-19-home-search";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -540,6 +609,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   let customerDay = "today";
   let customersCache = [];
   let customersHasMore = false;
+  let currentPage = "home";
+  let profilePhone = "";
+  let profileCustomer = null;
+  let openedCustomerFrom = "home";
 
   function riyadhDayKey(d = new Date()) {
     return new Intl.DateTimeFormat("en-CA", {
@@ -592,23 +665,67 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   const customerSearch = document.getElementById("customer-search");
   const errorBanner = document.getElementById("error-banner");
   const homeView = document.getElementById("home-view");
+  const listView = document.getElementById("list-view");
+  const customerView = document.getElementById("customer-view");
   const followupView = document.getElementById("followup-view");
   const followupEntry = document.getElementById("followup-entry");
   const pageTitle = document.getElementById("page-title");
 
-  function showPage(name, { push = true } = {}) {
-    const followup = name === "followup";
-    if (homeView) homeView.hidden = followup;
-    if (followupView) followupView.hidden = !followup;
-    if (followupEntry) followupEntry.hidden = followup;
-    if (pageTitle) pageTitle.textContent = followup ? "المتابعة" : "العملاء";
+  function listTitleFor(day) {
+    const map = {
+      today: "اليوم",
+      yesterday: "أمس",
+      all: "الكل",
+      archive: "أرشيف",
+      manual: "يدوي",
+      rejected: "رفض",
+    };
+    if (map[day]) return map[day];
+    if (OUTCOME_TAB_LABELS[day]) return OUTCOME_TAB_LABELS[day];
+    if (isIsoDay(day)) return `تاريخ ${day}`;
+    return day || "العملاء";
+  }
+
+  function parseRoute() {
+    const hash = String(location.hash || "").replace(/^#/, "");
+    if (hash === "followup") return { page: "followup" };
+    if (hash.startsWith("customer/")) {
+      return { page: "customer", phone: decodeURIComponent(hash.slice("customer/".length)) };
+    }
+    if (hash.startsWith("list/")) {
+      return { page: "list", day: decodeURIComponent(hash.slice("list/".length)) || "today" };
+    }
+    return { page: "home" };
+  }
+
+  function showPage(name, { push = true, day, phone } = {}) {
+    currentPage = name;
+    if (homeView) homeView.hidden = name !== "home";
+    if (listView) listView.hidden = name !== "list";
+    if (customerView) customerView.hidden = name !== "customer";
+    if (followupView) followupView.hidden = name !== "followup";
+    if (followupEntry) followupEntry.hidden = name === "followup";
+    const titles = {
+      home: "الرئيسية",
+      list: listTitleFor(day || customerDay),
+      customer: "صفحة العميل",
+      followup: "المتابعة",
+    };
+    if (pageTitle) pageTitle.textContent = titles[name] || "العملاء";
+    if (name === "home") {
+      document.querySelectorAll("#customer-tabs .tab").forEach((t) => t.classList.remove("active"));
+    }
     const liveCounts = document.getElementById("live-counts");
-    if (liveCounts) liveCounts.hidden = followup;
+    if (liveCounts) liveCounts.hidden = name === "followup" || name === "customer";
+    const listTitle = document.getElementById("list-title");
+    if (listTitle && name === "list") listTitle.textContent = listTitleFor(day || customerDay);
     if (push) {
-      const nextHash = followup ? "#followup" : "";
+      let nextHash = "";
+      if (name === "followup") nextHash = "#followup";
+      else if (name === "customer" && phone) nextHash = `#customer/${encodeURIComponent(phone)}`;
+      else if (name === "list") nextHash = `#list/${encodeURIComponent(day || customerDay)}`;
       if ((location.hash || "") !== nextHash) {
-        const url = location.pathname + location.search + nextHash;
-        history.pushState({ page: name }, "", url);
+        history.pushState({ page: name, day, phone }, "", location.pathname + location.search + nextHash);
       }
     }
   }
@@ -852,12 +969,123 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     if (rejectedCard) rejectedCard.style.display = customerDay === "rejected" ? "block" : "none";
     const plusCard = document.getElementById("plus-add-card");
     if (plusCard) plusCard.style.display = customerDay === "finance_link_plus" ? "block" : "none";
+    const dateBar = document.querySelector(".ledger-date-bar");
+    if (dateBar) dateBar.hidden = !isDayFilter(customerDay);
     const dateInput = document.getElementById("ledger-date");
     if (dateInput) {
       const today = riyadhDayKey();
       dateInput.max = today;
       dateInput.value = isoForCustomerDay(customerDay);
       dateInput.classList.toggle("picking", isDayFilter(customerDay));
+    }
+    const listTitle = document.getElementById("list-title");
+    if (listTitle) listTitle.textContent = listTitleFor(customerDay);
+  }
+
+  async function openList(day, { push = true } = {}) {
+    setCustomerTab(day);
+    showPage("list", { push, day });
+    await refreshCustomers({ append: false });
+  }
+
+  function customerActionsHtml(row, { hideOpen = false } = {}) {
+    const paused = row.paused;
+    const openBtn = hideOpen
+      ? ""
+      : `<button class="btn primary small row-open" data-act="open" data-phone="${row.phone}" type="button">فتح الصفحة</button>`;
+    return `
+          ${openBtn}
+          <button class="btn secondary small" data-act="ask-plus" data-phone="${row.phone}" type="button" title="يرسل: السلام عليكم / نأسف لعدم تقديمكم للطلب">سؤال بلس</button>
+          <button class="btn secondary small" data-act="ask-order" data-phone="${row.phone}" type="button" title="متابعة: هل تم تقديم الطلب؟ ينقل لتبويب تمت المتابعة">سؤال عن الطلب</button>
+          <button class="btn secondary small" data-act="${row.archived ? "unarchive" : "archive"}" data-phone="${row.phone}" type="button">${row.archived ? "إلغاء الأرشفة" : "أرشفة"}</button>
+          <button class="btn secondary small" data-act="${row.manual ? "unmanual" : "manual"}" data-phone="${row.phone}" type="button">${row.manual ? "إلغاء اليدوي" : "يدوي"}</button>
+          <button class="btn danger small" data-act="${row.rejected ? "unreject" : "reject"}" data-phone="${row.phone}" type="button">${row.rejected ? "إلغاء الرفض" : "رفض"}</button>
+          <button class="btn secondary small" data-act="${row.followupPlus ? "unplus" : "plus"}" data-phone="${row.phone}" type="button">${row.followupPlus ? "إلغاء بلس" : "متابعة بلس"}</button>
+          <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
+          <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button" title="${paused ? "يشغّل الرد الآلي من البوت على هذا الرقم" : "يوقف رد البوت على هذا الرقم فقط، تقدر ترد أنت"}">${paused ? "تشغيل البوت" : "إيقاف البوت"}</button>
+          <button class="btn ghost small" data-act="reset" data-phone="${row.phone}" type="button" title="يمسح مسودة الحسبة ويبدأ العميل من القائمة، بدون حذف السجل">تصفير الجلسة</button>`;
+  }
+
+  function renderCustomerPage(row) {
+    const body = document.getElementById("customer-page-body");
+    const title = document.getElementById("customer-page-title");
+    if (!body) return;
+    if (!row) {
+      body.innerHTML = `<div class="card"><p class="empty" style="margin:0">ما لقينا العميل</p></div>`;
+      return;
+    }
+    profileCustomer = row;
+    if (title) title.textContent = displayPhone(row);
+    const events = Array.isArray(row.events) ? row.events : [];
+    const eventsHtml = events.length
+      ? `<ul class="event-log">${events
+          .map((e) => {
+            const kind = e.type === "outbound" ? "صادر" : e.type === "inbound" ? "وارد" : escapeHtml(e.type || "");
+            return `<li><div class="ev-meta">${escapeHtml(kind)} · ${formatTime(e.at)}${e.mode ? ` · ${escapeHtml(e.mode)}` : ""}</div>${escapeHtml(e.text || "")}</li>`;
+          })
+          .join("")}</ul>`
+      : `<p class="muted" style="margin:0">لا يوجد سجل رسائل محفوظ</p>`;
+    const live = row.live || {};
+    body.innerHTML = `
+      <div class="card profile-grid">
+        <div>
+          <p class="profile-phone">${phoneWhatsAppLink(row)}</p>
+          <div class="meta-line">${row.paused ? '<span class="badge paused">موقوف</span>' : '<span class="badge active">نشط</span>'}${row.manual ? ' <span class="badge manual">يدوي</span>' : ""}${row.rejected ? ' <span class="badge rejected">رفض</span>' : ""}${row.followupPlus ? ' <span class="badge plus">متابعة بلس</span>' : ""}</div>
+          <div class="meta-line" style="margin-top:6px">${followupBadgesHtml(row)}</div>
+        </div>
+        <div>
+          <p class="muted" style="margin:0 0 6px">تاريخ الإرسال / آخر نشاط</p>
+          <div>${formatTime(sendDateOf(row))}</div>
+          <div class="meta-line">وارد: ${formatTime(row.lastInboundAt)} · ${escapeHtml(String(row.lastInboundText || "").slice(0, 140) || "—")}</div>
+          <div class="meta-line">آخر رسالة منا: ${escapeHtml(String(row.lastOutboundPreview || "").slice(0, 160) || "لا توجد")}</div>
+        </div>
+        <div>
+          <p class="muted" style="margin:0 0 6px">جهة العمل</p>
+          ${workplaceChoicesHtml(row)}
+        </div>
+        <div>
+          <p class="muted" style="margin:0 0 6px">رقم الطلب</p>
+          <input class="order-input" data-order-phone="${row.phone}" type="text" inputmode="numeric" maxlength="8" placeholder="101xxxxx" value="${escapeHtml(row.orderNumber || "")}" />
+        </div>
+        <div>
+          <p class="muted" style="margin:0 0 6px">وش صار</p>
+          ${notesChoicesHtml(row)}
+        </div>
+        <div>
+          <p class="muted" style="margin:0 0 6px">ملاحظات</p>
+          <textarea class="notes-input" data-notes-phone="${row.phone}" rows="3" placeholder="اكتب ملاحظة حرة...">${escapeHtml(row.notes || "")}</textarea>
+        </div>
+        <div>
+          <p class="muted" style="margin:0 0 8px">إجراءات</p>
+          <div class="actions">${customerActionsHtml(row, { hideOpen: true })}</div>
+        </div>
+        <div>
+          <p class="muted" style="margin:0 0 6px">الحالة الحية</p>
+          <div class="meta-line">المسار: ${escapeHtml(row.flow || live.draft?.flow || "—")} · الخطوة: ${escapeHtml(row.step || live.draft?.step || "—")}</div>
+          <div class="meta-line">أعلى مبلغ: ${row.maxAmount != null ? escapeHtml(String(row.maxAmount)) : (live.session?.maxAmount != null ? escapeHtml(String(live.session.maxAmount)) : "—")}</div>
+        </div>
+        <div>
+          <p class="muted" style="margin:0 0 6px">سجل الرسائل</p>
+          ${eventsHtml}
+        </div>
+      </div>`;
+  }
+
+  async function openCustomer(phone, { push = true } = {}) {
+    const statusEl = document.getElementById("jump-status");
+    if (push) openedCustomerFrom = currentPage === "list" ? "list" : "home";
+    profilePhone = String(phone || "").replace(/\D/g, "").replace(/^0+/, "");
+    if (profilePhone.startsWith("966") && profilePhone.length > 9) {
+      profilePhone = profilePhone.slice(3);
+    }
+    const pack = await api(`/customers/lookup?phone=${encodeURIComponent(profilePhone)}`);
+    showPage("customer", { push, phone: profilePhone });
+    renderCustomerPage(pack.customer);
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.className = "status ok";
+      statusEl.style.color = "";
+      statusEl.textContent = `تم فتح ${displayPhone(pack.customer)}`;
     }
   }
 
@@ -912,15 +1140,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <textarea class="notes-input" data-notes-phone="${row.phone}" rows="1" placeholder="اكتب ملاحظة حرة...">${freeNotes}</textarea>
         </td>
         <td class="actions" data-label="إجراءات">
-          <button class="btn secondary small" data-act="ask-plus" data-phone="${row.phone}" type="button" title="يرسل: السلام عليكم / نأسف لعدم تقديمكم للطلب">سؤال بلس</button>
-          <button class="btn secondary small" data-act="ask-order" data-phone="${row.phone}" type="button" title="متابعة: هل تم تقديم الطلب؟ ينقل لتبويب تمت المتابعة">سؤال عن الطلب</button>
-          <button class="btn secondary small" data-act="${row.archived ? "unarchive" : "archive"}" data-phone="${row.phone}" type="button">${row.archived ? "إلغاء الأرشفة" : "أرشفة"}</button>
-          <button class="btn secondary small" data-act="${row.manual ? "unmanual" : "manual"}" data-phone="${row.phone}" type="button">${row.manual ? "إلغاء اليدوي" : "يدوي"}</button>
-          <button class="btn danger small" data-act="${row.rejected ? "unreject" : "reject"}" data-phone="${row.phone}" type="button">${row.rejected ? "إلغاء الرفض" : "رفض"}</button>
-          <button class="btn secondary small" data-act="${row.followupPlus ? "unplus" : "plus"}" data-phone="${row.phone}" type="button">${row.followupPlus ? "إلغاء بلس" : "متابعة بلس"}</button>
-          <button class="btn secondary small" data-act="menu" data-phone="${row.phone}" type="button">قائمة</button>
-          <button class="btn ${paused ? "secondary" : "danger"} small" data-act="${paused ? "resume" : "pause"}" data-phone="${row.phone}" type="button" title="${paused ? "يشغّل الرد الآلي من البوت على هذا الرقم" : "يوقف رد البوت على هذا الرقم فقط، تقدر ترد أنت"}">${paused ? "تشغيل البوت" : "إيقاف البوت"}</button>
-          <button class="btn ghost small" data-act="reset" data-phone="${row.phone}" type="button" title="يمسح مسودة الحسبة ويبدأ العميل من القائمة، بدون حذف السجل">تصفير الجلسة</button>
+          ${customerActionsHtml(row)}
         </td>
       </tr>`;
     }).join("");
@@ -966,15 +1186,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     let pack = await api(
       `/customers?day=${encodeURIComponent(customerDay)}&limit=${PAGE_SIZE}&offset=${offset}`
     );
-    if (
-      !append &&
-      customerDay === "today" &&
-      !(pack.customers || []).length &&
-      (pack.counts?.all || 0) > 0
-    ) {
-      setCustomerTab("all");
-      pack = await api(`/customers?day=all&limit=${PAGE_SIZE}&offset=0`);
-    }
     const page = pack.customers || [];
     customersCache = append ? customersCache.concat(page) : page;
     customersHasMore = Boolean(pack.hasMore);
@@ -1097,13 +1308,33 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     } catch (_) {
       /* تحميل العملاء يكفي */
     }
-    await refreshCustomers();
+    if (currentPage === "list") await refreshCustomers();
+    else if (currentPage === "customer" && profilePhone) {
+      await openCustomer(profilePhone, { push: false });
+    }
+  }
+
+  async function refreshAfterAction() {
+    if (currentPage === "customer" && profilePhone) {
+      await openCustomer(profilePhone, { push: false });
+      return;
+    }
+    if (currentPage === "list") {
+      await refreshCustomers({ append: false });
+    }
   }
 
   async function runAction(act, phone, extra = {}) {
     if (!phone) return;
+    if (act === "open") {
+      await openCustomer(phone);
+      return;
+    }
+    const row =
+      customersCache.find((r) => r.phone === phone) ||
+      (profileCustomer && profileCustomer.phone === phone ? profileCustomer : null) ||
+      {};
     if (act === "workplace") {
-      const row = customersCache.find((r) => r.phone === phone) || {};
       const current = workplaceChoiceOf(row);
       const next = extra.workplace || "";
       const workplace = current && current === next ? "clear" : next;
@@ -1111,11 +1342,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         method: "POST",
         body: JSON.stringify({ phone, workplace }),
       });
-      await refreshCustomers({ append: false });
+      await refreshAfterAction();
       return;
     }
     if (act === "outcome") {
-      const row = customersCache.find((r) => r.phone === phone) || {};
       const current = noteOutcomeOf(row);
       const next = String(extra.outcome || "").trim();
       const outcome = current && current === next ? "" : next;
@@ -1124,13 +1354,13 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         body: JSON.stringify({ phone, outcome }),
       });
       if (row) row.outcome = outcome;
-      await refreshCustomers({ append: false });
+      await refreshAfterAction();
       return;
     }
     if (act === "ask-order") {
       await api("/send-followup", { method: "POST", body: JSON.stringify({ phone }) });
       alert("تم الإرسال — العميل في «رابط — تمت المتابعة»");
-      await refreshCustomers({ append: false });
+      await refreshAfterAction();
       return;
     }
     if (act === "ask-plus") {
@@ -1139,7 +1369,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         body: JSON.stringify({ phone, kind: "ask-plus" }),
       });
       alert("تم الإرسال — العميل في «رابط — متابعة بلس»");
-      await refreshCustomers({ append: false });
+      await refreshAfterAction();
       return;
     }
     if (act === "archive" || act === "unarchive") {
@@ -1147,7 +1377,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         method: "POST",
         body: JSON.stringify({ phone, archived: act === "archive" }),
       });
-      await refreshCustomers({ append: false });
+      await refreshAfterAction();
       return;
     }
     if (act === "manual" || act === "unmanual") {
@@ -1155,7 +1385,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         method: "POST",
         body: JSON.stringify({ phone, manual: act === "manual" }),
       });
-      await refreshCustomers({ append: false });
+      await refreshAfterAction();
       return;
     }
     if (act === "reject" || act === "unreject") {
@@ -1163,7 +1393,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         method: "POST",
         body: JSON.stringify({ phone, rejected: act === "reject" }),
       });
-      await refreshCustomers({ append: false });
+      await refreshAfterAction();
       return;
     }
     if (act === "plus" || act === "unplus") {
@@ -1171,14 +1401,14 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         method: "POST",
         body: JSON.stringify({ phone, plus: act === "plus" }),
       });
-      await refreshCustomers({ append: false });
+      await refreshAfterAction();
       return;
     }
     if (act === "menu") await api("/send-menu", { method: "POST", body: JSON.stringify({ phone }) });
     if (act === "pause") await api("/pause", { method: "POST", body: JSON.stringify({ phone }) });
     if (act === "resume") await api("/resume", { method: "POST", body: JSON.stringify({ phone }) });
     if (act === "reset") await api("/reset", { method: "POST", body: JSON.stringify({ phone }) });
-    await refreshCustomers({ append: false });
+    await refreshAfterAction();
   }
 
   function setBackupStatus(msg) {
@@ -1197,8 +1427,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   document.getElementById("customer-tabs").addEventListener("click", async (e) => {
     const tab = e.target.closest(".tab");
     if (!tab) return;
-    setCustomerTab(tab.dataset.day);
-    await refreshCustomers({ append: false }).catch((err) => {
+    await openList(tab.dataset.day).catch((err) => {
       showError(err.message);
       alert(err.message);
     });
@@ -1214,6 +1443,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       showError(err.message);
       alert(err.message);
     });
+    showPage("list", { push: true, day: customerDay });
   }
   document.getElementById("ledger-date").addEventListener("change", () => {
     openLedgerDate(document.getElementById("ledger-date").value);
@@ -1422,7 +1652,9 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     const phone = input?.dataset?.notesPhone;
     if (!phone) return;
     const notes = String(input.value || "");
-    const current = (customersCache.find((r) => r.phone === phone) || {}).notes || "";
+    const current =
+      (customersCache.find((r) => r.phone === phone) ||
+        (profileCustomer && profileCustomer.phone === phone ? profileCustomer : {})).notes || "";
     if (notes === current) return;
     input.disabled = true;
     try {
@@ -1432,6 +1664,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       });
       const row = customersCache.find((r) => r.phone === phone);
       if (row) row.notes = notes;
+      if (profileCustomer && profileCustomer.phone === phone) profileCustomer.notes = notes;
       input.style.borderColor = "var(--accent)";
       setTimeout(() => { input.style.borderColor = ""; }, 700);
     } catch (err) {
@@ -1460,6 +1693,9 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       });
       const row = customersCache.find((r) => r.phone === phone);
       if (row) row.orderNumber = orderNumber || null;
+      if (profileCustomer && profileCustomer.phone === phone) {
+        profileCustomer.orderNumber = orderNumber || null;
+      }
       input.value = orderNumber;
       input.style.borderColor = "var(--accent)";
       setTimeout(() => { input.style.borderColor = ""; }, 700);
@@ -1471,42 +1707,45 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     }
   }
 
-  document.getElementById("customers-body").addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-act]");
-    if (!btn) return;
-    try {
-      await runAction(btn.dataset.act, btn.dataset.phone, {
-        workplace: btn.dataset.workplace || "",
-        outcome: btn.dataset.outcome || "",
-      });
-    } catch (err) {
-      alert(err.message);
-    }
-  });
-
-  document.getElementById("customers-body").addEventListener("focusout", (e) => {
-    const notes = e.target.closest("textarea.notes-input");
-    if (notes) {
-      saveNotesField(notes);
-      return;
-    }
-    const order = e.target.closest("input.order-input");
-    if (order) saveOrderField(order);
-  });
-
-  document.getElementById("customers-body").addEventListener("keydown", (e) => {
-    const notes = e.target.closest("textarea.notes-input");
-    if (notes && e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      notes.blur();
-      return;
-    }
-    const order = e.target.closest("input.order-input");
-    if (order && e.key === "Enter") {
-      e.preventDefault();
-      order.blur();
-    }
-  });
+  function bindCustomerEditor(root) {
+    if (!root) return;
+    root.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-act]");
+      if (!btn) return;
+      try {
+        await runAction(btn.dataset.act, btn.dataset.phone, {
+          workplace: btn.dataset.workplace || "",
+          outcome: btn.dataset.outcome || "",
+        });
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+    root.addEventListener("focusout", (e) => {
+      const notes = e.target.closest("textarea.notes-input");
+      if (notes) {
+        saveNotesField(notes);
+        return;
+      }
+      const order = e.target.closest("input.order-input");
+      if (order) saveOrderField(order);
+    });
+    root.addEventListener("keydown", (e) => {
+      const notes = e.target.closest("textarea.notes-input");
+      if (notes && e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        notes.blur();
+        return;
+      }
+      const order = e.target.closest("input.order-input");
+      if (order && e.key === "Enter") {
+        e.preventDefault();
+        order.blur();
+      }
+    });
+  }
+  bindCustomerEditor(document.getElementById("customers-body"));
+  bindCustomerEditor(document.getElementById("customer-page-body"));
 
   const bulkMsg = document.getElementById("bulk-followup-message");
   const bulkDelay = document.getElementById("bulk-followup-delay-sec");
@@ -1828,6 +2067,42 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     });
   });
 
+  document.getElementById("jump-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const input = document.getElementById("jump-phone");
+    const statusEl = document.getElementById("jump-status");
+    const phone = String(input.value || "").trim();
+    if (!phone) {
+      alert("اكتب رقم الجوال");
+      input?.focus();
+      return;
+    }
+    statusEl.hidden = false;
+    statusEl.className = "status";
+    statusEl.style.color = "";
+    statusEl.textContent = "جاري فتح صفحة العميل...";
+    try {
+      await openCustomer(phone);
+    } catch (err) {
+      statusEl.className = "status";
+      statusEl.style.color = "var(--danger)";
+      statusEl.textContent = err.message;
+    }
+  });
+
+  document.getElementById("back-home-from-list").addEventListener("click", () => {
+    showPage("home");
+    refreshAll().catch((err) => showError(err.message));
+  });
+  document.getElementById("back-from-customer").addEventListener("click", () => {
+    if (openedCustomerFrom === "list") {
+      openList(customerDay).catch((err) => showError(err.message));
+      return;
+    }
+    showPage("home");
+    refreshAll().catch((err) => showError(err.message));
+  });
+
   document.getElementById("open-followup-btn").addEventListener("click", () => {
     showPage("followup");
     refreshAll().catch((err) => showError(err.message));
@@ -1836,13 +2111,31 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     showPage("home");
     refreshAll().catch((err) => showError(err.message));
   });
-  window.addEventListener("popstate", () => {
-    showPage(location.hash === "#followup" ? "followup" : "home", { push: false });
-  });
-  showPage(location.hash === "#followup" ? "followup" : "home", { push: false });
-  setCustomerTab(customerDay);
 
-  refreshAll().catch((err) => {
+  async function applyRoute({ push = false } = {}) {
+    const route = parseRoute();
+    if (route.page === "followup") {
+      showPage("followup", { push });
+      return;
+    }
+    if (route.page === "customer" && route.phone) {
+      await openCustomer(route.phone, { push: false });
+      return;
+    }
+    if (route.page === "list") {
+      await openList(route.day, { push: false });
+      return;
+    }
+    showPage("home", { push });
+  }
+
+  window.addEventListener("popstate", () => {
+    applyRoute({ push: false }).catch((err) => showError(err.message));
+  });
+
+  applyRoute({ push: false })
+    .then(() => refreshAll())
+    .catch((err) => {
     showError(err.message);
     document.getElementById("customers-body").innerHTML =
       `<tr><td colspan="7" class="empty">تعذر التحميل: ${escapeHtml(err.message)}</td></tr>`;

@@ -452,6 +452,19 @@ function createCustomerLedger(options = {}) {
     return migrateOutcomeFromNotes(normalized);
   }
 
+  function findByPhone(phone) {
+    hydrateFromDiskIfNeeded();
+    let p = String(phone || "").replace(/\D/g, "").replace(/^0+/, "");
+    if (p.startsWith("966") && p.length > 9) p = p.slice(3);
+    if (!p) return null;
+    const exact = customers.get(`+966:${p}`);
+    if (exact) return exact;
+    for (const row of customers.values()) {
+      if (String(row.phone || "") === p) return row;
+    }
+    return null;
+  }
+
   function getOrCreate(countryCode, phone) {
     load();
     const cc = String(countryCode || "+966");
@@ -1061,6 +1074,7 @@ function createCustomerLedger(options = {}) {
     placeInLinkFollowup,
     setOrderNumber,
     setWorkplace,
+    findByPhone,
     listByDay,
     summary,
     flush,

@@ -171,6 +171,15 @@ async function waitBulkJob(timeoutMs = 3000) {
     )
   );
 
+  const lookup = await req("GET", "/customers/lookup?phone=0551234567");
+  assert.strictEqual(lookup.status, 200, lookup.json?.error || "lookup ok");
+  assert.strictEqual(lookup.json.customer.phone, "551234567");
+  assert.ok(Array.isArray(lookup.json.customer.events));
+  const lookupMiss = await req("GET", "/customers/lookup?phone=0599999999");
+  assert.strictEqual(lookupMiss.status, 404);
+  const lookupEmpty = await req("GET", "/customers/lookup?phone=");
+  assert.strictEqual(lookupEmpty.status, 400);
+
   const archive = await req("POST", "/customers/archive", {
     phone: "0551234567",
     archived: true,
