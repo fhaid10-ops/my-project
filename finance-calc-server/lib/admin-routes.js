@@ -115,8 +115,8 @@ function createAdminRouter(deps) {
       minDelayMs
     );
     const maxBatchSize = Math.min(
-      Math.max(Number(cfg.maxBatchSize || 30), 1),
-      50
+      Math.max(Number(cfg.maxBatchSize != null ? cfg.maxBatchSize : 250), 1),
+      400
     );
     const dailyLimit = Math.min(
       Math.max(Number(cfg.dailyLimit || 250), 1),
@@ -1229,12 +1229,11 @@ function createAdminRouter(deps) {
       queue.push(parts);
     }
 
-    const sendAll =
-      isFinanceLinkWave &&
-      (req.body?.sendAll === true ||
-        req.body?.sendAll === "true" ||
-        req.body?.sendAll === 1 ||
-        req.body?.all === true);
+    const sendAllOff =
+      req.body?.sendAll === false ||
+      req.body?.sendAll === "false" ||
+      req.body?.sendAll === 0;
+    const sendAll = (isFinanceLinkWave || isPlusWave) && !sendAllOff;
     const sendCap = sendAll
       ? Math.min(dailyRemaining, queue.length)
       : Math.min(batchLimit, dailyRemaining, queue.length);
@@ -1319,8 +1318,10 @@ function createAdminRouter(deps) {
       return res.status(400).json({
         ok: false,
         error: deferred.length
-          ? `تم بلوغ الحد اليومي (${safe.dailyLimit}). تبقّى ${deferred.length} بدون متابعة.`
-          : "لا يوجد عملاء في «رابط — بدون متابعة»",
+          ? `تم بلوغ الحد اليومي (${safe.dailyLimit}). تبقّى ${deferred.length}.`
+          : isFinanceLinkWave
+            ? "لا يوجد عملاء في «رابط — بدون متابعة»"
+            : "لا يوجد عملاء مؤهلون لمتابعة بلس",
         deferred: deferred.length,
         dailyLimit: safe.dailyLimit,
         dailySent: usage.count,

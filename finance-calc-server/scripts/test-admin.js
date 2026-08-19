@@ -419,6 +419,10 @@ async function waitBulkJob(timeoutMs = 3000) {
     "الحصة اليومية تغطي قائمة أخذ الرابط (200+)"
   );
   assert.ok(
+    (statusQuota.json.outboundSafe?.maxBatchSize || 0) >= 250,
+    "لا يُقص الإرسال عند 30"
+  );
+  assert.ok(
     (statusQuota.json.outboundSafe?.financeLinkTotal || 0) >= 2,
     "عدد من أخذوا الرابط"
   );
@@ -459,6 +463,7 @@ async function waitBulkJob(timeoutMs = 3000) {
   const pendingBeforeCount = pendingBeforeBulk.json.counts?.finance_link_pending || 0;
   const bulk = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",
+    sendAll: false,
     delayMs: 0,
     limit: 10,
   });
@@ -501,6 +506,7 @@ async function waitBulkJob(timeoutMs = 3000) {
 
   const bulk2 = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",
+    sendAll: false,
     delayMs: 0,
     limit: 10,
   });
@@ -509,6 +515,7 @@ async function waitBulkJob(timeoutMs = 3000) {
 
   const bulk3 = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",
+    sendAll: false,
     delayMs: 0,
     limit: 10,
   });
@@ -523,6 +530,7 @@ async function waitBulkJob(timeoutMs = 3000) {
   };
   const plusBulk = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link_plus",
+    sendAll: false,
     delayMs: 0,
     limit: 10,
   });

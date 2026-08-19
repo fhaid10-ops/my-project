@@ -456,8 +456,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
             <input id="bulk-followup-delay-sec" type="number" min="8" step="1" value="10" />
           </label>
           <label class="field" id="bulk-followup-limit-wrap" hidden style="margin:0;flex:1;min-width:140px">
-            <span>حد الدفعة (أقصى 30)</span>
-            <input id="bulk-followup-limit" type="number" min="1" max="30" step="1" value="30" />
+            <span>حد الدفعة (متابعة بلس)</span>
+            <input id="bulk-followup-limit" type="number" min="1" max="250" step="1" value="250" />
           </label>
         </div>
         <p class="muted" id="bulk-followup-quota" style="margin:0 0 12px">الحصة اليومية: —</p>
@@ -488,7 +488,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-19-followup-send-all";
+  const UI_VERSION = "2026-08-19-followup-no-30";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -966,8 +966,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     }
     const limit = document.getElementById("bulk-followup-limit");
     if (limit && !limit.dataset.touched) {
-      limit.value = String(safe.maxBatchSize || 30);
-      limit.max = String(safe.maxBatchSize || 30);
+      limit.value = String(safe.maxBatchSize || 250);
+      limit.max = String(safe.maxBatchSize || 250);
     }
     const quota = document.getElementById("bulk-followup-quota");
     const sent = safe.dailySent ?? 0;
@@ -1579,23 +1579,22 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   document.getElementById("bulk-followup-plus-send").addEventListener("click", async () => {
     const statusEl = document.getElementById("bulk-followup-plus-status");
     const delaySec = Math.max(Number(bulkDelay.value || 10), 8);
-    const maxBatch = Math.max(Number(bulkLimit.max || 30), 1);
-    const limit = Math.min(Math.max(Number(bulkLimit.value || maxBatch), 1), maxBatch);
     const message = String(bulkPlusMsg.value || "").trim();
     if (!message) {
       alert("اكتب نص متابعة بلس أولًا");
       return;
     }
     const ok = confirm(
-      `إرسال متابعة بلس لمن أخذوا الرابط وتمت متابعتهم؟\n` +
-        `التأخير: ${delaySec} ثانية · حد الدفعة: ${limit}\n` +
-        `بعد الإرسال ينتقلون لتبويب «رابط — متابعة بلس».`
+      `إرسال متابعة بلس لكل من تمت متابعتهم؟\n` +
+        `التأخير: ${delaySec} ثانية بين كل رسالة\n` +
+        `بعد كل إرسال ينتقل العميل إلى «رابط — متابعة بلس».`
     );
     if (!ok) return;
 
     statusEl.hidden = false;
     statusEl.className = "status";
-    statusEl.textContent = "جاري إرسال متابعة بلس...";
+    statusEl.style.color = "";
+    statusEl.textContent = "بدأ إرسال متابعة بلس للكل...";
     const sendBtn = document.getElementById("bulk-followup-plus-send");
     sendBtn.disabled = true;
     try {
@@ -1603,19 +1602,32 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         method: "POST",
         body: JSON.stringify({
           fromOutcome: "finance_link_plus",
+          sendAll: true,
           message,
           delayMs: delaySec * 1000,
-          limit,
         }),
       });
-      statusEl.className = "status ok";
-      statusEl.textContent =
-        `تم: ${result.sent || 0} | فشل: ${result.failed || 0} | تخطّي: ${result.skipped || 0}` +
-        (result.deferred ? ` | مؤجّل: ${result.deferred}` : "") +
-        ` | متبقي اليوم: ${result.dailyRemaining ?? "—"}` +
-        (result.financeLinkPlus != null ? ` | متابعة بلس: ${result.financeLinkPlus}` : "") +
-        (result.hint ? ` — ${result.hint}` : "");
+      const pollMs = Math.max(Number(result.pollMs || 2500), 1000);
+      let job = result.bulkJob || { running: Boolean(result.started), queued: result.queued };
+      const deadline = Date.now() + 6 * 60 * 60 * 1000;
+      while (job.running && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, pollMs));
+        const status = await api("/status");
+        applyBulkFollowupDefaults(status);
+        job = status.bulkJob || {};
+        statusEl.textContent =
+          `جاري متابعة بلس... ${job.sent || 0} من ${job.queued || result.queued || 0}` +
+          (job.failed ? ` · فشل ${job.failed}` : "");
+      }
+      const finalStatus = await api("/status");
+      job = finalStatus.bulkJob || job;
       await refreshAll();
+      statusEl.className = job.error ? "status" : "status ok";
+      if (job.error) statusEl.style.color = "var(--danger)";
+      statusEl.textContent =
+        job.error ||
+        `تم: ${job.sent || 0} | فشل: ${job.failed || 0}` +
+          (job.hint ? ` — ${job.hint}` : "");
     } catch (err) {
       statusEl.className = "status";
       statusEl.style.color = "var(--danger)";
