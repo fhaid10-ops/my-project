@@ -20,6 +20,9 @@ ledger.recordInbound("+966", "508031055", "السلام", {
   flow: "main_menu",
   step: "awaiting_choice",
 });
+assert.strictEqual(ledger.findByPhone("0508031055").phone, "508031055");
+assert.strictEqual(ledger.findByPhone("508031055").phone, "508031055");
+assert.strictEqual(ledger.findByPhone("0599999999"), null);
 ledger.recordOutbound("+966", "508031055", "مرحبا معاك رائد", {
   mode: "text+interactive",
   flow: "personal_chat",

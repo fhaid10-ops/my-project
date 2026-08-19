@@ -226,9 +226,29 @@ async function postInteraktPayload(payload) {
     json = { raw: text };
   }
 
-  if (!response.ok) {
-    const err = new Error(`Interakt API ${response.status}`);
+  if (!response.ok || json?.result === false || json?.ok === false || json?.success === false) {
+    const reason = [
+      json?.message,
+      json?.error,
+      json?.msg,
+      json?.detail,
+      typeof json?.details === "string" ? json.details : null,
+    ]
+      .filter(Boolean)
+      .join(" — ")
+      .slice(0, 240);
+    const blob = `${reason} ${JSON.stringify(json || {}).slice(0, 200)}`;
+    const outsideWindow =
+      /24\s*hour|24hr|session expir|outside.*window|not messaged|customer care window/i.test(
+        blob
+      );
+    const err = new Error(
+      outsideWindow
+        ? "خارج نافذة واتساب 24 ساعة — الرسالة العادية لا تصل، استخدم قالب إنترأكت"
+        : `Interakt ${response.status}: ${reason || "رفض الإرسال"}`
+    );
     err.details = json;
+    err.outsideWindow = outsideWindow;
     throw err;
   }
 
@@ -243,6 +263,38 @@ async function sendInteraktText(countryCode, phoneNumber, message) {
     data: {
       message,
     },
+  });
+}
+
+/** رسالة قالب معتمد — تعمل خارج نافذة واتساب 24 ساعة */
+async function sendInteraktTemplate(
+  countryCode,
+  phoneNumber,
+  { name, languageCode = "ar", bodyValues = [], headerValues, buttonValues } = {}
+) {
+  const templateName = String(name || "").trim();
+  if (!templateName) {
+    throw new Error("اسم قالب إنترأكت مطلوب");
+  }
+  const template = {
+    name: templateName,
+    languageCode: String(languageCode || "ar").trim() || "ar",
+  };
+  if (Array.isArray(bodyValues) && bodyValues.length) {
+    template.bodyValues = bodyValues.map((v) => String(v));
+  }
+  if (Array.isArray(headerValues) && headerValues.length) {
+    template.headerValues = headerValues.map((v) => String(v));
+  }
+  if (buttonValues && typeof buttonValues === "object") {
+    template.buttonValues = buttonValues;
+  }
+  return postInteraktPayload({
+    countryCode,
+    phoneNumber,
+    type: "Template",
+    callbackData: "admin-followup-template",
+    template,
   });
 }
 
@@ -907,6 +959,7 @@ mountAdmin(app, {
   isChatPaused,
   saveDraft,
   sendInteraktText,
+  sendInteraktTemplate,
   sendResultReply,
   showMainMenu,
   interaktConfigured: Boolean(INTERAKT_API_KEY),

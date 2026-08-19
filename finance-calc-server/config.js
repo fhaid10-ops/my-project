@@ -328,6 +328,9 @@ module.exports = {
     blastMessage: `السلام عليكم
 هل تم تقديم الطلب
 في حال تم التقديم ارسل رقم الطلب`,
+    /** كود قالب إنترأكت المعتمد لمتابعة من خارج نافذة 24 ساعة — يُفضَّل INTERAKT_FOLLOWUP_TEMPLATE */
+    interaktTemplateName: "",
+    interaktTemplateLang: "ar",
   },
 
   /**

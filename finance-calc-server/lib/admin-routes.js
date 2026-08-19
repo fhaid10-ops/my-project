@@ -9,6 +9,9 @@ const {
   hasFirstFollowup,
 } = require("./customer-ledger");
 
+/** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
+const ADMIN_UI_VERSION = "20260819r5";
+
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
     .replace(/\D/g, "")
@@ -65,6 +68,7 @@ function createAdminRouter(deps) {
     isChatPaused,
     saveDraft,
     sendInteraktText,
+    sendInteraktTemplate,
     sendResultReply,
     showMainMenu,
     interaktConfigured,
@@ -85,14 +89,20 @@ function createAdminRouter(deps) {
     skipped: 0,
     deferred: 0,
     lastPhone: null,
+    lastError: null,
     error: null,
     startedAt: null,
     finishedAt: null,
     hint: "",
+    via: "",
+    results: [],
   };
 
   function snapshotBulkJob() {
-    return { ...bulkFollowupJob };
+    return {
+      ...bulkFollowupJob,
+      results: (bulkFollowupJob.results || []).slice(0, 250),
+    };
   }
 
   function riyadhDayKey(d = new Date()) {
@@ -102,6 +112,33 @@ function createAdminRouter(deps) {
       month: "2-digit",
       day: "2-digit",
     }).format(d);
+  }
+
+  function getFollowupTemplateConfig(body = {}) {
+    const name = String(
+      body.templateName ||
+        body.template ||
+        process.env.INTERAKT_FOLLOWUP_TEMPLATE ||
+        CONFIG.followUp?.interaktTemplateName ||
+        ""
+    ).trim();
+    const languageCode = String(
+      body.templateLang ||
+        process.env.INTERAKT_FOLLOWUP_TEMPLATE_LANG ||
+        CONFIG.followUp?.interaktTemplateLang ||
+        "ar"
+    )
+      .trim()
+      .toLowerCase() || "ar";
+    let bodyValues = body.bodyValues;
+    if (typeof bodyValues === "string") {
+      bodyValues = bodyValues
+        .split(/[\n,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    if (!Array.isArray(bodyValues)) bodyValues = [];
+    return { name, languageCode, bodyValues };
   }
 
   function getBulkFollowupSafeConfig() {
@@ -148,6 +185,13 @@ function createAdminRouter(deps) {
     return bulkFollowupDaily;
   }
 
+  const WHATSAPP_SESSION_MS = 23 * 60 * 60 * 1000;
+
+  function isInsideWhatsappSession(row, now = Date.now()) {
+    const at = Date.parse(row?.lastInboundAt || "");
+    return Number.isFinite(at) && now - at < WHATSAPP_SESSION_MS;
+  }
+
   function wasFollowedUpRecently(row, skipMs, now = Date.now()) {
     if (!(skipMs > 0) || !hasFirstFollowup(row)) return false;
     const stamp =
@@ -165,6 +209,8 @@ function createAdminRouter(deps) {
     const now = Date.now();
     const rows = customerLedger?.listByDay?.("finance_link")?.customers || [];
     let pending = 0;
+    let pendingInWindow = 0;
+    let pendingOutsideWindow = 0;
     let sentCount = 0;
     let plus = 0;
     let eligible = 0;
@@ -178,7 +224,12 @@ function createAdminRouter(deps) {
       const followed = hasFirstFollowup(row);
       if (!followed) {
         pending += 1;
-        eligible += 1;
+        if (isInsideWhatsappSession(row, now)) {
+          pendingInWindow += 1;
+          eligible += 1;
+        } else {
+          pendingOutsideWindow += 1;
+        }
       } else {
         sentCount += 1;
         if (wasFollowedUpRecently(row, skipMs, now)) skippedRecent += 1;
@@ -188,6 +239,8 @@ function createAdminRouter(deps) {
     return {
       financeLinkTotal: rows.length,
       financeLinkPending: pending,
+      financeLinkPendingInWindow: pendingInWindow,
+      financeLinkPendingOutsideWindow: pendingOutsideWindow,
       financeLinkSent: sentCount,
       financeLinkPlus: plus,
       financeLinkEligible: eligible,
@@ -205,6 +258,83 @@ function createAdminRouter(deps) {
       finance_link_sent: stats.financeLinkSent,
       finance_link_plus: stats.financeLinkPlus,
     };
+  }
+
+  function toAdminCustomer(row, { includeEvents = false } = {}) {
+    const key = sessionKey(row.countryCode, row.phone);
+    const sessionRow = sessions.get(key);
+    const draftRow = drafts.get(key);
+    const liveCompany =
+      draftRow?.data?.companyName || sessionRow?.data?.companyName || null;
+    const liveJob =
+      draftRow?.data?.jobCategory || sessionRow?.data?.jobCategory || null;
+    const liveSubtype =
+      draftRow?.data?.civilianSubtype ||
+      sessionRow?.data?.civilianSubtype ||
+      null;
+    const out = {
+      key: row.key,
+      phone: row.phone,
+      countryCode: row.countryCode,
+      firstSeenAt: row.firstSeenAt,
+      lastSeenAt: row.lastSeenAt,
+      lastInboundAt: row.lastInboundAt || null,
+      lastOutboundAt: row.lastOutboundAt || null,
+      lastInboundText: row.lastInboundText || "",
+      lastOutboundPreview: row.lastOutboundPreview || "",
+      inboundCount: row.inboundCount || 0,
+      outboundCount: row.outboundCount || 0,
+      flow: row.flow || null,
+      step: row.step || null,
+      maxAmount: row.maxAmount ?? null,
+      companyName: row.companyName || liveCompany || null,
+      jobCategory: row.jobCategory || liveJob || null,
+      civilianSubtype: row.civilianSubtype || liveSubtype || null,
+      outcome: row.outcome || "",
+      notes: row.notes || "",
+      archived: Boolean(row.archived),
+      archivedAt: row.archivedAt || null,
+      manual: Boolean(row.manual),
+      manualAt: row.manualAt || null,
+      rejected: Boolean(row.rejected),
+      rejectedAt: row.rejectedAt || null,
+      followupPlus: Boolean(row.followupPlus),
+      followupPlusAt: row.followupPlusAt || null,
+      followupSent: Boolean(row.followupSent) || hasFirstFollowup(row),
+      followupSentAt: row.followupSentAt || null,
+      orderNumber: row.orderNumber || sessionRow?.data?.orderNumber || null,
+      orderNumberAt: row.orderNumberAt || sessionRow?.data?.orderNumberAt || null,
+      source: row.source || null,
+      syncedAt: row.syncedAt || null,
+      dayKey: row.dayKey || null,
+      paused: pausedChats.has(key),
+      live: {
+        session: sessionRow
+          ? {
+              savedAt: sessionRow.savedAt,
+              maxAmount:
+                sessionRow.data?.maxAmount || sessionRow.data?.rounded || null,
+              offer: sessionRow.data?.offer || null,
+            }
+          : null,
+        draft: draftRow
+          ? {
+              savedAt: draftRow.savedAt,
+              flow: draftRow.data?.flow || null,
+              step: draftRow.data?.step || null,
+            }
+          : null,
+      },
+    };
+    if (includeEvents) {
+      out.events = (row.events || []).slice(0, 40).map((e) => ({
+        type: e.type || null,
+        at: e.at || null,
+        text: String(e.text || "").slice(0, 400),
+        mode: e.mode || null,
+      }));
+    }
+    return out;
   }
 
   function pushLog(entry) {
@@ -381,9 +511,11 @@ function createAdminRouter(deps) {
       customers: ledgerSummary,
       persistence,
       brand: CONFIG.brand?.name || "رائد الحربي",
+      adminUiVersion: ADMIN_UI_VERSION,
       followUpPreview: CONFIG.followUp?.electronicMessage || "",
       followUpPlusPreview: CONFIG.followUp?.plusMessage || "",
       followUpBlastPreview: CONFIG.followUp?.blastMessage || "",
+      followUpTemplate: getFollowupTemplateConfig(),
       outboundDelayMs: getBulkFollowupSafeConfig().delayMs,
       bulkJob: snapshotBulkJob(),
       outboundSafe: (() => {
@@ -476,77 +608,7 @@ function createAdminRouter(deps) {
       : Math.min(Math.max(Number(req.query.limit || 100), 1), 500);
     const offset = Math.max(Number(req.query.offset || 0), 0);
     const slice = customers.slice(offset, offset + limit);
-    const enriched = slice.map((row) => {
-      const key = sessionKey(row.countryCode, row.phone);
-      const sessionRow = sessions.get(key);
-      const draftRow = drafts.get(key);
-      const liveCompany =
-        draftRow?.data?.companyName || sessionRow?.data?.companyName || null;
-      const liveJob =
-        draftRow?.data?.jobCategory || sessionRow?.data?.jobCategory || null;
-      const liveSubtype =
-        draftRow?.data?.civilianSubtype ||
-        sessionRow?.data?.civilianSubtype ||
-        null;
-      return {
-        key: row.key,
-        phone: row.phone,
-        countryCode: row.countryCode,
-        firstSeenAt: row.firstSeenAt,
-        lastSeenAt: row.lastSeenAt,
-        lastInboundAt: row.lastInboundAt || null,
-        lastOutboundAt: row.lastOutboundAt || null,
-        lastInboundText: row.lastInboundText || "",
-        lastOutboundPreview: row.lastOutboundPreview || "",
-        inboundCount: row.inboundCount || 0,
-        outboundCount: row.outboundCount || 0,
-        flow: row.flow || null,
-        step: row.step || null,
-        maxAmount: row.maxAmount ?? null,
-        companyName: row.companyName || liveCompany || null,
-        jobCategory: row.jobCategory || liveJob || null,
-        civilianSubtype: row.civilianSubtype || liveSubtype || null,
-        outcome: row.outcome || "",
-        notes: row.notes || "",
-        archived: Boolean(row.archived),
-        archivedAt: row.archivedAt || null,
-        manual: Boolean(row.manual),
-        manualAt: row.manualAt || null,
-        rejected: Boolean(row.rejected),
-        rejectedAt: row.rejectedAt || null,
-        followupPlus: Boolean(row.followupPlus),
-        followupPlusAt: row.followupPlusAt || null,
-        followupSent: Boolean(row.followupSent) || hasFirstFollowup(row),
-        followupSentAt: row.followupSentAt || null,
-        orderNumber:
-          row.orderNumber ||
-          sessionRow?.data?.orderNumber ||
-          null,
-        orderNumberAt:
-          row.orderNumberAt || sessionRow?.data?.orderNumberAt || null,
-        source: row.source || null,
-        syncedAt: row.syncedAt || null,
-        dayKey: row.dayKey || null,
-        paused: pausedChats.has(key),
-        live: {
-          session: sessionRow
-            ? {
-                savedAt: sessionRow.savedAt,
-                maxAmount:
-                  sessionRow.data?.maxAmount || sessionRow.data?.rounded || null,
-                offer: sessionRow.data?.offer || null,
-              }
-            : null,
-          draft: draftRow
-            ? {
-                savedAt: draftRow.savedAt,
-                flow: draftRow.data?.flow || null,
-                step: draftRow.data?.step || null,
-              }
-            : null,
-        },
-      };
-    });
+    const enriched = slice.map((row) => toAdminCustomer(row));
     res.json({
       ok: true,
       timezone: pack.timezone,
@@ -563,8 +625,57 @@ function createAdminRouter(deps) {
     });
   });
 
+  router.get("/customers/lookup", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({
+        ok: false,
+        error: "سجل العملاء غير مفعّل على هذا السيرفر",
+      });
+    }
+    const { phone } = normalizePhoneParts({
+      phone: req.query.phone || req.query.q || "",
+    });
+    if (!phone) {
+      return res.status(400).json({ ok: false, error: "اكتب رقم الجوال" });
+    }
+    const row = customerLedger.findByPhone(phone);
+    if (!row) {
+      return res.status(404).json({
+        ok: false,
+        error: "ما لقينا هالرقم في السجل",
+      });
+    }
+    res.json({
+      ok: true,
+      customer: toAdminCustomer(row, { includeEvents: true }),
+    });
+  });
+
   router.get("/activity", requireAdmin, (_req, res) => {
     res.json({ ok: true, activity: activityLog });
+  });
+
+  /** أرقام بدون متابعة خارج نافذة واتساب 24 ساعة — تُرفع كحملة قالب في إنترأكت */
+  router.get("/customers/followup-template-csv", requireAdmin, (_req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const pack = customerLedger.listByDay("finance_link");
+    const phones = (pack.customers || [])
+      .filter(
+        (row) =>
+          !row.followupPlus &&
+          !hasFirstFollowup(row) &&
+          !isInsideWhatsappSession(row)
+      )
+      .map((row) => row.phone);
+    const csv = toInteraktAudienceCsv(phones);
+    res.json({
+      ok: true,
+      count: csv.count,
+      csv: csv.csv,
+      filename: "followup-outside-24h.csv",
+    });
   });
 
   /** تنزيل بكب JSON لسجل العملاء */
@@ -1093,6 +1204,25 @@ function createAdminRouter(deps) {
       fromOutcome === "plus";
     const isFinanceLinkWave =
       fromOutcome === "finance_link" || fromOutcome === "أخذ رابط التمويل";
+    const via = String(req.body?.via || req.body?.channel || "")
+      .trim()
+      .toLowerCase();
+    const viaTemplate = via === "template" || via === "interakt";
+    const templateCfg = getFollowupTemplateConfig(req.body || {});
+
+    if (viaTemplate && !templateCfg.name) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "اكتب اسم قالب إنترأكت المعتمد (الكود من القوالب، مثل followup_order). بدون قالب واتساب ما يرسل خارج 24 ساعة.",
+      });
+    }
+    if (viaTemplate && typeof sendInteraktTemplate !== "function") {
+      return res.status(503).json({
+        ok: false,
+        error: "إرسال قوالب إنترأكت غير مفعّل على هذا السيرفر",
+      });
+    }
 
     const message =
       String(req.body?.message || "").trim() ||
@@ -1113,7 +1243,7 @@ function createAdminRouter(deps) {
       safe.maxBatchSize
     );
 
-    if (!message) {
+    if (!viaTemplate && !message) {
       return res.status(400).json({ ok: false, error: "نص المتابعة فارغ" });
     }
 
@@ -1141,6 +1271,7 @@ function createAdminRouter(deps) {
         countryCode: row.countryCode || "+966",
         lastOutboundAt: row.lastOutboundAt || null,
         lastOutboundPreview: row.lastOutboundPreview || "",
+        lastInboundAt: row.lastInboundAt || null,
         followupPlus: Boolean(row.followupPlus),
         followupSent: Boolean(row.followupSent),
         followupSentAt: row.followupSentAt || null,
@@ -1170,6 +1301,7 @@ function createAdminRouter(deps) {
           countryCode: p.countryCode,
           lastOutboundAt: row?.lastOutboundAt || null,
           lastOutboundPreview: row?.lastOutboundPreview || "",
+          lastInboundAt: row?.lastInboundAt || null,
           followupPlus: Boolean(row?.followupPlus),
           followupSent: Boolean(row?.followupSent),
           followupSentAt: row?.followupSentAt || null,
@@ -1219,6 +1351,20 @@ function createAdminRouter(deps) {
         skipped.push({ phone: parts.phone, reason: "تمت المتابعة مسبقاً" });
         continue;
       }
+      if ((isFinanceLinkWave || isPlusWave) && !viaTemplate && !isInsideWhatsappSession(raw)) {
+        skipped.push({
+          phone: parts.phone,
+          reason: "خارج نافذة واتساب 24 ساعة — يلزم قالب إنترأكت",
+        });
+        continue;
+      }
+      if (viaTemplate && isInsideWhatsappSession(raw)) {
+        skipped.push({
+          phone: parts.phone,
+          reason: "داخل 24 ساعة — يُرسل برسالة عادية من الزر الآخر",
+        });
+        continue;
+      }
       if (wasFollowedUpRecently(raw, skipMs, now)) {
         skipped.push({
           phone: parts.phone,
@@ -1245,12 +1391,17 @@ function createAdminRouter(deps) {
       for (let i = 0; i < toSend.length; i += 1) {
         const parts = toSend[i];
         try {
-          await sendInteraktText(parts.countryCode, parts.phone, message);
+          const interakt = viaTemplate
+            ? await sendInteraktTemplate(parts.countryCode, parts.phone, templateCfg)
+            : await sendInteraktText(parts.countryCode, parts.phone, message);
+          const outboundPreview = viaTemplate
+            ? `${message || "متابعة عبر قالب إنترأكت"}\n(قالب إنترأكت: ${templateCfg.name})`
+            : message;
           customerLedger?.recordOutbound?.(
             parts.countryCode,
             parts.phone,
-            message,
-            { mode: isPlusWave ? "admin-bulk-followup-plus" : "admin-bulk-followup" }
+            outboundPreview,
+            { mode: viaTemplate ? "admin-bulk-followup-template" : isPlusWave ? "admin-bulk-followup-plus" : "admin-bulk-followup" }
           );
           if (isPlusWave) {
             customerLedger?.setFollowupPlus?.(parts.countryCode, parts.phone, true);
@@ -1262,7 +1413,17 @@ function createAdminRouter(deps) {
             );
           }
           usage.count += 1;
-          results.push({ phone: parts.phone, ok: true });
+          results.push({
+            phone: parts.phone,
+            ok: true,
+            at: new Date().toISOString(),
+            interakt: interakt && typeof interakt === "object"
+              ? {
+                  result: interakt.result ?? interakt.ok ?? null,
+                  id: interakt.id || interakt.messageId || null,
+                }
+              : null,
+          });
           pushLog({
             action: isPlusWave ? "bulk-followup-plus" : "bulk-followup",
             phone: parts.phone,
@@ -1273,12 +1434,19 @@ function createAdminRouter(deps) {
           results.push({
             phone: parts.phone,
             ok: false,
-            error: err.message,
+            at: new Date().toISOString(),
+            error: err.outsideWindow
+              ? err.message
+              : String(err.message || "فشل الإرسال") +
+                (err.details?.message ? ` — ${err.details.message}` : ""),
           });
         }
         bulkFollowupJob.sent = results.filter((r) => r.ok).length;
         bulkFollowupJob.failed = results.filter((r) => !r.ok).length;
         bulkFollowupJob.lastPhone = parts.phone;
+        bulkFollowupJob.results = results.slice();
+        const last = results[results.length - 1];
+        if (last && !last.ok) bulkFollowupJob.lastError = last.error || "";
         if (i < toSend.length - 1 && delayMs > 0) {
           await new Promise((r) => setTimeout(r, delayMs));
         }
@@ -1315,16 +1483,25 @@ function createAdminRouter(deps) {
     }
 
     if (sendAll && !toSend.length) {
+      const outsideSkip = skipped.filter((s) =>
+        /24 ساعة/.test(s.reason || "")
+      ).length;
       return res.status(400).json({
         ok: false,
         error: deferred.length
           ? `تم بلوغ الحد اليومي (${safe.dailyLimit}). تبقّى ${deferred.length}.`
-          : isFinanceLinkWave
-            ? "لا يوجد عملاء في «رابط — بدون متابعة»"
-            : "لا يوجد عملاء مؤهلون لمتابعة بلس",
+          : viaTemplate
+            ? "ما فيه عملاء خارج نافذة 24 ساعة لإرسال قالب إنترأكت"
+            : outsideSkip
+            ? `ما في أحد داخل نافذة واتساب 24 ساعة. ${outsideSkip} يحتاجون إرسال عبر إنترأكت (قالب).`
+            : isFinanceLinkWave
+              ? "لا يوجد عملاء في «رابط — بدون متابعة»"
+              : "لا يوجد عملاء مؤهلون لمتابعة بلس",
+        skipped: skipped.length,
         deferred: deferred.length,
         dailyLimit: safe.dailyLimit,
         dailySent: usage.count,
+        skippedDetails: skipped.slice(0, 40),
       });
     }
 
@@ -1344,16 +1521,27 @@ function createAdminRouter(deps) {
       bulkFollowupJob.skipped = skipped.length;
       bulkFollowupJob.deferred = deferred.length;
       bulkFollowupJob.lastPhone = null;
+      bulkFollowupJob.lastError = null;
       bulkFollowupJob.error = null;
       bulkFollowupJob.startedAt = new Date().toISOString();
       bulkFollowupJob.finishedAt = null;
-      bulkFollowupJob.hint = `جاري الإرسال لـ ${toSend.length} بدون متابعة`;
+      bulkFollowupJob.via = viaTemplate ? "interakt" : "session";
+      bulkFollowupJob.hint = viaTemplate
+        ? `جاري إرسال قالب إنترأكت لـ ${toSend.length}`
+        : `جاري الإرسال لـ ${toSend.length} داخل نافذة 24 ساعة`;
+      bulkFollowupJob.results = [];
+      const outsideSkip = skipped.filter((s) =>
+        /24 ساعة/.test(s.reason || "")
+      ).length;
       res.json({
         ok: true,
         started: true,
         sendAll: true,
+        via: viaTemplate ? "interakt" : "session",
+        template: viaTemplate ? templateCfg.name : undefined,
         queued: toSend.length,
         skipped: skipped.length,
+        outsideWindow: outsideSkip,
         deferred: deferred.length,
         delayMs,
         dailyLimit: safe.dailyLimit,
@@ -1361,7 +1549,12 @@ function createAdminRouter(deps) {
         dailyRemaining: Math.max(safe.dailyLimit - usage.count - toSend.length, 0),
         bulkJob: snapshotBulkJob(),
         ...getFinanceLinkFollowupStats(),
-        hint: `بدأ الإرسال لجميع بدون متابعة (${toSend.length}). يبقى التأخير ${Math.round(delayMs / 1000)} ثانية بين كل رسالة.`,
+        hint: viaTemplate
+          ? `بدأ إرسال قالب إنترأكت «${templateCfg.name}» لـ ${toSend.length} خارج 24 ساعة.`
+          : `بدأ إرسال ${toSend.length} داخل نافذة واتساب 24 ساعة.` +
+            (outsideSkip
+              ? ` تُخطّي ${outsideSkip} خارج النافذة — اضغط «إرسال عبر إنترأكت».`
+              : ` التأخير ${Math.round(delayMs / 1000)} ثانية بين كل رسالة.`),
       });
       deliverBulkQueue()
         .then((results) => {
@@ -1429,11 +1622,16 @@ function mountAdmin(app, deps) {
 
   app.use("/admin/api", router);
 
-  app.get(["/admin", "/admin/", "/admin/index.html"], (_req, res) => {
+  app.get(["/admin", "/admin/", "/admin/index.html"], (req, res) => {
     grantAdminCookie(res);
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
     res.setHeader("Pragma", "no-cache");
-    res.sendFile(indexFile);
+    res.setHeader("Expires", "0");
+    const got = String(req.query.v || "");
+    if (got !== ADMIN_UI_VERSION) {
+      return res.redirect(302, `/admin/?v=${encodeURIComponent(ADMIN_UI_VERSION)}`);
+    }
+    res.sendFile(indexFile, { etag: false, lastModified: false, cacheControl: false });
   });
 
   app.use(
@@ -1444,7 +1642,9 @@ function mountAdmin(app, deps) {
       setHeaders(res, filePath) {
         if (filePath.endsWith(".html")) {
           grantAdminCookie(res);
-          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
         }
       },
     })
