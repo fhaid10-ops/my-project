@@ -15,6 +15,42 @@ const {
 const TIMEZONE = "Asia/Riyadh";
 const MAX_CUSTOMERS = 5000;
 
+function digitsOnly(raw) {
+  return String(raw || "").replace(/\D/g, "");
+}
+
+function coreMobileDigits(raw) {
+  let p = digitsOnly(raw).replace(/^0+/, "");
+  if (p.startsWith("966") && p.length > 9) p = p.slice(3);
+  return p;
+}
+
+function phoneSearchVariants(raw) {
+  const digits = digitsOnly(raw);
+  const core = coreMobileDigits(raw);
+  const set = new Set();
+  if (digits) set.add(digits);
+  if (core) {
+    set.add(core);
+    set.add(`0${core}`);
+    set.add(`966${core}`);
+  }
+  return [...set];
+}
+
+function phoneQueryMatches(query, phone) {
+  const qDigits = digitsOnly(query);
+  if (qDigits.length < 3) return false;
+  const qVariants = phoneSearchVariants(query);
+  const pVariants = phoneSearchVariants(phone);
+  for (const q of qVariants) {
+    for (const p of pVariants) {
+      if (p.startsWith(q)) return true;
+    }
+  }
+  return false;
+}
+
 /** رسالة متابعة التقديم — تُستخدم لتصنيف تبويب «تمت المتابعة» وللبيانات القديمة */
 function looksLikeFollowupMessage(text) {
   const s = String(text || "");
@@ -454,8 +490,7 @@ function createCustomerLedger(options = {}) {
 
   function findByPhone(phone) {
     hydrateFromDiskIfNeeded();
-    let p = String(phone || "").replace(/\D/g, "").replace(/^0+/, "");
-    if (p.startsWith("966") && p.length > 9) p = p.slice(3);
+    const p = coreMobileDigits(phone);
     if (!p) return null;
     const exact = customers.get(`+966:${p}`);
     if (exact) return exact;
@@ -463,6 +498,30 @@ function createCustomerLedger(options = {}) {
       if (String(row.phone || "") === p) return row;
     }
     return null;
+  }
+
+  /**
+   * بحث بالأرقام: الرقم كامل أو بدايته (0551 → كل من يبدأ بـ 0551)
+   */
+  function searchByPhone(query, { limit = 50 } = {}) {
+    hydrateFromDiskIfNeeded();
+    const digits = digitsOnly(query);
+    if (digits.length < 3) return [];
+    const cap = Math.min(200, Math.max(1, Number(limit) || 50));
+    const qCore = coreMobileDigits(query);
+    const rows = [];
+    for (const row of customers.values()) {
+      if (phoneQueryMatches(query, row.phone)) rows.push(row);
+    }
+    rows.sort((a, b) => {
+      const aCore = coreMobileDigits(a.phone);
+      const bCore = coreMobileDigits(b.phone);
+      const aExact = aCore && aCore === qCore;
+      const bExact = bCore && bCore === qCore;
+      if (aExact !== bExact) return aExact ? -1 : 1;
+      return Date.parse(b.lastSeenAt || 0) - Date.parse(a.lastSeenAt || 0);
+    });
+    return rows.slice(0, cap);
   }
 
   function getOrCreate(countryCode, phone) {
@@ -1075,6 +1134,7 @@ function createCustomerLedger(options = {}) {
     setOrderNumber,
     setWorkplace,
     findByPhone,
+    searchByPhone,
     listByDay,
     summary,
     flush,
@@ -1102,5 +1162,8 @@ module.exports = {
   isDurableDir,
   looksLikeFollowupMessage,
   hasFirstFollowup,
+  digitsOnly,
+  coreMobileDigits,
+  phoneQueryMatches,
   TIMEZONE,
 };

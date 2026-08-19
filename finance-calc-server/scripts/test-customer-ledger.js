@@ -6,6 +6,7 @@ const {
   createCustomerLedger,
   calendarDayKey,
   shiftDayKey,
+  phoneQueryMatches,
 } = require("../lib/customer-ledger");
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ledger-"));
@@ -23,6 +24,12 @@ ledger.recordInbound("+966", "508031055", "السلام", {
 assert.strictEqual(ledger.findByPhone("0508031055").phone, "508031055");
 assert.strictEqual(ledger.findByPhone("508031055").phone, "508031055");
 assert.strictEqual(ledger.findByPhone("0599999999"), null);
+
+assert.ok(phoneQueryMatches("0551", "551850488"));
+assert.ok(phoneQueryMatches("0551850488", "551850488"));
+assert.ok(phoneQueryMatches("551850488", "551850488"));
+assert.ok(!phoneQueryMatches("0551", "559000111"));
+assert.ok(!phoneQueryMatches("05", "551850488"));
 ledger.recordOutbound("+966", "508031055", "مرحبا معاك رائد", {
   mode: "text+interactive",
   flow: "personal_chat",
@@ -268,5 +275,24 @@ assert.ok(
     `${path.sep}var${path.sep}data${path.sep}kobri`
   ) || resolveCustomersDataDir({ CUSTOMERS_DATA_DIR: "/var/data/kobri" }) === "/var/data/kobri"
 );
+
+const searchDir = fs.mkdtempSync(path.join(os.tmpdir(), "ledger-search-"));
+const searchLedger = createCustomerLedger({
+  dataFile: path.join(searchDir, "customers.json"),
+  backupDir: path.join(searchDir, "backups"),
+});
+searchLedger.recordInbound("+966", "551850488", "مرحبا");
+searchLedger.recordInbound("+966", "551850499", "مرحبا");
+searchLedger.recordInbound("+966", "559000111", "مرحبا");
+assert.deepStrictEqual(
+  searchLedger.searchByPhone("0551").map((r) => r.phone).sort(),
+  ["551850488", "551850499"]
+);
+assert.deepStrictEqual(
+  searchLedger.searchByPhone("5518").map((r) => r.phone).sort(),
+  ["551850488", "551850499"]
+);
+assert.strictEqual(searchLedger.searchByPhone("0551850488")[0].phone, "551850488");
+assert.strictEqual(searchLedger.searchByPhone("05").length, 0);
 
 console.log("OK: customer ledger export/import/backup + interakt upsert + persistence");

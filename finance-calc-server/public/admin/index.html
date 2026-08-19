@@ -217,6 +217,28 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   direction: ltr; text-align: left;
 }
 .home-search-row .btn { min-width: 96px; }
+.jump-results {
+  list-style: none; margin: 10px 0 0; padding: 0;
+  max-height: 280px; overflow: auto;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: #fff;
+}
+.jump-results[hidden] { display: none !important; }
+.jump-results li { border-bottom: 1px solid var(--line); }
+.jump-results li:last-child { border-bottom: 0; }
+.jump-results button.jump-hit {
+  width: 100%; background: none; border: 0;
+  padding: 12px 14px; cursor: pointer;
+  display: flex; justify-content: space-between; gap: 10px; align-items: center;
+  font-weight: 700; font-size: 1.02rem;
+}
+.jump-results button.jump-hit .jump-num {
+  direction: ltr; text-align: left; letter-spacing: .02em;
+}
+.jump-results button.jump-hit:hover,
+.jump-results button.jump-hit:focus {
+  background: var(--accent-soft);
+}
 .dash-tabs {
   display: grid; grid-template-columns: repeat(3, 1fr);
   gap: 10px; margin-bottom: 14px; width: 100%;
@@ -332,12 +354,13 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     <div id="home-view">
     <form id="jump-form" class="card home-search">
       <label class="field" style="margin:0">
-        <span>بحث برقم العميل — يفتح صفحته وإعداداته</span>
+        <span>بحث برقم الجوال — الرقم كامل أو بدايته مثل 0551</span>
         <div class="home-search-row">
-          <input id="jump-phone" type="search" inputmode="tel" autocomplete="off" placeholder="05xxxxxxxx" />
+          <input id="jump-phone" type="search" inputmode="tel" autocomplete="off" placeholder="0551 أو 0551850488" />
           <button class="btn primary" type="submit">بحث</button>
         </div>
       </label>
+      <ul id="jump-results" class="jump-results" hidden></ul>
       <p id="jump-status" class="status" hidden></p>
     </form>
 
@@ -571,7 +594,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "20260819r5";
+  const UI_VERSION = "20260819r6";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -597,6 +620,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   let profilePhone = "";
   let profileCustomer = null;
   let openedCustomerFrom = "home";
+  let jumpSearchTimer = 0;
 
   function riyadhDayKey(d = new Date()) {
     return new Intl.DateTimeFormat("en-CA", {
@@ -1049,6 +1073,54 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       statusEl.style.color = "";
       statusEl.textContent = `تم فتح ${displayPhone(pack.customer)}`;
     }
+    clearJumpResults();
+  }
+
+  function clearJumpResults() {
+    const list = document.getElementById("jump-results");
+    if (!list) return;
+    list.innerHTML = "";
+    list.hidden = true;
+  }
+
+  function renderJumpResults(rows, query) {
+    const list = document.getElementById("jump-results");
+    if (!list) return;
+    if (!rows.length) {
+      list.innerHTML = `<li><div style="padding:12px 14px;color:var(--muted)">ما لقينا أرقام تبدأ بـ ${escapeHtml(query)}</div></li>`;
+      list.hidden = false;
+      return;
+    }
+    list.innerHTML = rows.map((row) => {
+      const meta = escapeHtml(String(row.outcome || row.flow || "").slice(0, 40) || "");
+      return `<li>
+        <button type="button" class="jump-hit" data-open-phone="${escapeHtml(row.phone)}">
+          <span class="jump-num">${escapeHtml(displayPhone(row))}</span>
+          <span class="muted" style="font-weight:500;font-size:.82rem">${meta}</span>
+        </button>
+      </li>`;
+    }).join("");
+    list.hidden = false;
+  }
+
+  async function searchPhones(query) {
+    const statusEl = document.getElementById("jump-status");
+    const digits = String(query || "").replace(/\D/g, "");
+    if (digits.length < 3) {
+      clearJumpResults();
+      if (statusEl) statusEl.hidden = true;
+      return [];
+    }
+    const pack = await api(`/customers/search?phone=${encodeURIComponent(query)}`);
+    const rows = pack.customers || [];
+    renderJumpResults(rows, query);
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.className = "status";
+      statusEl.style.color = "";
+      statusEl.textContent = rows.length ? `${rows.length} رقم` : "ما لقينا هالبداية";
+    }
+    return rows;
   }
 
   function renderCustomers(rows, counts) {
@@ -1954,13 +2026,40 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     statusEl.hidden = false;
     statusEl.className = "status";
     statusEl.style.color = "";
-    statusEl.textContent = "جاري فتح صفحة العميل...";
+    statusEl.textContent = "جاري البحث...";
     try {
-      await openCustomer(phone);
+      const rows = await searchPhones(phone);
+      if (rows.length === 1) {
+        await openCustomer(rows[0].phone);
+        return;
+      }
+      if (!rows.length) {
+        statusEl.style.color = "var(--danger)";
+        statusEl.textContent = "ما لقينا أرقام بهذه البداية";
+      }
     } catch (err) {
       statusEl.className = "status";
       statusEl.style.color = "var(--danger)";
       statusEl.textContent = err.message;
+    }
+  });
+
+  document.getElementById("jump-phone").addEventListener("input", () => {
+    const input = document.getElementById("jump-phone");
+    const query = String(input.value || "").trim();
+    clearTimeout(jumpSearchTimer);
+    jumpSearchTimer = setTimeout(() => {
+      searchPhones(query).catch((err) => showError(err.message));
+    }, 220);
+  });
+
+  document.getElementById("jump-results").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-open-phone]");
+    if (!btn) return;
+    try {
+      await openCustomer(btn.getAttribute("data-open-phone"));
+    } catch (err) {
+      showError(err.message);
     }
   });
 
