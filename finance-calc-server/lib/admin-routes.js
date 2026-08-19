@@ -4,6 +4,10 @@
 const path = require("path");
 const express = require("express");
 const CONFIG = require("../config");
+const {
+  looksLikeFollowupMessage,
+  hasFirstFollowup,
+} = require("./customer-ledger");
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
@@ -72,6 +76,24 @@ function createAdminRouter(deps) {
   const activityLog = [];
   /** عداد المتابعة الجماعية اليومي (Asia/Riyadh) — يُصفّر بعد إعادة التشغيل */
   const bulkFollowupDaily = { dayKey: "", count: 0 };
+  const bulkFollowupJob = {
+    running: false,
+    sendAll: false,
+    queued: 0,
+    sent: 0,
+    failed: 0,
+    skipped: 0,
+    deferred: 0,
+    lastPhone: null,
+    error: null,
+    startedAt: null,
+    finishedAt: null,
+    hint: "",
+  };
+
+  function snapshotBulkJob() {
+    return { ...bulkFollowupJob };
+  }
 
   function riyadhDayKey(d = new Date()) {
     return new Intl.DateTimeFormat("en-CA", {
@@ -93,8 +115,8 @@ function createAdminRouter(deps) {
       minDelayMs
     );
     const maxBatchSize = Math.min(
-      Math.max(Number(cfg.maxBatchSize || 30), 1),
-      50
+      Math.max(Number(cfg.maxBatchSize != null ? cfg.maxBatchSize : 250), 1),
+      400
     );
     const dailyLimit = Math.min(
       Math.max(Number(cfg.dailyLimit || 250), 1),
@@ -126,15 +148,14 @@ function createAdminRouter(deps) {
     return bulkFollowupDaily;
   }
 
-  function looksLikeFollowupMessage(text) {
-    const s = String(text || "");
-    return /هل تم تقديم الطلب/i.test(s) || /ارسل رقم الطلب/i.test(s);
-  }
-
   function wasFollowedUpRecently(row, skipMs, now = Date.now()) {
-    if (!(skipMs > 0) || !row?.lastOutboundAt) return false;
-    if (!looksLikeFollowupMessage(row.lastOutboundPreview)) return false;
-    const lastAt = Date.parse(row.lastOutboundAt);
+    if (!(skipMs > 0) || !hasFirstFollowup(row)) return false;
+    const stamp =
+      row.followupSentAt ||
+      (looksLikeFollowupMessage(row.lastOutboundPreview)
+        ? row.lastOutboundAt
+        : null);
+    const lastAt = Date.parse(stamp);
     return Number.isFinite(lastAt) && now - lastAt < skipMs;
   }
 
@@ -154,12 +175,15 @@ function createAdminRouter(deps) {
         plus += 1;
         continue;
       }
-      const followed = looksLikeFollowupMessage(row.lastOutboundPreview);
-      if (!followed) pending += 1;
-      else sentCount += 1;
-      if (wasFollowedUpRecently(row, skipMs, now)) skippedRecent += 1;
-      else eligible += 1;
-      if (followed && !wasFollowedUpRecently(row, skipMs, now)) plusEligible += 1;
+      const followed = hasFirstFollowup(row);
+      if (!followed) {
+        pending += 1;
+        eligible += 1;
+      } else {
+        sentCount += 1;
+        if (wasFollowedUpRecently(row, skipMs, now)) skippedRecent += 1;
+        else plusEligible += 1;
+      }
     }
     return {
       financeLinkTotal: rows.length,
@@ -361,6 +385,7 @@ function createAdminRouter(deps) {
       followUpPlusPreview: CONFIG.followUp?.plusMessage || "",
       followUpBlastPreview: CONFIG.followUp?.blastMessage || "",
       outboundDelayMs: getBulkFollowupSafeConfig().delayMs,
+      bulkJob: snapshotBulkJob(),
       outboundSafe: (() => {
         const safe = getBulkFollowupSafeConfig();
         const usage = getBulkDailyUsage();
@@ -416,13 +441,11 @@ function createAdminRouter(deps) {
       );
     } else if (followupSplit === "pending") {
       customers = customers.filter(
-        (row) =>
-          !row.followupPlus && !looksLikeFollowupMessage(row.lastOutboundPreview)
+        (row) => !row.followupPlus && !hasFirstFollowup(row)
       );
     } else if (followupSplit === "sent") {
       customers = customers.filter(
-        (row) =>
-          !row.followupPlus && looksLikeFollowupMessage(row.lastOutboundPreview)
+        (row) => !row.followupPlus && hasFirstFollowup(row)
       );
     }
     const phonesOnly =
@@ -493,6 +516,8 @@ function createAdminRouter(deps) {
         rejectedAt: row.rejectedAt || null,
         followupPlus: Boolean(row.followupPlus),
         followupPlusAt: row.followupPlusAt || null,
+        followupSent: Boolean(row.followupSent) || hasFirstFollowup(row),
+        followupSentAt: row.followupSentAt || null,
         orderNumber:
           row.orderNumber ||
           sessionRow?.data?.orderNumber ||
@@ -1117,7 +1142,15 @@ function createAdminRouter(deps) {
         lastOutboundAt: row.lastOutboundAt || null,
         lastOutboundPreview: row.lastOutboundPreview || "",
         followupPlus: Boolean(row.followupPlus),
+        followupSent: Boolean(row.followupSent),
+        followupSentAt: row.followupSentAt || null,
+        events: row.events || [],
       }));
+      if (isFinanceLinkWave) {
+        candidates = candidates.filter(
+          (row) => !row.followupPlus && !hasFirstFollowup(row)
+        );
+      }
     } else {
       const phones = parsePhoneList(
         Array.isArray(req.body?.phones) ? req.body.phones : req.body?.phones || ""
@@ -1138,6 +1171,9 @@ function createAdminRouter(deps) {
           lastOutboundAt: row?.lastOutboundAt || null,
           lastOutboundPreview: row?.lastOutboundPreview || "",
           followupPlus: Boolean(row?.followupPlus),
+          followupSent: Boolean(row?.followupSent),
+          followupSentAt: row?.followupSentAt || null,
+          events: row?.events || [],
         };
       });
     }
@@ -1145,7 +1181,11 @@ function createAdminRouter(deps) {
     if (!candidates.length) {
       return res.status(400).json({
         ok: false,
-        error: "لا يوجد أرقام للإرسال (الصق قائمة الجوالات أو استخدم تبويب أخذ رابط التمويل)",
+        error: isFinanceLinkWave
+          ? "لا يوجد عملاء في «رابط — بدون متابعة»"
+          : isPlusWave
+            ? "لا يوجد عملاء مؤهلون لمتابعة بلس"
+            : "لا يوجد أرقام للإرسال (الصق قائمة الجوالات أو استخدم تبويب أخذ رابط التمويل)",
       });
     }
 
@@ -1168,12 +1208,15 @@ function createAdminRouter(deps) {
           skipped.push({ phone: parts.phone, reason: "في متابعة بلس مسبقاً" });
           continue;
         }
-        if (!looksLikeFollowupMessage(raw.lastOutboundPreview)) {
+        if (!hasFirstFollowup(raw)) {
           skipped.push({ phone: parts.phone, reason: "لم تُرسل المتابعة الأولى" });
           continue;
         }
       } else if (raw.followupPlus) {
         skipped.push({ phone: parts.phone, reason: "في متابعة بلس" });
+        continue;
+      } else if (isFinanceLinkWave && hasFirstFollowup(raw)) {
+        skipped.push({ phone: parts.phone, reason: "تمت المتابعة مسبقاً" });
         continue;
       }
       if (wasFollowedUpRecently(raw, skipMs, now)) {
@@ -1186,68 +1229,162 @@ function createAdminRouter(deps) {
       queue.push(parts);
     }
 
-    const sendCap = Math.min(batchLimit, dailyRemaining, queue.length);
+    const sendAllOff =
+      req.body?.sendAll === false ||
+      req.body?.sendAll === "false" ||
+      req.body?.sendAll === 0;
+    const sendAll = (isFinanceLinkWave || isPlusWave) && !sendAllOff;
+    const sendCap = sendAll
+      ? Math.min(dailyRemaining, queue.length)
+      : Math.min(batchLimit, dailyRemaining, queue.length);
     const toSend = queue.slice(0, sendCap);
     const deferred = queue.slice(sendCap);
 
-    const results = [];
-    for (let i = 0; i < toSend.length; i += 1) {
-      const parts = toSend[i];
-      try {
-        await sendInteraktText(parts.countryCode, parts.phone, message);
-        customerLedger?.recordOutbound?.(
-          parts.countryCode,
-          parts.phone,
-          message,
-          { mode: isPlusWave ? "admin-bulk-followup-plus" : "admin-bulk-followup" }
-        );
-        if (isPlusWave) {
-          customerLedger?.setFollowupPlus?.(parts.countryCode, parts.phone, true);
+    async function deliverBulkQueue() {
+      const results = [];
+      for (let i = 0; i < toSend.length; i += 1) {
+        const parts = toSend[i];
+        try {
+          await sendInteraktText(parts.countryCode, parts.phone, message);
+          customerLedger?.recordOutbound?.(
+            parts.countryCode,
+            parts.phone,
+            message,
+            { mode: isPlusWave ? "admin-bulk-followup-plus" : "admin-bulk-followup" }
+          );
+          if (isPlusWave) {
+            customerLedger?.setFollowupPlus?.(parts.countryCode, parts.phone, true);
+          } else if (isFinanceLinkWave) {
+            customerLedger?.placeInLinkFollowup?.(
+              parts.countryCode,
+              parts.phone,
+              "sent"
+            );
+          }
+          usage.count += 1;
+          results.push({ phone: parts.phone, ok: true });
+          pushLog({
+            action: isPlusWave ? "bulk-followup-plus" : "bulk-followup",
+            phone: parts.phone,
+            countryCode: parts.countryCode,
+            fromOutcome: fromOutcome || null,
+          });
+        } catch (err) {
+          results.push({
+            phone: parts.phone,
+            ok: false,
+            error: err.message,
+          });
         }
-        usage.count += 1;
-        results.push({ phone: parts.phone, ok: true });
-        pushLog({
-          action: isPlusWave ? "bulk-followup-plus" : "bulk-followup",
-          phone: parts.phone,
-          countryCode: parts.countryCode,
-          fromOutcome: fromOutcome || null,
-        });
-      } catch (err) {
-        results.push({
-          phone: parts.phone,
-          ok: false,
-          error: err.message,
-        });
+        bulkFollowupJob.sent = results.filter((r) => r.ok).length;
+        bulkFollowupJob.failed = results.filter((r) => !r.ok).length;
+        bulkFollowupJob.lastPhone = parts.phone;
+        if (i < toSend.length - 1 && delayMs > 0) {
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
       }
-      if (i < toSend.length - 1 && delayMs > 0) {
-        await new Promise((r) => setTimeout(r, delayMs));
-      }
+      customerLedger?.flush?.();
+      return results;
     }
 
-    const financeStats = getFinanceLinkFollowupStats();
-    res.json({
-      ok: true,
-      sent: results.filter((r) => r.ok).length,
-      failed: results.filter((r) => !r.ok).length,
-      skipped: skipped.length,
-      deferred: deferred.length,
-      delayMs,
-      dailyLimit: safe.dailyLimit,
-      dailySent: usage.count,
-      dailyRemaining: Math.max(safe.dailyLimit - usage.count, 0),
-      ...financeStats,
-      results,
-      skippedDetails: skipped.slice(0, 40),
-      hint:
-        deferred.length > 0
-          ? `تبقّى ${deferred.length} بانتظار إرسال هذه الدفعة. أعد الإرسال لإكمال الباقي.`
-          : isPlusWave && financeStats.financeLinkPlusEligible > 0
-            ? `تبقّى ${financeStats.financeLinkPlusEligible} مؤهلون لمتابعة بلس.`
-            : financeStats.financeLinkPending > 0
-            ? `تبقّى ${financeStats.financeLinkPending} من أخذوا الرابط بدون متابعة.`
-            : undefined,
-    });
+    function finishPayload(results) {
+      const financeStats = getFinanceLinkFollowupStats();
+      return {
+        ok: true,
+        sent: results.filter((r) => r.ok).length,
+        failed: results.filter((r) => !r.ok).length,
+        skipped: skipped.length,
+        deferred: deferred.length,
+        delayMs,
+        sendAll: Boolean(sendAll),
+        dailyLimit: safe.dailyLimit,
+        dailySent: usage.count,
+        dailyRemaining: Math.max(safe.dailyLimit - usage.count, 0),
+        ...financeStats,
+        results,
+        skippedDetails: skipped.slice(0, 40),
+        hint:
+          deferred.length > 0
+            ? `تبقّى ${deferred.length} بعد بلوغ الحد اليومي.`
+            : isPlusWave && financeStats.financeLinkPlusEligible > 0
+              ? `تبقّى ${financeStats.financeLinkPlusEligible} مؤهلون لمتابعة بلس.`
+              : financeStats.financeLinkPending > 0
+                ? `تبقّى ${financeStats.financeLinkPending} من أخذوا الرابط بدون متابعة.`
+                : "تم نقل الجميع إلى «رابط — تمت المتابعة».",
+      };
+    }
+
+    if (sendAll && !toSend.length) {
+      return res.status(400).json({
+        ok: false,
+        error: deferred.length
+          ? `تم بلوغ الحد اليومي (${safe.dailyLimit}). تبقّى ${deferred.length}.`
+          : isFinanceLinkWave
+            ? "لا يوجد عملاء في «رابط — بدون متابعة»"
+            : "لا يوجد عملاء مؤهلون لمتابعة بلس",
+        deferred: deferred.length,
+        dailyLimit: safe.dailyLimit,
+        dailySent: usage.count,
+      });
+    }
+
+    if (sendAll) {
+      if (bulkFollowupJob.running) {
+        return res.status(409).json({
+          ok: false,
+          error: "جاري إرسال متابعة لكل بدون متابعة حالياً",
+          bulkJob: snapshotBulkJob(),
+        });
+      }
+      bulkFollowupJob.running = true;
+      bulkFollowupJob.sendAll = true;
+      bulkFollowupJob.queued = toSend.length;
+      bulkFollowupJob.sent = 0;
+      bulkFollowupJob.failed = 0;
+      bulkFollowupJob.skipped = skipped.length;
+      bulkFollowupJob.deferred = deferred.length;
+      bulkFollowupJob.lastPhone = null;
+      bulkFollowupJob.error = null;
+      bulkFollowupJob.startedAt = new Date().toISOString();
+      bulkFollowupJob.finishedAt = null;
+      bulkFollowupJob.hint = `جاري الإرسال لـ ${toSend.length} بدون متابعة`;
+      res.json({
+        ok: true,
+        started: true,
+        sendAll: true,
+        queued: toSend.length,
+        skipped: skipped.length,
+        deferred: deferred.length,
+        delayMs,
+        dailyLimit: safe.dailyLimit,
+        dailySent: usage.count,
+        dailyRemaining: Math.max(safe.dailyLimit - usage.count - toSend.length, 0),
+        bulkJob: snapshotBulkJob(),
+        ...getFinanceLinkFollowupStats(),
+        hint: `بدأ الإرسال لجميع بدون متابعة (${toSend.length}). يبقى التأخير ${Math.round(delayMs / 1000)} ثانية بين كل رسالة.`,
+      });
+      deliverBulkQueue()
+        .then((results) => {
+          const payload = finishPayload(results);
+          bulkFollowupJob.running = false;
+          bulkFollowupJob.sent = payload.sent;
+          bulkFollowupJob.failed = payload.failed;
+          bulkFollowupJob.finishedAt = new Date().toISOString();
+          bulkFollowupJob.hint = payload.hint || "";
+        })
+        .catch((err) => {
+          bulkFollowupJob.running = false;
+          bulkFollowupJob.error = err.message;
+          bulkFollowupJob.finishedAt = new Date().toISOString();
+          bulkFollowupJob.hint = err.message;
+        });
+      return;
+    }
+
+    const results = await deliverBulkQueue();
+    res.json(finishPayload(results));
   });
+
 
   // حالة محادثة واحدة
   router.get("/conversation/:phone", requireAdmin, (req, res) => {

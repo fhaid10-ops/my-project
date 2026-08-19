@@ -84,6 +84,18 @@ async function req(method, path, body, token = "test-token") {
   }
 }
 
+async function waitBulkJob(timeoutMs = 3000) {
+  const start = Date.now();
+  let last = null;
+  while (Date.now() - start < timeoutMs) {
+    const st = await req("GET", "/status");
+    last = st.json.bulkJob || null;
+    if (last && !last.running) return last;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  throw new Error(`bulk job timeout: ${JSON.stringify(last)}`);
+}
+
 (async () => {
   const unauthorized = await req("GET", "/status", null, "wrong");
   assert.strictEqual(unauthorized.status, 401);
@@ -329,6 +341,10 @@ async function req(method, path, body, token = "test-token") {
   customerLedger.setOutcomeNotes("+966", "550000001", "أخذ رابط التمويل");
   customerLedger.recordInbound("+966", "550000002", "تمويل");
   customerLedger.setOutcomeNotes("+966", "550000002", "أخذ رابط التمويل");
+  customerLedger.recordInbound("+966", "550000005", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000005", "أخذ رابط التمويل");
+  customerLedger.recordInbound("+966", "550000006", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000006", "أخذ رابط التمويل");
   customerLedger.recordInbound("+966", "550000003", "باقة");
   customerLedger.setOutcomeNotes("+966", "550000003", "أخذ باقة");
   customerLedger.recordInbound("+966", "550000004", "تمويل");
@@ -403,6 +419,10 @@ async function req(method, path, body, token = "test-token") {
     "الحصة اليومية تغطي قائمة أخذ الرابط (200+)"
   );
   assert.ok(
+    (statusQuota.json.outboundSafe?.maxBatchSize || 0) >= 250,
+    "لا يُقص الإرسال عند 30"
+  );
+  assert.ok(
     (statusQuota.json.outboundSafe?.financeLinkTotal || 0) >= 2,
     "عدد من أخذوا الرابط"
   );
@@ -439,20 +459,54 @@ async function req(method, path, body, token = "test-token") {
   };
 
   const beforeBulk = sent.length;
+  const pendingBeforeBulk = await req("GET", "/customers?day=finance_link_pending");
+  const pendingBeforeCount = pendingBeforeBulk.json.counts?.finance_link_pending || 0;
   const bulk = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",
+    sendAll: false,
     delayMs: 0,
     limit: 10,
   });
   assert.strictEqual(bulk.status, 200, bulk.json?.error || "bulk ok");
   assert.strictEqual(bulk.json.sent, 2, "حد الدفعة 2");
-  assert.strictEqual(bulk.json.deferred, 1, "الثالث يُؤجّل بعد حد الدفعة");
+  assert.strictEqual(bulk.json.deferred, 2, "الباقي من بدون متابعة يُؤجّل بعد حد الدفعة");
   assert.ok(sent.length >= beforeBulk + 2);
   assert.ok(bulk.json.dailySent >= 2);
   assert.ok((bulk.json.financeLinkTotal || 0) >= 2);
+  assert.ok(
+    !(bulk.json.results || []).some((r) => r.phone === "550000004"),
+    "لا يُعاد الإرسال لمن تمت متابعتهم مسبقاً"
+  );
+  const pendingAfterBulk = await req("GET", "/customers?day=finance_link_pending");
+  assert.strictEqual(
+    pendingAfterBulk.json.counts?.finance_link_pending,
+    pendingBeforeCount - 2,
+    "الدفعة تنقل من بدون متابعة إلى تمت المتابعة"
+  );
+  const movedPhone = (bulk.json.results || []).find((r) => r.ok)?.phone;
+  assert.ok(movedPhone, "رقم نُقل بعد الإرسال");
+  const sentAfterBulk = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok(
+    (sentAfterBulk.json.customers || []).some((c) => c.phone === movedPhone),
+    "بعد الإرسال الجماعي يظهر في تمت المتابعة"
+  );
+  customerLedger.recordOutbound("+966", movedPhone, "القائمة الرئيسية", {
+    mode: "admin-menu",
+  });
+  const sentAfterBot = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok(
+    (sentAfterBot.json.customers || []).some((c) => c.phone === movedPhone),
+    "رد البوت لا يُرجع العميل لتبويب بدون متابعة"
+  );
+  const pendingAfterBot = await req("GET", "/customers?day=finance_link_pending");
+  assert.ok(
+    !(pendingAfterBot.json.customers || []).some((c) => c.phone === movedPhone),
+    "رد البوت لا يُظهر العميل في بدون متابعة"
+  );
 
   const bulk2 = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",
+    sendAll: false,
     delayMs: 0,
     limit: 10,
   });
@@ -461,6 +515,7 @@ async function req(method, path, body, token = "test-token") {
 
   const bulk3 = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",
+    sendAll: false,
     delayMs: 0,
     limit: 10,
   });
@@ -475,6 +530,7 @@ async function req(method, path, body, token = "test-token") {
   };
   const plusBulk = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link_plus",
+    sendAll: false,
     delayMs: 0,
     limit: 10,
   });
@@ -486,6 +542,45 @@ async function req(method, path, body, token = "test-token") {
   );
   const plusAfterBulk = await req("GET", "/customers?day=finance_link_plus");
   assert.ok((plusAfterBulk.json.counts?.finance_link_plus || 0) >= 1);
+  CONFIG.outbound = {
+    ...prevOutbound,
+    minDelayMs: 0,
+    delayMs: 0,
+    maxBatchSize: 2,
+    dailyLimit: 250,
+    skipIfFollowedUpWithinHours: 0,
+  };
+  customerLedger.recordInbound("+966", "550000007", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000007", "أخذ رابط التمويل");
+  customerLedger.recordInbound("+966", "550000008", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000008", "أخذ رابط التمويل");
+  const sendAll = await req("POST", "/bulk-followup", {
+    fromOutcome: "finance_link",
+    sendAll: true,
+    delayMs: 0,
+  });
+  assert.strictEqual(sendAll.status, 200, sendAll.json?.error || "sendAll ok");
+  assert.strictEqual(sendAll.json.started, true, "يبدأ الإرسال للكل مرة واحدة");
+  assert.ok((sendAll.json.queued || 0) >= 2, "يطابور كل بدون متابعة");
+  const job = await waitBulkJob();
+  assert.ok((job.sent || 0) >= 2, "أرسل لكل بدون متابعة");
+  const pendingAfterAll = await req("GET", "/customers?day=finance_link_pending");
+  assert.ok(
+    !(pendingAfterAll.json.customers || []).some((c) => c.phone === "550000007"),
+    "007 انتقل بعد الإرسال للكل"
+  );
+  assert.ok(
+    !(pendingAfterAll.json.customers || []).some((c) => c.phone === "550000008"),
+    "008 انتقل بعد الإرسال للكل"
+  );
+  assert.strictEqual(
+    pendingAfterAll.json.counts?.finance_link_pending,
+    0,
+    "لا يبقى أحد في بدون متابعة"
+  );
+  const sentAfterAll = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok((sentAfterAll.json.customers || []).some((c) => c.phone === "550000007"));
+  assert.ok((sentAfterAll.json.customers || []).some((c) => c.phone === "550000008"));
   CONFIG.outbound = prevOutbound;
 
   CONFIG.outbound = {
