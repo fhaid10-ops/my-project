@@ -25,8 +25,11 @@ assert.strictEqual(looksLikeGreeting("صباح الخير"), true);
 assert.strictEqual(looksLikeGreeting("مساء الخير"), true);
 assert.strictEqual(looksLikeGreeting("هلا والله"), true);
 assert.strictEqual(looksLikeGreeting("تمويل شخصي"), false);
+assert.strictEqual(looksLikeGreeting("طيب"), false);
 
 assert.strictEqual(looksLikeShowMainMenu("السلام عليكم"), true);
+assert.strictEqual(looksLikeShowMainMenu("طيب"), false);
+assert.strictEqual(looksLikeShowMainMenu("تمام"), false);
 assert.strictEqual(looksLikeShowMainMenu("قائمة"), true);
 assert.strictEqual(looksLikeShowMainMenu("قائمة رئيسية"), true);
 assert.strictEqual(looksLikeMenuShortcut("1"), true);

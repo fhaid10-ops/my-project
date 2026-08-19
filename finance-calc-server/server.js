@@ -16,7 +16,6 @@ const {
   calculatePersonalFinance,
   looksLikeAmountChoice,
   parseAmountChoice,
-  typedTextShowsMenuAfterAmountResult,
   calculateSelectedAmount,
   confirmLowerAmountSuggestion,
   looksLikeWantLowerAmount,
@@ -636,22 +635,6 @@ app.post("/webhook/interakt", async (req, res) => {
         comboDecision: yesNo,
       });
       clearDraft(countryCode, phone);
-    } else if (
-      typedTextShowsMenuAfterAmountResult(
-        currentSession,
-        text,
-        interactiveClick,
-        draft
-      )
-    ) {
-      // بعد نتيجة المبلغ: الكتابة الحرة (مثل S20000) تعيد القائمة
-      console.log(
-        "[webhook:post-result-typed-menu]",
-        phone,
-        String(text || "").slice(0, 80)
-      );
-      result = showMainMenu("قائمة");
-      saveDraft(countryCode, phone, result.draft);
     } else if (yesNo && currentSession?.awaitingLowerAmountConfirm) {
       result = confirmLowerAmountSuggestion(currentSession, yesNo);
       if (result?.data) {
@@ -782,8 +765,8 @@ app.post("/webhook/interakt", async (req, res) => {
       const sessionData = getSession(countryCode, phone);
       if (sessionData?.awaitingCombo || sessionData?.awaitingComboInterest) return;
       if (!sessionData?.maxAmount && !sessionData?.rounded) {
-        result = showMainMenu("قائمة");
-        saveDraft(countryCode, phone, result.draft);
+        console.log("[webhook:skip:amount-without-session]", phone);
+        return;
       } else {
         const amount = parseAmountChoice(text);
         result = calculateSelectedAmount(sessionData || {}, amount);
@@ -793,11 +776,12 @@ app.post("/webhook/interakt", async (req, res) => {
         }
       }
     } else if (!draft && parseMainMenuChoice(text)) {
-      // عناوين القائمة بدون مسودة — الرقم وحده (2–7) نعرض القائمة بدل بدء مسار بالخطأ
+      // عناوين القائمة بدون مسودة — الرقم وحده (2–7) نتجاهله؛ 1 يظهر القائمة من الاختصار
       const choice = parseMainMenuChoice(text);
       if (/^[1-7]$/.test(normalizeDigits(text).trim())) {
-        result = showMainMenu("قائمة");
-        saveDraft(countryCode, phone, result.draft);
+        // القائمة فقط عند مرحبا / السلام عليكم / 1
+        console.log("[webhook:skip:digit-without-menu]", phone, text);
+        return;
       } else {
         const menuResult = handleMainMenuChoice(choice);
         if (menuResult.pauseChat) {
@@ -822,9 +806,8 @@ app.post("/webhook/interakt", async (req, res) => {
         console.log("[webhook:skip:menu-echo]", phone);
         return;
       }
-      console.log("[webhook:unhandled]", phone, String(text || "").slice(0, 80));
-      result = showMainMenu("قائمة");
-      saveDraft(countryCode, phone, result.draft);
+      console.log("[webhook:skip:unhandled]", phone, String(text || "").slice(0, 80));
+      return;
     }
 
     if (!result?.reply && !result?.interactive) return;
