@@ -197,6 +197,13 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   border-radius: 12px; border: 1px solid rgba(157,58,45,.35);
   background: rgba(157,58,45,.08); color: var(--danger); font-weight: 600;
 }
+#home-view[hidden],
+#list-view[hidden],
+#customer-view[hidden],
+#followup-view[hidden],
+#jump-form[hidden] {
+  display: none !important;
+}
 .home-search {
   margin-bottom: 14px;
 }
@@ -303,16 +310,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 <body>
 <div class="app">
   <main class="main">
-    <form id="jump-form" class="card home-search">
-      <label class="field" style="margin:0">
-        <span>رقم العميل — اكتب الجوال وادخل على صفحته</span>
-        <div class="home-search-row">
-          <input id="jump-phone" type="search" inputmode="tel" autocomplete="off" placeholder="05xxxxxxxx" />
-          <button class="btn primary" type="submit">دخول</button>
-        </div>
-      </label>
-      <p id="jump-status" class="status" hidden></p>
-    </form>
     <header class="topbar">
       <div>
         <p class="brand-mark">رائد الحربي</p>
@@ -331,6 +328,16 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     <div id="error-banner" class="error-banner"></div>
 
     <div id="home-view">
+    <form id="jump-form" class="card home-search">
+      <label class="field" style="margin:0">
+        <span>بحث برقم العميل — يفتح صفحته وإعداداته</span>
+        <div class="home-search-row">
+          <input id="jump-phone" type="search" inputmode="tel" autocomplete="off" placeholder="05xxxxxxxx" />
+          <button class="btn primary" type="submit">بحث</button>
+        </div>
+      </label>
+      <p id="jump-status" class="status" hidden></p>
+    </form>
     <div id="persistence-banner" class="card" style="margin-bottom:14px;display:none;border-color:rgba(157,58,45,.35);background:rgba(157,58,45,.06)">
       <h3 style="margin-top:0;color:var(--danger)">التخزين مؤقت — يتصفر بعد إعادة التشغيل</h3>
       <p class="muted" id="persistence-banner-text" style="margin-bottom:0">أضف Persistent Disk في Render على المسار <code>/var/data</code> ثم Environment: <code>CUSTOMERS_DATA_DIR=/var/data/kobri</code>. قبل أي نشر: نزّل بكب.</p>
@@ -390,7 +397,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <span class="tab-count" id="tab-count-rejected">—</span>
         </button>
       </div>
-    <p class="muted" style="margin:0 0 14px">اضغط أي قائمة لفتح كل عملائها. رقم العميل من الخانة فوق يفتح صفحته كاملة.</p>
+    <p class="muted" style="margin:0 0 14px">اضغط أي قائمة — مثل اليوم أو متابعة بلس — تفتح صفحة مستقلة بكل عملائها.</p>
     <details class="card backup-panel" id="backup-panel" style="margin-bottom:14px">
       <summary>النسخ الاحتياطي وجلب السابق</summary>
       <div>
@@ -415,9 +422,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       <div class="list-page-head">
         <h2 id="list-title">العملاء</h2>
         <button id="back-home-from-list" class="btn secondary" type="button">الرئيسية</button>
-      </div>
-      <div class="toolbar">
-        <input id="customer-search" class="search" type="search" placeholder="تصفية القائمة برقم أو ملاحظة" />
       </div>
     <div class="ledger-date-bar">
       <label class="field">
@@ -452,12 +456,12 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       <p id="rejected-add-status" class="status" hidden></p>
     </div>
     <div class="card" id="plus-add-card" style="margin-bottom:12px;display:none">
-      <h3 style="margin:0 0 8px;font-size:1.05rem">أخذ الرابط — متابعة بلس</h3>
-      <p class="muted" style="margin-bottom:12px">تذكير ثانٍ لمن أخذوا الرابط بعد المتابعة الأولى. حوّل أي عميل بزر «متابعة بلس»، أو أضف رقماً هنا.</p>
+      <h3 style="margin:0 0 8px;font-size:1.05rem">إضافة رقم إلى متابعة بلس</h3>
+      <p class="muted" style="margin-bottom:12px">لإضافة رقم جديد لهذا القسم. البحث عن عميل يكون من الرئيسية فقط.</p>
       <div class="btn-row" style="align-items:end">
         <label class="field" style="margin:0;flex:1;min-width:180px">
-          <span>رقم الجوال</span>
-          <input id="plus-add-phone" type="tel" inputmode="numeric" placeholder="05xxxxxxxx" />
+          <span>رقم جديد للإضافة</span>
+          <input id="plus-add-phone" type="tel" inputmode="numeric" placeholder="05xxxxxxxx" autocomplete="off" />
         </label>
         <button id="plus-add-btn" class="btn primary" type="button">إضافة إلى متابعة بلس</button>
       </div>
@@ -587,7 +591,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-19-home-search";
+  const UI_VERSION = "2026-08-19-home-nav";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -662,7 +666,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   } catch {}
 
   const refreshBtn = document.getElementById("refresh-btn");
-  const customerSearch = document.getElementById("customer-search");
   const errorBanner = document.getElementById("error-banner");
   const homeView = document.getElementById("home-view");
   const listView = document.getElementById("list-view");
@@ -719,6 +722,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     if (liveCounts) liveCounts.hidden = name === "followup" || name === "customer";
     const listTitle = document.getElementById("list-title");
     if (listTitle && name === "list") listTitle.textContent = listTitleFor(day || customerDay);
+    try { window.scrollTo({ top: 0, behavior: "instant" }); } catch (_) { window.scrollTo(0, 0); }
     if (push) {
       let nextHash = "";
       if (name === "followup") nextHash = "#followup";
@@ -1091,21 +1095,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
   function renderCustomers(rows, counts) {
     const body = document.getElementById("customers-body");
-    const q = (customerSearch.value || "").trim().toLowerCase();
-    let filtered = !q
-      ? rows.slice()
-      : rows.filter((r) => {
-          const hay = [
-            r.phone,
-            displayPhone(r),
-            workplaceLabel(r),
-            r.orderNumber,
-            r.outcome,
-            r.notes,
-            r.lastInboundText,
-          ].join(" ").toLowerCase();
-          return hay.includes(q);
-        });
+    let filtered = rows.slice();
 
     if (!filtered.length) {
       const all = counts?.all || 0;
@@ -1426,7 +1416,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
   document.getElementById("customer-tabs").addEventListener("click", async (e) => {
     const tab = e.target.closest(".tab");
-    if (!tab) return;
+    if (!tab || !tab.dataset.day) return;
+    e.preventDefault();
     await openList(tab.dataset.day).catch((err) => {
       showError(err.message);
       alert(err.message);
@@ -1456,8 +1447,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     const current = document.getElementById("ledger-date").value || riyadhDayKey();
     openLedgerDate(shiftDayKey(current, 1));
   });
-
-  customerSearch.addEventListener("input", () => renderCustomers(customersCache));
 
   document.getElementById("load-more-customers").addEventListener("click", async () => {
     try {
