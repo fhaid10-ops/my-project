@@ -472,8 +472,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           </label>
         </div>
         <p class="muted" id="bulk-followup-quota" style="margin:0 0 12px">الحصة اليومية: —</p>
+        <p class="muted" id="bulk-followup-window" style="margin:0 0 12px">داخل 24 ساعة: — · خارج النافذة: —</p>
         <div class="btn-row">
           <button id="bulk-followup-send" class="btn primary" type="button">إرسال لكل بدون متابعة</button>
+          <button id="bulk-followup-csv" class="btn secondary" type="button">CSV لخارج 24 ساعة</button>
           <button id="bulk-followup-refresh" class="btn secondary" type="button">تحديث الحصة</button>
         </div>
         <p id="bulk-followup-status" class="status" hidden></p>
@@ -505,7 +507,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-19-followup-receipt";
+  const UI_VERSION = "2026-08-19-followup-24h";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -1041,8 +1043,16 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           : "";
       quota.textContent =
         `${linkPart}` +
-        `الحصة اليومية: أُرسل ${sent} من ${daily} · المتبقي ${rem}` +
-        ` · ضغطة واحدة ترسل للجميع ثم تنقلهم`;
+        `الحصة اليومية: أُرسل ${sent} من ${daily} · المتبقي ${rem}`;
+    }
+    const windowLine = document.getElementById("bulk-followup-window");
+    if (windowLine) {
+      const inside = safe.financeLinkPendingInWindow;
+      const outside = safe.financeLinkPendingOutsideWindow;
+      windowLine.textContent =
+        inside != null
+          ? `رسالة عادية تصل لـ ${inside} (تحدثوا خلال 24 ساعة) · ${outside ?? 0} خارج النافذة يلزم قالب إنترأكت`
+          : "نافذة واتساب: —";
     }
     const plusMsg = document.getElementById("bulk-followup-plus-message");
     if (plusMsg && !plusMsg.dataset.touched) {
@@ -1525,6 +1535,28 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       `تم تحميل ${lines.length - 1} رقم. ارفع الملف في إنترأكت كحملة بقالب معتمد — لا ترسل من اللوحة.`;
   });
 
+  document.getElementById("bulk-followup-csv").addEventListener("click", async () => {
+    try {
+      const pack = await api("/customers/followup-template-csv");
+      if (!pack.count) {
+        alert("ما فيه أرقام خارج نافذة 24 ساعة حالياً");
+        return;
+      }
+      const blob = new Blob([pack.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = pack.filename || "followup-outside-24h.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      alert(
+        `تم تحميل ${pack.count} رقم خارج 24 ساعة.\nارفع الملف في إنترأكت: Campaigns → Audience → قالب معتمد.`
+      );
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
   document.getElementById("bulk-followup-refresh").addEventListener("click", async () => {
     try {
       const status = await api("/status");
@@ -1554,15 +1586,18 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     } catch (_) {
       /* نكمل بالعدد الظاهر */
     }
+    const inside = preview?.outboundSafe?.financeLinkPendingInWindow;
+    const outside = preview?.outboundSafe?.financeLinkPendingOutsideWindow;
     const pendingLabel = pendingNow == null ? "كل بدون متابعة" : String(pendingNow);
     const minutes =
-      pendingNow > 0 ? Math.ceil((Number(pendingNow) * delaySec) / 60) : null;
+      inside > 0 ? Math.ceil((Number(inside) * delaySec) / 60) : null;
     const ok = confirm(
-      `إرسال متابعة لكل من أخذ الرابط ولم تُرسل له؟\n` +
-        `العدد: ${pendingLabel}` +
+      `واتساب يمرّر الرسالة العادية فقط لمن راسلكم خلال 24 ساعة.\n\n` +
+        `بدون متابعة: ${pendingLabel}\n` +
+        `سيُرسل الآن: ${inside ?? "؟"} (داخل 24 ساعة)` +
         (minutes ? ` · تقريباً ${minutes} دقيقة` : "") +
-        `\nالتأخير: ${delaySec} ثانية بين كل رسالة\n` +
-        `بعد كل إرسال ينتقل العميل إلى «رابط — تمت المتابعة».`
+        `\nيحتاجون قالب إنترأكت: ${outside ?? "؟"}\n` +
+        `التأخير: ${delaySec} ثانية بين كل رسالة.`
     );
     if (!ok) return;
 
@@ -1611,8 +1646,9 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         renderBulkReceipt(job);
         const queued = job.queued || result.queued || 0;
         statusEl.textContent =
-          `جاري الإرسال لكل بدون متابعة... ${job.sent || 0} من ${queued}` +
+          `جاري الإرسال داخل 24 ساعة... ${job.sent || 0} من ${queued}` +
           (job.failed ? ` · فشل ${job.failed}` : "") +
+          (job.lastError ? ` · ${job.lastError}` : "") +
           (job.lastPhone ? ` · آخر رقم ${job.lastPhone}` : "");
       }
       const finalStatus = await api("/status");

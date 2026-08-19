@@ -554,6 +554,11 @@ async function waitBulkJob(timeoutMs = 3000) {
   customerLedger.setOutcomeNotes("+966", "550000007", "أخذ رابط التمويل");
   customerLedger.recordInbound("+966", "550000008", "تمويل");
   customerLedger.setOutcomeNotes("+966", "550000008", "أخذ رابط التمويل");
+  customerLedger.recordInbound("+966", "550000009", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000009", "أخذ رابط التمويل");
+  customerLedger._customers.get("+966:550000009").lastInboundAt = new Date(
+    Date.now() - 48 * 60 * 60 * 1000
+  ).toISOString();
   const sendAll = await req("POST", "/bulk-followup", {
     fromOutcome: "finance_link",
     sendAll: true,
@@ -561,12 +566,20 @@ async function waitBulkJob(timeoutMs = 3000) {
   });
   assert.strictEqual(sendAll.status, 200, sendAll.json?.error || "sendAll ok");
   assert.strictEqual(sendAll.json.started, true, "يبدأ الإرسال للكل مرة واحدة");
-  assert.ok((sendAll.json.queued || 0) >= 2, "يطابور كل بدون متابعة");
+  assert.ok((sendAll.json.queued || 0) >= 2, "يطابور من داخل نافذة 24 ساعة");
+  assert.ok(
+    (sendAll.json.outsideWindow || sendAll.json.skipped || 0) >= 1,
+    "خارج 24 ساعة لا يُرسل برسالة عادية"
+  );
   const job = await waitBulkJob();
-  assert.ok((job.sent || 0) >= 2, "أرسل لكل بدون متابعة");
+  assert.ok((job.sent || 0) >= 2, "أرسل لمن داخل 24 ساعة");
   assert.ok(
     (job.results || []).some((r) => r.ok && r.phone === "550000007"),
     "الإيصال يذكر 007 بعد قبول إنترأكت"
+  );
+  assert.ok(
+    !(job.results || []).some((r) => r.ok && r.phone === "550000009"),
+    "009 خارج النافذة لا يُرسل"
   );
   const pendingAfterAll = await req("GET", "/customers?day=finance_link_pending");
   assert.ok(
@@ -577,11 +590,14 @@ async function waitBulkJob(timeoutMs = 3000) {
     !(pendingAfterAll.json.customers || []).some((c) => c.phone === "550000008"),
     "008 انتقل بعد الإرسال للكل"
   );
-  assert.strictEqual(
-    pendingAfterAll.json.counts?.finance_link_pending,
-    0,
-    "لا يبقى أحد في بدون متابعة"
+  assert.ok(
+    (pendingAfterAll.json.customers || []).some((c) => c.phone === "550000009"),
+    "خارج 24 ساعة يبقى في بدون متابعة حتى حملة القالب"
   );
+  const csvOutside = await req("GET", "/customers/followup-template-csv");
+  assert.strictEqual(csvOutside.status, 200);
+  assert.ok((csvOutside.json.count || 0) >= 1);
+  assert.match(String(csvOutside.json.csv || ""), /550000009/);
   const sentAfterAll = await req("GET", "/customers?day=finance_link_sent");
   assert.ok((sentAfterAll.json.customers || []).some((c) => c.phone === "550000007"));
   assert.ok((sentAfterAll.json.customers || []).some((c) => c.phone === "550000008"));

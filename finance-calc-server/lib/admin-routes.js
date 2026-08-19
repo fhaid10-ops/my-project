@@ -85,6 +85,7 @@ function createAdminRouter(deps) {
     skipped: 0,
     deferred: 0,
     lastPhone: null,
+    lastError: null,
     error: null,
     startedAt: null,
     finishedAt: null,
@@ -152,6 +153,13 @@ function createAdminRouter(deps) {
     return bulkFollowupDaily;
   }
 
+  const WHATSAPP_SESSION_MS = 23 * 60 * 60 * 1000;
+
+  function isInsideWhatsappSession(row, now = Date.now()) {
+    const at = Date.parse(row?.lastInboundAt || "");
+    return Number.isFinite(at) && now - at < WHATSAPP_SESSION_MS;
+  }
+
   function wasFollowedUpRecently(row, skipMs, now = Date.now()) {
     if (!(skipMs > 0) || !hasFirstFollowup(row)) return false;
     const stamp =
@@ -169,6 +177,8 @@ function createAdminRouter(deps) {
     const now = Date.now();
     const rows = customerLedger?.listByDay?.("finance_link")?.customers || [];
     let pending = 0;
+    let pendingInWindow = 0;
+    let pendingOutsideWindow = 0;
     let sentCount = 0;
     let plus = 0;
     let eligible = 0;
@@ -182,7 +192,12 @@ function createAdminRouter(deps) {
       const followed = hasFirstFollowup(row);
       if (!followed) {
         pending += 1;
-        eligible += 1;
+        if (isInsideWhatsappSession(row, now)) {
+          pendingInWindow += 1;
+          eligible += 1;
+        } else {
+          pendingOutsideWindow += 1;
+        }
       } else {
         sentCount += 1;
         if (wasFollowedUpRecently(row, skipMs, now)) skippedRecent += 1;
@@ -192,6 +207,8 @@ function createAdminRouter(deps) {
     return {
       financeLinkTotal: rows.length,
       financeLinkPending: pending,
+      financeLinkPendingInWindow: pendingInWindow,
+      financeLinkPendingOutsideWindow: pendingOutsideWindow,
       financeLinkSent: sentCount,
       financeLinkPlus: plus,
       financeLinkEligible: eligible,
@@ -569,6 +586,29 @@ function createAdminRouter(deps) {
 
   router.get("/activity", requireAdmin, (_req, res) => {
     res.json({ ok: true, activity: activityLog });
+  });
+
+  /** أرقام بدون متابعة خارج نافذة واتساب 24 ساعة — تُرفع كحملة قالب في إنترأكت */
+  router.get("/customers/followup-template-csv", requireAdmin, (_req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({ ok: false, error: "سجل العملاء غير مفعّل" });
+    }
+    const pack = customerLedger.listByDay("finance_link");
+    const phones = (pack.customers || [])
+      .filter(
+        (row) =>
+          !row.followupPlus &&
+          !hasFirstFollowup(row) &&
+          !isInsideWhatsappSession(row)
+      )
+      .map((row) => row.phone);
+    const csv = toInteraktAudienceCsv(phones);
+    res.json({
+      ok: true,
+      count: csv.count,
+      csv: csv.csv,
+      filename: "followup-outside-24h.csv",
+    });
   });
 
   /** تنزيل بكب JSON لسجل العملاء */
@@ -1145,6 +1185,7 @@ function createAdminRouter(deps) {
         countryCode: row.countryCode || "+966",
         lastOutboundAt: row.lastOutboundAt || null,
         lastOutboundPreview: row.lastOutboundPreview || "",
+        lastInboundAt: row.lastInboundAt || null,
         followupPlus: Boolean(row.followupPlus),
         followupSent: Boolean(row.followupSent),
         followupSentAt: row.followupSentAt || null,
@@ -1174,6 +1215,7 @@ function createAdminRouter(deps) {
           countryCode: p.countryCode,
           lastOutboundAt: row?.lastOutboundAt || null,
           lastOutboundPreview: row?.lastOutboundPreview || "",
+          lastInboundAt: row?.lastInboundAt || null,
           followupPlus: Boolean(row?.followupPlus),
           followupSent: Boolean(row?.followupSent),
           followupSentAt: row?.followupSentAt || null,
@@ -1221,6 +1263,13 @@ function createAdminRouter(deps) {
         continue;
       } else if (isFinanceLinkWave && hasFirstFollowup(raw)) {
         skipped.push({ phone: parts.phone, reason: "تمت المتابعة مسبقاً" });
+        continue;
+      }
+      if ((isFinanceLinkWave || isPlusWave) && !isInsideWhatsappSession(raw)) {
+        skipped.push({
+          phone: parts.phone,
+          reason: "خارج نافذة واتساب 24 ساعة — يلزم قالب إنترأكت",
+        });
         continue;
       }
       if (wasFollowedUpRecently(raw, skipMs, now)) {
@@ -1288,13 +1337,18 @@ function createAdminRouter(deps) {
             phone: parts.phone,
             ok: false,
             at: new Date().toISOString(),
-            error: err.message,
+            error: err.outsideWindow
+              ? err.message
+              : String(err.message || "فشل الإرسال") +
+                (err.details?.message ? ` — ${err.details.message}` : ""),
           });
         }
         bulkFollowupJob.sent = results.filter((r) => r.ok).length;
         bulkFollowupJob.failed = results.filter((r) => !r.ok).length;
         bulkFollowupJob.lastPhone = parts.phone;
         bulkFollowupJob.results = results.slice();
+        const last = results[results.length - 1];
+        if (last && !last.ok) bulkFollowupJob.lastError = last.error || "";
         if (i < toSend.length - 1 && delayMs > 0) {
           await new Promise((r) => setTimeout(r, delayMs));
         }
@@ -1331,16 +1385,23 @@ function createAdminRouter(deps) {
     }
 
     if (sendAll && !toSend.length) {
+      const outsideSkip = skipped.filter((s) =>
+        /24 ساعة/.test(s.reason || "")
+      ).length;
       return res.status(400).json({
         ok: false,
         error: deferred.length
           ? `تم بلوغ الحد اليومي (${safe.dailyLimit}). تبقّى ${deferred.length}.`
-          : isFinanceLinkWave
-            ? "لا يوجد عملاء في «رابط — بدون متابعة»"
-            : "لا يوجد عملاء مؤهلون لمتابعة بلس",
+          : outsideSkip
+            ? `ما في أحد داخل نافذة واتساب 24 ساعة. ${outsideSkip} يحتاجون حملة قالب إنترأكت — حمّل CSV.`
+            : isFinanceLinkWave
+              ? "لا يوجد عملاء في «رابط — بدون متابعة»"
+              : "لا يوجد عملاء مؤهلون لمتابعة بلس",
+        skipped: skipped.length,
         deferred: deferred.length,
         dailyLimit: safe.dailyLimit,
         dailySent: usage.count,
+        skippedDetails: skipped.slice(0, 40),
       });
     }
 
@@ -1360,17 +1421,22 @@ function createAdminRouter(deps) {
       bulkFollowupJob.skipped = skipped.length;
       bulkFollowupJob.deferred = deferred.length;
       bulkFollowupJob.lastPhone = null;
+      bulkFollowupJob.lastError = null;
       bulkFollowupJob.error = null;
       bulkFollowupJob.startedAt = new Date().toISOString();
       bulkFollowupJob.finishedAt = null;
-      bulkFollowupJob.hint = `جاري الإرسال لـ ${toSend.length} بدون متابعة`;
+      bulkFollowupJob.hint = `جاري الإرسال لـ ${toSend.length} داخل نافذة 24 ساعة`;
       bulkFollowupJob.results = [];
+      const outsideSkip = skipped.filter((s) =>
+        /24 ساعة/.test(s.reason || "")
+      ).length;
       res.json({
         ok: true,
         started: true,
         sendAll: true,
         queued: toSend.length,
         skipped: skipped.length,
+        outsideWindow: outsideSkip,
         deferred: deferred.length,
         delayMs,
         dailyLimit: safe.dailyLimit,
@@ -1378,7 +1444,11 @@ function createAdminRouter(deps) {
         dailyRemaining: Math.max(safe.dailyLimit - usage.count - toSend.length, 0),
         bulkJob: snapshotBulkJob(),
         ...getFinanceLinkFollowupStats(),
-        hint: `بدأ الإرسال لجميع بدون متابعة (${toSend.length}). يبقى التأخير ${Math.round(delayMs / 1000)} ثانية بين كل رسالة.`,
+        hint:
+          `بدأ إرسال ${toSend.length} داخل نافذة واتساب 24 ساعة.` +
+          (outsideSkip
+            ? ` تُخطّي ${outsideSkip} خارج النافذة — حمّل CSV وأرسلهم بقالب إنترأكت.`
+            : ` التأخير ${Math.round(delayMs / 1000)} ثانية بين كل رسالة.`),
       });
       deliverBulkQueue()
         .then((results) => {

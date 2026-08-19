@@ -226,9 +226,29 @@ async function postInteraktPayload(payload) {
     json = { raw: text };
   }
 
-  if (!response.ok) {
-    const err = new Error(`Interakt API ${response.status}`);
+  if (!response.ok || json?.result === false || json?.ok === false || json?.success === false) {
+    const reason = [
+      json?.message,
+      json?.error,
+      json?.msg,
+      json?.detail,
+      typeof json?.details === "string" ? json.details : null,
+    ]
+      .filter(Boolean)
+      .join(" — ")
+      .slice(0, 240);
+    const blob = `${reason} ${JSON.stringify(json || {}).slice(0, 200)}`;
+    const outsideWindow =
+      /24\s*hour|24hr|session expir|outside.*window|not messaged|customer care window/i.test(
+        blob
+      );
+    const err = new Error(
+      outsideWindow
+        ? "خارج نافذة واتساب 24 ساعة — الرسالة العادية لا تصل، استخدم قالب إنترأكت"
+        : `Interakt ${response.status}: ${reason || "رفض الإرسال"}`
+    );
     err.details = json;
+    err.outsideWindow = outsideWindow;
     throw err;
   }
 
