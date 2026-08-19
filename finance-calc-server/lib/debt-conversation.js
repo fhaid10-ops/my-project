@@ -21,6 +21,7 @@ const {
   realEstateInteractive,
   afterSectorSelected,
   advanceCivilianSubtypeFlow,
+  looksLikeMenuResidue,
 } = require("./conversation");
 
 function looksLikeStartDebtPurchase(text) {
@@ -107,6 +108,9 @@ function advanceDebtPurchaseFlow(draft, text) {
   if (step === "sector") {
     const jobCategory = mapSector(raw);
     if (!jobCategory) {
+      if (looksLikeMenuResidue(raw)) {
+        return { ok: true, silent: true, draft: state };
+      }
       return {
         ok: false,
         reply: `ما قدرت أحدد القطاع.

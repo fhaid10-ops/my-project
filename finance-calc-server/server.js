@@ -591,10 +591,11 @@ app.post("/webhook/interakt", async (req, res) => {
         clearSession(countryCode, phone);
         result = menuResult;
       } else if (menuResult.startFlow === "personal") {
-        result = startPersonalFinanceFlow({ askSector: true });
+        // Interakt Auto Reply يرسل أزرار القطاع على «تمويل شخصي» — لا نكررها
+        result = startPersonalFinanceFlow({ askSector: false });
         saveDraft(countryCode, phone, result.draft);
       } else if (menuResult.startFlow === "debt") {
-        result = startDebtPurchaseFlow({ askSector: true });
+        result = startDebtPurchaseFlow({ askSector: false });
         saveDraft(countryCode, phone, result.draft);
       } else {
         result = menuResult;
@@ -688,7 +689,7 @@ app.post("/webhook/interakt", async (req, res) => {
         return;
       }
       clearSession(countryCode, phone);
-      result = startPersonalFinanceFlow({ askSector: true });
+      result = startPersonalFinanceFlow({ askSector: false });
       saveDraft(countryCode, phone, result.draft);
     } else if (looksLikeStartDebtPurchase(text)) {
       if (draft?.flow === "debt_chat" && (draft.step === "sector" || !draft.step)) {
@@ -696,7 +697,7 @@ app.post("/webhook/interakt", async (req, res) => {
         return;
       }
       clearSession(countryCode, phone);
-      result = startDebtPurchaseFlow();
+      result = startDebtPurchaseFlow({ askSector: false });
       saveDraft(countryCode, phone, result.draft);
     } else if (draft?.flow === "personal_chat" && draft.step && draft.step !== "done") {
       result = advancePersonalFinanceFlow(draft, text);
@@ -784,9 +785,10 @@ app.post("/webhook/interakt", async (req, res) => {
           pauseChat(countryCode, phone);
           result = menuResult;
         } else if (menuResult.startFlow === "personal") {
-          result = startPersonalFinanceFlow({ askSector: true });
+          result = startPersonalFinanceFlow({ askSector: false });
           saveDraft(countryCode, phone, result.draft);
         } else if (menuResult.startFlow === "debt") {
+          result = startDebtPurchaseFlow({ askSector: false });
           result = startDebtPurchaseFlow({ askSector: true });
           saveDraft(countryCode, phone, result.draft);
         } else {

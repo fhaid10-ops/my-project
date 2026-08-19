@@ -4,6 +4,25 @@
  */
 const DEFAULT_WINDOW_MS = 3000;
 
+function canonicalizeInbound(text) {
+  const t = String(text || "").trim();
+  if (
+    /^(menu_1|تمويل شخصي|ابي تمويل شخصي|أبي تمويل شخصي|ابي تمويل|أبي تمويل|تمويل|ابدأ|ابدا|ابدأ الحسبة|ابدا الحسبة)$/i.test(
+      t
+    )
+  ) {
+    return "personal_finance";
+  }
+  if (
+    /^(menu_2|شراء مديونية|شراء المديونية|شراء مديونية الشركات|مديونية الشركات|ابي شراء مديونية|أبي شراء مديونية|مديونية)$/i.test(
+      t
+    )
+  ) {
+    return "debt_purchase";
+  }
+  return t;
+}
+
 function createInboundDedupe(options = {}) {
   const windowMs = Number(options.windowMs) > 0 ? Number(options.windowMs) : DEFAULT_WINDOW_MS;
   const recent = new Map();
@@ -23,7 +42,7 @@ function createInboundDedupe(options = {}) {
   function isDuplicate(countryCode, phone, text) {
     const phoneKey = String(phone || "").replace(/\D/g, "");
     if (!phoneKey) return false;
-    const normalized = String(text || "").trim();
+    const normalized = canonicalizeInbound(text);
     if (!normalized) return false;
     prune();
     const key = keyOf(countryCode, phoneKey);
@@ -45,5 +64,6 @@ function looksLikeEchoedMenuBody(text) {
 module.exports = {
   DEFAULT_WINDOW_MS,
   createInboundDedupe,
+  canonicalizeInbound,
   looksLikeEchoedMenuBody,
 };

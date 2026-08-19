@@ -135,6 +135,9 @@ check("تمويل أثناء خطوة القطاع لا يعيد إرسال ال
   assert.strictEqual(next.silent, true);
   assert.ok(!next.interactive);
   assert.ok(!next.reply);
+  const fromListId = advancePersonalFinanceFlow(stuck, "menu_1");
+  assert.strictEqual(fromListId.silent, true);
+  assert.ok(!fromListId.reply);
 });
 
 check("مدني راتبه أقل من 4000 يرفض فورًا", () => {
@@ -344,6 +347,10 @@ check("بداية التمويل الشخصي ترسل أزرار القطاع �
   assert.ok(
     start.interactive.buttons.some((b) => b.title === "مدني")
   );
+  const fromMenu = startPersonalFinanceFlow({ askSector: false });
+  assert.strictEqual(fromMenu.reply, null);
+  assert.strictEqual(fromMenu.interactive, null);
+  assert.strictEqual(fromMenu.draft.step, "sector");
 });
 
 check("رقم الجوال من user.phoneNumber إذا ما فيه customer", () => {
@@ -410,7 +417,7 @@ check("جسم القائمة المعاد لا يُعتبر رسالة جديد�
   assert.strictEqual(looksLikeEchoedMenuBody("تمويل شخصي"), false);
   const dedupe = createInboundDedupe({ windowMs: 5000 });
   assert.strictEqual(dedupe.isDuplicate("+966", "579478016", "تمويل شخصي"), false);
-  assert.strictEqual(dedupe.isDuplicate("+966", "579478016", "تمويل شخصي"), true);
+  assert.strictEqual(dedupe.isDuplicate("+966", "579478016", "menu_1"), true);
   assert.strictEqual(dedupe.isDuplicate("+966", "579478016", "مدني"), false);
 });
 

@@ -38,9 +38,17 @@ function looksLikeStartPersonalFinance(text) {
   );
 }
 
+function looksLikeMenuResidue(text) {
+  const t = String(text || "").trim();
+  if (!t || t.length > 60) return false;
+  return /^(menu_[1-7]|تمويل شخصي|ابي تمويل شخصي|أبي تمويل شخصي|ابي تمويل|أبي تمويل|تمويل|ابدأ|ابدا|ابدأ الحسبة|ابدا الحسبة|شراء مديونية|شراء المديونية|مديونية الشركات|مديونية)$/i.test(
+    t
+  );
+}
+
 function startPersonalFinanceFlow(options = {}) {
-  // الكوبري يسأل القطاع مباشرة (ما نعتمد على Auto Reply في Interakt)
-  // ضغط «تمويل شخصي» من القائمة ما يطابق كلمة Auto Reply، فيصير سكوت
+  // افتراضيًا نسأل القطاع. إذا النص «تمويل شخصي» فـ Interakt Auto Reply يرسل الأزرار؛
+  // الكوبري يمرّر askSector:false حتى ما تتكرر.
   const askSector = options.askSector !== false;
   const sectorBody = "اختر";
   return {
@@ -426,6 +434,9 @@ function advancePersonalFinanceFlow(draft, text) {
   if (step === "sector") {
     const jobCategory = mapSector(raw);
     if (!jobCategory) {
+      if (looksLikeMenuResidue(raw)) {
+        return { ok: true, silent: true, draft: state };
+      }
       return {
         ok: false,
         reply: `ما قدرت أحدد القطاع.
@@ -623,6 +634,7 @@ function resumeFromSectorReply(text, draft) {
 
 module.exports = {
   looksLikeStartPersonalFinance,
+  looksLikeMenuResidue,
   startPersonalFinanceFlow,
   advancePersonalFinanceFlow,
   advanceCivilianSubtypeFlow,
