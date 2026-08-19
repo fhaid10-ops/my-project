@@ -9,6 +9,9 @@ const {
   hasFirstFollowup,
 } = require("./customer-ledger");
 
+/** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
+const ADMIN_UI_VERSION = "20260819r4";
+
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
     .replace(/\D/g, "")
@@ -508,6 +511,7 @@ function createAdminRouter(deps) {
       customers: ledgerSummary,
       persistence,
       brand: CONFIG.brand?.name || "رائد الحربي",
+      adminUiVersion: ADMIN_UI_VERSION,
       followUpPreview: CONFIG.followUp?.electronicMessage || "",
       followUpPlusPreview: CONFIG.followUp?.plusMessage || "",
       followUpBlastPreview: CONFIG.followUp?.blastMessage || "",
@@ -1618,11 +1622,16 @@ function mountAdmin(app, deps) {
 
   app.use("/admin/api", router);
 
-  app.get(["/admin", "/admin/", "/admin/index.html"], (_req, res) => {
+  app.get(["/admin", "/admin/", "/admin/index.html"], (req, res) => {
     grantAdminCookie(res);
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
     res.setHeader("Pragma", "no-cache");
-    res.sendFile(indexFile);
+    res.setHeader("Expires", "0");
+    const got = String(req.query.v || "");
+    if (got !== ADMIN_UI_VERSION) {
+      return res.redirect(302, `/admin/?v=${encodeURIComponent(ADMIN_UI_VERSION)}`);
+    }
+    res.sendFile(indexFile, { etag: false, lastModified: false, cacheControl: false });
   });
 
   app.use(
@@ -1633,7 +1642,9 @@ function mountAdmin(app, deps) {
       setHeaders(res, filePath) {
         if (filePath.endsWith(".html")) {
           grantAdminCookie(res);
-          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
         }
       },
     })

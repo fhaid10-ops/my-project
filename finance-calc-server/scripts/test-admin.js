@@ -111,6 +111,7 @@ async function waitBulkJob(timeoutMs = 3000) {
   const status = await req("GET", "/status");
   assert.strictEqual(status.status, 200);
   assert.strictEqual(status.json.ok, true);
+  assert.ok(status.json.adminUiVersion, "إصدار واجهة اللوحة");
   assert.ok((status.json.counts.customersToday || 0) >= 1);
 
   const customers = await req("GET", "/customers?day=today");

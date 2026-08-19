@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
 <title>عملاء رائد الحربي</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -321,7 +323,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <button id="open-followup-btn" class="btn primary" type="button">المتابعة</button>
           <p id="followup-home-hint" class="followup-home-hint">—</p>
         </div>
-        <button id="refresh-btn" class="btn secondary" type="button">تحديث</button>
+        <button id="refresh-btn" class="btn secondary" type="button">تحديث الصفحة</button>
       </div>
     </header>
 
@@ -591,7 +593,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-19-home-nav";
+  const UI_VERSION = "20260819r4";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -1408,10 +1410,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   }
 
   refreshBtn.addEventListener("click", () => {
-    refreshAll().catch((e) => {
-      showError(e.message);
-      alert(e.message);
-    });
+    const url = new URL(location.href);
+    url.searchParams.set("v", UI_VERSION);
+    url.searchParams.set("r", String(Date.now()));
+    location.replace(url.pathname + url.search + url.hash);
   });
 
   document.getElementById("customer-tabs").addEventListener("click", async (e) => {
