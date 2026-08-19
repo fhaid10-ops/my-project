@@ -71,10 +71,13 @@ const { detectCustomerOutcome } = require("./lib/customer-outcome");
 const {
   looksLikeApplicationOrderNumber,
   parseApplicationOrderNumber,
+  extractOrderNumberFromOcr,
   buildOrderNumberAckReply,
   buildOrderImageMissReply,
+  shouldAskForOrderNumberFromImage,
 } = require("./lib/order-number");
-const { readOrderNumberFromImage } = require("./lib/order-image");
+const { inspectOrderImage } = require("./lib/order-image");
+const { buildCustomerMessagePayload } = require("./lib/simulate-payload");
 const { createInboundDedupe, looksLikeEchoedMenuBody } = require("./lib/inbound-dedupe");
 const CONFIG = require("./config");
 
@@ -93,6 +96,29 @@ const PORT = Number(process.env.PORT || 5055);
 const INTERAKT_API_KEY = normalizeEnvValue(process.env.INTERAKT_API_KEY);
 const WEBHOOK_SECRET = normalizeEnvValue(process.env.WEBHOOK_SECRET);
 const ADMIN_TOKEN = normalizeEnvValue(process.env.ADMIN_TOKEN);
+
+function isWebhookDryRun() {
+  const v = String(process.env.WEBHOOK_DRY_RUN || "")
+    .trim()
+    .toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
+const dryRunOutbox = [];
+
+function drainDryRunOutbox() {
+  return dryRunOutbox.splice(0, dryRunOutbox.length);
+}
+
+function recordDryRun(entry) {
+  dryRunOutbox.push(entry);
+  const preview = String(entry.text || entry.body || entry.name || "").slice(
+    0,
+    160
+  );
+  console.log("[dry-run]", entry.kind, entry.phone || "", preview);
+  return { ok: true, dryRun: true };
+}
 
 const customerLedger = createCustomerLedger();
 const chatState = createChatState();
@@ -159,6 +185,7 @@ app.get("/health", (_req, res) => {
     drafts: drafts.size,
     paused: pausedChats.size,
     customers,
+    dryRun: isWebhookDryRun(),
   });
 });
 
@@ -186,6 +213,9 @@ app.post("/calculate/select-amount", (req, res) => {
 });
 
 async function postInteraktPayload(payload) {
+  if (isWebhookDryRun()) {
+    return { ok: true, dryRun: true, skipped: "interakt" };
+  }
   if (!INTERAKT_API_KEY) {
     throw new Error("INTERAKT_API_KEY غير موجود في ملف .env");
   }
@@ -256,6 +286,14 @@ async function postInteraktPayload(payload) {
 }
 
 async function sendInteraktText(countryCode, phoneNumber, message) {
+  if (isWebhookDryRun()) {
+    return recordDryRun({
+      kind: "text",
+      countryCode,
+      phone: phoneNumber,
+      text: String(message || ""),
+    });
+  }
   return postInteraktPayload({
     countryCode,
     phoneNumber,
@@ -275,6 +313,15 @@ async function sendInteraktTemplate(
   const templateName = String(name || "").trim();
   if (!templateName) {
     throw new Error("اسم قالب إنترأكت مطلوب");
+  }
+  if (isWebhookDryRun()) {
+    return recordDryRun({
+      kind: "template",
+      countryCode,
+      phone: phoneNumber,
+      name: templateName,
+      text: `[قالب] ${templateName}`,
+    });
   }
   const template = {
     name: templateName,
@@ -302,6 +349,24 @@ async function sendInteraktTemplate(
 async function sendInteraktInteractive(countryCode, phoneNumber, interactive) {
   if (!interactive || !interactive.kind) {
     throw new Error("interactive payload ناقص");
+  }
+
+  if (isWebhookDryRun()) {
+    const labels =
+      interactive.kind === "buttons"
+        ? (interactive.buttons || []).map((b) => b.title).filter(Boolean)
+        : (interactive.rows || []).map((r) => r.title).filter(Boolean);
+    return recordDryRun({
+      kind: "interactive",
+      countryCode,
+      phone: phoneNumber,
+      interactiveKind: interactive.kind,
+      body: String(interactive.body || ""),
+      labels,
+      text: [interactive.body, labels.length ? `[${labels.join(" | ")}]` : ""]
+        .filter(Boolean)
+        .join("\n"),
+    });
   }
 
   if (interactive.kind === "buttons") {
@@ -392,26 +457,9 @@ async function sendResultReply(countryCode, phone, result) {
 }
 
 /**
- * Webhook من Interakt — فعّله من Developer Settings
- * URL مثال: https://xxxx.trycloudflare.com/webhook/interakt
+ * معالجة رسالة واردة (Webhook أو محاكاة محلية)
  */
-app.post("/webhook/interakt", async (req, res) => {
-  try {
-    if (WEBHOOK_SECRET) {
-      const got =
-        req.get("x-interakt-secret") ||
-        req.get("x-webhook-secret") ||
-        req.query.secret ||
-        "";
-      if (String(got) !== WEBHOOK_SECRET) {
-        return res.status(401).json({ ok: false, error: "invalid secret" });
-      }
-    }
-
-    // رد سريع لـ Interakt (مهم)
-    res.status(200).json({ ok: true, received: true });
-
-    const payload = req.body || {};
+async function processInboundPayload(payload = {}) {
     const type = payload?.type || payload?.event || "";
     const incoming = extractIncomingMessage(payload);
     let { text, phone, countryCode, contentType, eventType, mediaUrl, isImage, isAudio } =
@@ -457,23 +505,36 @@ app.post("/webhook/interakt", async (req, res) => {
 
     let orderImageMiss = false;
     if (isImage && !looksLikeApplicationOrderNumber(text)) {
-      if (mediaUrl) {
+      let ocrText = "";
+      let fromImage = null;
+      if (isWebhookDryRun()) {
+        ocrText = String(payload?.data?.message?.ocr_text || "");
+        fromImage = extractOrderNumberFromOcr(ocrText);
+      } else if (mediaUrl) {
         try {
-          const fromImage = await readOrderNumberFromImage(mediaUrl);
-          if (fromImage) {
-            console.log("[order-image:ok]", phone, fromImage);
-            text = fromImage;
-          } else {
-            orderImageMiss = true;
-            console.log("[order-image:miss]", phone);
-          }
+          const inspected = await inspectOrderImage(mediaUrl);
+          fromImage = inspected.orderNumber;
+          ocrText = inspected.ocrText;
         } catch (err) {
-          orderImageMiss = true;
           console.error("[order-image:fail]", phone, err.message || err);
         }
       } else {
-        orderImageMiss = true;
         console.log("[order-image:miss:no-url]", phone);
+      }
+      if (fromImage) {
+        console.log("[order-image:ok]", phone, fromImage);
+        text = fromImage;
+      } else if (
+        shouldAskForOrderNumberFromImage({
+          caption: text,
+          ocrText,
+          orderNumber: fromImage,
+        })
+      ) {
+        orderImageMiss = true;
+        console.log("[order-image:miss]", phone);
+      } else {
+        console.log("[order-image:skip-ask]", phone);
       }
     }
 
@@ -938,11 +999,56 @@ app.post("/webhook/interakt", async (req, res) => {
         }
       }
     }
+}
+
+/**
+ * Webhook من Interakt — فعّله من Developer Settings
+ * URL مثال: https://xxxx.trycloudflare.com/webhook/interakt
+ */
+app.post("/webhook/interakt", async (req, res) => {
+  try {
+    if (WEBHOOK_SECRET) {
+      const got =
+        req.get("x-interakt-secret") ||
+        req.get("x-webhook-secret") ||
+        req.query.secret ||
+        "";
+      if (String(got) !== WEBHOOK_SECRET) {
+        return res.status(401).json({ ok: false, error: "invalid secret" });
+      }
+    }
+
+    // رد سريع لـ Interakt (مهم)
+    res.status(200).json({ ok: true, received: true });
+    await processInboundPayload(req.body || {});
   } catch (err) {
     console.error("[webhook:error]", err);
     if (!res.headersSent) {
       res.status(500).json({ ok: false });
     }
+  }
+});
+
+/**
+ * محاكاة محلية: أرسل رسالة كأنها من واتساب واحصل على رد البوت بدون إنترأكت
+ * يعمل فقط مع WEBHOOK_DRY_RUN=1
+ */
+app.post("/simulate/message", async (req, res) => {
+  if (!isWebhookDryRun()) {
+    return res.status(404).json({ ok: false, error: "simulate disabled" });
+  }
+  try {
+    drainDryRunOutbox();
+    const body = req.body || {};
+    const payload =
+      body.type || body.data
+        ? body
+        : buildCustomerMessagePayload(body);
+    await processInboundPayload(payload);
+    res.json({ ok: true, replies: drainDryRunOutbox() });
+  } catch (err) {
+    console.error("[simulate:error]", err);
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -981,28 +1087,41 @@ function gracefulShutdown(signal) {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-app.listen(PORT, () => {
-  console.log(`finance-calc-server على المنفذ ${PORT}`);
-  console.log(`Health: http://127.0.0.1:${PORT}/health`);
-  console.log(`Webhook: http://127.0.0.1:${PORT}/webhook/interakt`);
-  console.log(`Admin: http://127.0.0.1:${PORT}/admin`);
-  try {
-    const persistence = customerLedger.persistenceInfo();
-    console.log(
-      `[customers] ${persistence.count} عميل · ${persistence.durable ? "قرص دائم" : "تخزين مؤقت"} · ${persistence.dataFile}`
-    );
-    if (!persistence.durable) {
-      console.log(
-        "[customers] تنبيه: أضف Persistent Disk على /var/data واضبط CUSTOMERS_DATA_DIR=/var/data/kobri حتى لا يُمسح السجل بعد إعادة التشغيل"
-      );
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`finance-calc-server على المنفذ ${PORT}`);
+    if (isWebhookDryRun()) {
+      console.log("وضع الاختبار: WEBHOOK_DRY_RUN — ما راح تنرسل رسائل لواتساب");
+      console.log(`محاكاة: POST http://127.0.0.1:${PORT}/simulate/message`);
     }
-  } catch (err) {
-    console.error("[customers:persistence]", err.message);
-  }
-  if (!ADMIN_TOKEN) {
-    console.log("تنبيه: ضع ADMIN_TOKEN في ملف .env لتفعيل لوحة التحكم");
-  } else {
-    console.log(`Admin token length: ${ADMIN_TOKEN.length} (جاهز)`);
-    console.log(`رمز دخول اللوحة: ${ADMIN_TOKEN}`);
-  }
-});
+    console.log(`Health: http://127.0.0.1:${PORT}/health`);
+    console.log(`Webhook: http://127.0.0.1:${PORT}/webhook/interakt`);
+    console.log(`Admin: http://127.0.0.1:${PORT}/admin`);
+    try {
+      const persistence = customerLedger.persistenceInfo();
+      console.log(
+        `[customers] ${persistence.count} عميل · ${persistence.durable ? "قرص دائم" : "تخزين مؤقت"} · ${persistence.dataFile}`
+      );
+      if (!persistence.durable) {
+        console.log(
+          "[customers] تنبيه: أضف Persistent Disk على /var/data واضبط CUSTOMERS_DATA_DIR=/var/data/kobri حتى لا يُمسح السجل بعد إعادة التشغيل"
+        );
+      }
+    } catch (err) {
+      console.error("[customers:persistence]", err.message);
+    }
+    if (!ADMIN_TOKEN) {
+      console.log("تنبيه: ضع ADMIN_TOKEN في ملف .env لتفعيل لوحة التحكم");
+    } else {
+      console.log(`Admin token length: ${ADMIN_TOKEN.length} (جاهز)`);
+      console.log(`رمز دخول اللوحة: ${ADMIN_TOKEN}`);
+    }
+  });
+}
+
+module.exports = {
+  app,
+  processInboundPayload,
+  drainDryRunOutbox,
+  isWebhookDryRun,
+};

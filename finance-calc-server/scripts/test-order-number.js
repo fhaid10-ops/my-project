@@ -5,6 +5,9 @@ const {
   extractOrderNumberFromOcr,
   buildOrderNumberAckReply,
   buildOrderImageMissReply,
+  looksLikeThanksOrBlessing,
+  looksLikeOrderScreenshot,
+  shouldAskForOrderNumberFromImage,
 } = require("../lib/order-number");
 const CONFIG = require("../config");
 
@@ -68,5 +71,44 @@ assert.strictEqual(
 const miss = buildOrderImageMissReply(CONFIG.messages);
 assert.match(miss, /ما قدرت أقرأ رقم الطلب/);
 assert.match(miss, /8 أرقام/);
+
+assert.ok(looksLikeThanksOrBlessing("بارك الله فيك"));
+assert.ok(looksLikeThanksOrBlessing("شكراً لك"));
+assert.ok(looksLikeThanksOrBlessing("thank you"));
+assert.ok(!looksLikeThanksOrBlessing("تم تقديم الطلب بنجاح"));
+
+assert.ok(looksLikeOrderScreenshot("رقم طلبك الحالي"));
+assert.ok(looksLikeOrderScreenshot("تم تقديم الطلب بنجاح"));
+assert.ok(!looksLikeOrderScreenshot("بارك الله فيك"));
+
+assert.strictEqual(
+  shouldAskForOrderNumberFromImage({
+    caption: "بارك الله فيك",
+    ocrText: "بارك الله فيك الله يعافيك",
+  }),
+  false
+);
+assert.strictEqual(
+  shouldAskForOrderNumberFromImage({
+    caption: "",
+    ocrText: "مرحبا",
+  }),
+  false
+);
+assert.strictEqual(
+  shouldAskForOrderNumberFromImage({
+    caption: "",
+    ocrText: "تم تقديم الطلب بنجاح\nرقم طلبك الحالي",
+  }),
+  true
+);
+assert.strictEqual(
+  shouldAskForOrderNumberFromImage({
+    caption: "شكرا",
+    ocrText: "رقم الطلب 10171915",
+    orderNumber: "10171915",
+  }),
+  false
+);
 
 console.log("OK: order number ack (101 + 8 digits)");

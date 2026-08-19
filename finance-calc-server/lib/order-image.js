@@ -196,9 +196,10 @@ function enqueue(fn) {
   return run;
 }
 
-async function readOrderNumberFromImage(url, deps = {}) {
-  if (!isOcrEnabled()) return null;
-  if (!url) return null;
+async function inspectOrderImage(url, deps = {}) {
+  if (!isOcrEnabled() || !url) {
+    return { orderNumber: null, ocrText: "" };
+  }
   return enqueue(async () => {
     const buf = await downloadImage(url, deps);
     const ocrText =
@@ -212,8 +213,16 @@ async function readOrderNumberFromImage(url, deps = {}) {
         String(ocrText || "").replace(/\s+/g, " ").slice(0, 220)
       );
     }
-    return found;
+    return {
+      orderNumber: found || null,
+      ocrText: String(ocrText || ""),
+    };
   });
+}
+
+async function readOrderNumberFromImage(url, deps = {}) {
+  const inspected = await inspectOrderImage(url, deps);
+  return inspected.orderNumber;
 }
 
 module.exports = {
@@ -223,6 +232,7 @@ module.exports = {
   isSafeMediaUrl,
   looksLikeImageBuffer,
   downloadImage,
+  inspectOrderImage,
   readOrderNumberFromImage,
   extractOrderNumberFromOcr,
 };
