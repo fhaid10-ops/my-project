@@ -181,6 +181,20 @@ async function waitBulkJob(timeoutMs = 3000) {
   const lookupEmpty = await req("GET", "/customers/lookup?phone=");
   assert.strictEqual(lookupEmpty.status, 400);
 
+  customerLedger.recordInbound("+966", "551850488", "بحث");
+  customerLedger.recordInbound("+966", "551850499", "بحث");
+  const prefix = await req("GET", "/customers/search?phone=0551");
+  assert.strictEqual(prefix.status, 200, prefix.json?.error || "search ok");
+  const prefixPhones = (prefix.json.customers || []).map((c) => c.phone);
+  assert.ok(prefixPhones.includes("551850488"), "0551 يطلع 0551850488");
+  assert.ok(prefixPhones.includes("551850499"));
+  assert.ok(prefixPhones.includes("551234567"), "0551234567 يبدأ بـ 0551");
+  const full = await req("GET", "/customers/search?phone=0551850488");
+  assert.ok((full.json.customers || []).some((c) => c.phone === "551850488"));
+  const short = await req("GET", "/customers/search?phone=05");
+  assert.strictEqual(short.status, 200);
+  assert.strictEqual((short.json.customers || []).length, 0);
+
   const archive = await req("POST", "/customers/archive", {
     phone: "0551234567",
     archived: true,

@@ -10,7 +10,7 @@ const {
 } = require("./customer-ledger");
 
 /** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
-const ADMIN_UI_VERSION = "20260819r5";
+const ADMIN_UI_VERSION = "20260819r6";
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
@@ -648,6 +648,30 @@ function createAdminRouter(deps) {
     res.json({
       ok: true,
       customer: toAdminCustomer(row, { includeEvents: true }),
+    });
+  });
+
+  router.get("/customers/search", requireAdmin, (req, res) => {
+    if (!customerLedger) {
+      return res.status(503).json({
+        ok: false,
+        error: "سجل العملاء غير مفعّل على هذا السيرفر",
+      });
+    }
+    const query = String(req.query.phone || req.query.q || "").trim();
+    const digits = String(query).replace(/\D/g, "");
+    if (digits.length < 3) {
+      return res.json({ ok: true, query, count: 0, customers: [] });
+    }
+    if (typeof customerLedger.searchByPhone !== "function") {
+      return res.status(501).json({ ok: false, error: "البحث غير متاح" });
+    }
+    const rows = customerLedger.searchByPhone(query, { limit: 50 });
+    res.json({
+      ok: true,
+      query,
+      count: rows.length,
+      customers: rows.map((row) => toAdminCustomer(row)),
     });
   });
 
