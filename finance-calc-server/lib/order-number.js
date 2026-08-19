@@ -8,16 +8,23 @@ const ORDER_DIGITS = 8;
 const ORDER_NUMBER_RE = /^101\d{5}$/;
 
 function extractOrderCandidate(raw) {
-  const digitsOnly = String(raw || "").replace(/\D/g, "");
+  const text = String(raw || "");
+  const digitsOnly = text.replace(/\D/g, "");
   if (ORDER_NUMBER_RE.test(digitsOnly)) return digitsOnly;
 
+  // شاشة النجاح في البوابة: «رقم طلبك الحالي ١٠١٧١٩٩٢»
+  const current = text.match(
+    /رقم\s*طلب(?:ك|ي|ال)?(?:\s*الحالي)?[^\d]{0,24}(101\d{5})/i
+  );
+  if (current) return current[1];
+
   // «رقم الطلب: 101xxxxx» داخل نص أطول
-  const labeled = String(raw || "").match(
+  const labeled = text.match(
     /(?:رقم\s*الطلب|طلب(?:ي)?)\s*[:：\-]?\s*(101\d{5})\b/i
   );
   if (labeled) return labeled[1];
 
-  const embedded = String(raw || "").match(/\b(101\d{5})\b/);
+  const embedded = text.match(/\b(101\d{5})\b/);
   if (embedded) return embedded[1];
 
   return null;
@@ -82,7 +89,7 @@ function parseApplicationOrderNumber(text) {
   }
 
   if (
-    /(?:رقم\s*الطلب|طلب(?:ي)?)/i.test(raw) &&
+    /(?:رقم\s*الطلب|رقم\s*طلب(?:ك|ي)?|طلب(?:ي)?)/i.test(raw) &&
     digitsOnly.includes(candidate)
   ) {
     return candidate;

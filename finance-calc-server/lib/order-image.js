@@ -94,6 +94,7 @@ async function downloadImage(url, { fetchImpl = fetch } = {}) {
 }
 
 const OCR_LANGS = ["ara+eng", "eng"];
+const OCR_DIGIT_WHITELIST = "0123456789٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹";
 
 async function createOcrWorker(create) {
   let lastErr;
@@ -137,12 +138,53 @@ function withTimeout(promise, ms, label) {
 
 async function recognizeDigits(buffer, { createWorkerFn } = {}) {
   const worker = await getWorker(createWorkerFn);
-  const { data } = await withTimeout(
+  const texts = [];
+
+  const first = await withTimeout(
     worker.recognize(buffer),
     OCR_TIMEOUT_MS,
     "ocr timeout"
   );
-  return String(data?.text || "");
+  texts.push(String(first?.data?.text || ""));
+  if (extractOrderNumberFromOcr(texts[0])) return texts[0];
+
+  const extraPasses = [
+    { tessedit_char_whitelist: OCR_DIGIT_WHITELIST },
+    { tessedit_pageseg_mode: "6" },
+    { tessedit_pageseg_mode: "11" },
+  ];
+  for (const params of extraPasses) {
+    try {
+      await worker.setParameters(params);
+      const { data } = await withTimeout(
+        worker.recognize(buffer),
+        OCR_TIMEOUT_MS,
+        "ocr timeout"
+      );
+      const piece = String(data?.text || "");
+      texts.push(piece);
+      if (extractOrderNumberFromOcr(piece)) {
+        await resetOcrParameters(worker);
+        return piece;
+      }
+    } catch (err) {
+      console.error("[order-image] ocr pass fail", err.message || err);
+    }
+  }
+  await resetOcrParameters(worker);
+  return texts.filter(Boolean).join("\n");
+}
+
+async function resetOcrParameters(worker) {
+  if (!worker || typeof worker.setParameters !== "function") return;
+  try {
+    await worker.setParameters({
+      tessedit_char_whitelist: "",
+      tessedit_pageseg_mode: "3",
+    });
+  } catch {
+    // تجاهل — نكمل بالنص اللي تجمع
+  }
 }
 
 function enqueue(fn) {
@@ -163,7 +205,14 @@ async function readOrderNumberFromImage(url, deps = {}) {
       typeof deps.recognizeFn === "function"
         ? await deps.recognizeFn(buf)
         : await recognizeDigits(buf, deps);
-    return extractOrderNumberFromOcr(ocrText);
+    const found = extractOrderNumberFromOcr(ocrText);
+    if (!found) {
+      console.log(
+        "[order-image:ocr-text]",
+        String(ocrText || "").replace(/\s+/g, " ").slice(0, 220)
+      );
+    }
+    return found;
   });
 }
 

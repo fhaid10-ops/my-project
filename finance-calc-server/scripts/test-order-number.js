@@ -46,8 +46,24 @@ assert.strictEqual(
   ),
   "10171915"
 );
+assert.strictEqual(
+  extractOrderNumberFromOcr(
+    "تم تقديم الطلب بنجاح!\nتهانينا! أنت مؤهل للحصول على مبلغ ٢٢١,٤٦٢ ر.س بحد أقصى بناءً على رقم طلبك الحالي ١٠١٧١٩٩٢."
+  ),
+  "10171992"
+);
+assert.strictEqual(
+  extractOrderNumberFromOcr(
+    "Congratulations! eligible for 221,462 SAR based on your current request number 10171992."
+  ),
+  "10171992"
+);
 assert.strictEqual(parseApplicationOrderNumber("١٠١٧١٩١٥"), "10171915");
 assert.strictEqual(parseApplicationOrderNumber("رقم الطلب ١٠١٧١٩١٥"), "10171915");
+assert.strictEqual(
+  parseApplicationOrderNumber("رقم طلبك الحالي ١٠١٧١٩٩٢"),
+  "10171992"
+);
 
 const miss = buildOrderImageMissReply(CONFIG.messages);
 assert.match(miss, /ما قدرت أقرأ رقم الطلب/);

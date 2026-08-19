@@ -260,6 +260,22 @@ check("صورة واردة تعطي mediaUrl و isImage", () => {
   assert.strictEqual(got.contentType, "Image");
 });
 
+check("رابط الصورة من attachments", () => {
+  const got = extractIncomingMessage({
+    type: "message_received",
+    data: {
+      customer: { phone_number: "501234567", country_code: "+966" },
+      message: {
+        message_content_type: "Media",
+        message: "",
+        attachments: [{ url: "https://cdn.interakt.ai/media/success.jpg" }],
+      },
+    },
+  });
+  assert.strictEqual(got.isImage, true);
+  assert.strictEqual(got.mediaUrl, "https://cdn.interakt.ai/media/success.jpg");
+});
+
 check("تعليق الصورة يبقى نصاً مع الرابط", () => {
   const got = extractIncomingMessage({
     type: "message_received",

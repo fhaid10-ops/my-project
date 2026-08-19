@@ -298,11 +298,18 @@ function pickMediaUrl(messageObj = {}, data = {}) {
     messageObj.mediaUrl,
     messageObj.file_url,
     messageObj.image_url,
+    messageObj.media_link,
+    messageObj.original_url,
+    messageObj.originalUrl,
     data.media_url,
     meta.media_url,
     messageObj?.image?.url,
     messageObj?.image?.link,
     messageObj?.media?.url,
+    messageObj?.media?.[0]?.url,
+    messageObj?.files?.[0]?.url,
+    messageObj?.attachments?.[0]?.url,
+    messageObj?.attachments?.[0]?.media_url,
   ];
   for (const c of candidates) {
     const s = asTrimmedString(c);
@@ -313,7 +320,7 @@ function pickMediaUrl(messageObj = {}, data = {}) {
 
 function looksLikeIncomingImage(contentType, mediaUrl, messageObj = {}) {
   const type = String(contentType || "").toLowerCase();
-  if (/image|photo|jpeg|jpg|png|webp|gif/.test(type)) return true;
+  if (/image|photo|jpeg|jpg|png|webp|gif|media/.test(type)) return true;
   const mime = String(
     messageObj.mime_type || messageObj.mimetype || messageObj?.image?.mime_type || ""
   ).toLowerCase();

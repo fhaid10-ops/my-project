@@ -404,19 +404,24 @@ app.post("/webhook/interakt", async (req, res) => {
     }
 
     let orderImageMiss = false;
-    if (isImage && mediaUrl && !looksLikeApplicationOrderNumber(text)) {
-      try {
-        const fromImage = await readOrderNumberFromImage(mediaUrl);
-        if (fromImage) {
-          console.log("[order-image:ok]", phone, fromImage);
-          text = fromImage;
-        } else {
+    if (isImage && !looksLikeApplicationOrderNumber(text)) {
+      if (mediaUrl) {
+        try {
+          const fromImage = await readOrderNumberFromImage(mediaUrl);
+          if (fromImage) {
+            console.log("[order-image:ok]", phone, fromImage);
+            text = fromImage;
+          } else {
+            orderImageMiss = true;
+            console.log("[order-image:miss]", phone);
+          }
+        } catch (err) {
           orderImageMiss = true;
-          console.log("[order-image:miss]", phone);
+          console.error("[order-image:fail]", phone, err.message || err);
         }
-      } catch (err) {
+      } else {
         orderImageMiss = true;
-        console.error("[order-image:fail]", phone, err.message || err);
+        console.log("[order-image:miss:no-url]", phone);
       }
     }
 
@@ -444,7 +449,7 @@ app.post("/webhook/interakt", async (req, res) => {
         draft?.civilianSubtype || currentSession?.civilianSubtype || null,
     });
 
-    if (!text && isImage && orderImageMiss) {
+    if (orderImageMiss && !looksLikeApplicationOrderNumber(text)) {
       if (isChatPaused(countryCode, phone)) return;
       result = {
         ok: true,
