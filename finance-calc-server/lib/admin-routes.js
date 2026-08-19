@@ -65,6 +65,7 @@ function createAdminRouter(deps) {
     isChatPaused,
     saveDraft,
     sendInteraktText,
+    sendInteraktTemplate,
     sendResultReply,
     showMainMenu,
     interaktConfigured,
@@ -90,6 +91,7 @@ function createAdminRouter(deps) {
     startedAt: null,
     finishedAt: null,
     hint: "",
+    via: "",
     results: [],
   };
 
@@ -107,6 +109,33 @@ function createAdminRouter(deps) {
       month: "2-digit",
       day: "2-digit",
     }).format(d);
+  }
+
+  function getFollowupTemplateConfig(body = {}) {
+    const name = String(
+      body.templateName ||
+        body.template ||
+        process.env.INTERAKT_FOLLOWUP_TEMPLATE ||
+        CONFIG.followUp?.interaktTemplateName ||
+        ""
+    ).trim();
+    const languageCode = String(
+      body.templateLang ||
+        process.env.INTERAKT_FOLLOWUP_TEMPLATE_LANG ||
+        CONFIG.followUp?.interaktTemplateLang ||
+        "ar"
+    )
+      .trim()
+      .toLowerCase() || "ar";
+    let bodyValues = body.bodyValues;
+    if (typeof bodyValues === "string") {
+      bodyValues = bodyValues
+        .split(/[\n,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    if (!Array.isArray(bodyValues)) bodyValues = [];
+    return { name, languageCode, bodyValues };
   }
 
   function getBulkFollowupSafeConfig() {
@@ -405,6 +434,7 @@ function createAdminRouter(deps) {
       followUpPreview: CONFIG.followUp?.electronicMessage || "",
       followUpPlusPreview: CONFIG.followUp?.plusMessage || "",
       followUpBlastPreview: CONFIG.followUp?.blastMessage || "",
+      followUpTemplate: getFollowupTemplateConfig(),
       outboundDelayMs: getBulkFollowupSafeConfig().delayMs,
       bulkJob: snapshotBulkJob(),
       outboundSafe: (() => {
@@ -1137,6 +1167,25 @@ function createAdminRouter(deps) {
       fromOutcome === "plus";
     const isFinanceLinkWave =
       fromOutcome === "finance_link" || fromOutcome === "أخذ رابط التمويل";
+    const via = String(req.body?.via || req.body?.channel || "")
+      .trim()
+      .toLowerCase();
+    const viaTemplate = via === "template" || via === "interakt";
+    const templateCfg = getFollowupTemplateConfig(req.body || {});
+
+    if (viaTemplate && !templateCfg.name) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "اكتب اسم قالب إنترأكت المعتمد (الكود من القوالب، مثل followup_order). بدون قالب واتساب ما يرسل خارج 24 ساعة.",
+      });
+    }
+    if (viaTemplate && typeof sendInteraktTemplate !== "function") {
+      return res.status(503).json({
+        ok: false,
+        error: "إرسال قوالب إنترأكت غير مفعّل على هذا السيرفر",
+      });
+    }
 
     const message =
       String(req.body?.message || "").trim() ||
@@ -1157,7 +1206,7 @@ function createAdminRouter(deps) {
       safe.maxBatchSize
     );
 
-    if (!message) {
+    if (!viaTemplate && !message) {
       return res.status(400).json({ ok: false, error: "نص المتابعة فارغ" });
     }
 
@@ -1265,10 +1314,17 @@ function createAdminRouter(deps) {
         skipped.push({ phone: parts.phone, reason: "تمت المتابعة مسبقاً" });
         continue;
       }
-      if ((isFinanceLinkWave || isPlusWave) && !isInsideWhatsappSession(raw)) {
+      if ((isFinanceLinkWave || isPlusWave) && !viaTemplate && !isInsideWhatsappSession(raw)) {
         skipped.push({
           phone: parts.phone,
           reason: "خارج نافذة واتساب 24 ساعة — يلزم قالب إنترأكت",
+        });
+        continue;
+      }
+      if (viaTemplate && isInsideWhatsappSession(raw)) {
+        skipped.push({
+          phone: parts.phone,
+          reason: "داخل 24 ساعة — يُرسل برسالة عادية من الزر الآخر",
         });
         continue;
       }
@@ -1298,12 +1354,17 @@ function createAdminRouter(deps) {
       for (let i = 0; i < toSend.length; i += 1) {
         const parts = toSend[i];
         try {
-          const interakt = await sendInteraktText(parts.countryCode, parts.phone, message);
+          const interakt = viaTemplate
+            ? await sendInteraktTemplate(parts.countryCode, parts.phone, templateCfg)
+            : await sendInteraktText(parts.countryCode, parts.phone, message);
+          const outboundPreview = viaTemplate
+            ? `${message || "متابعة عبر قالب إنترأكت"}\n(قالب إنترأكت: ${templateCfg.name})`
+            : message;
           customerLedger?.recordOutbound?.(
             parts.countryCode,
             parts.phone,
-            message,
-            { mode: isPlusWave ? "admin-bulk-followup-plus" : "admin-bulk-followup" }
+            outboundPreview,
+            { mode: viaTemplate ? "admin-bulk-followup-template" : isPlusWave ? "admin-bulk-followup-plus" : "admin-bulk-followup" }
           );
           if (isPlusWave) {
             customerLedger?.setFollowupPlus?.(parts.countryCode, parts.phone, true);
@@ -1392,8 +1453,10 @@ function createAdminRouter(deps) {
         ok: false,
         error: deferred.length
           ? `تم بلوغ الحد اليومي (${safe.dailyLimit}). تبقّى ${deferred.length}.`
-          : outsideSkip
-            ? `ما في أحد داخل نافذة واتساب 24 ساعة. ${outsideSkip} يحتاجون حملة قالب إنترأكت — حمّل CSV.`
+          : viaTemplate
+            ? "ما فيه عملاء خارج نافذة 24 ساعة لإرسال قالب إنترأكت"
+            : outsideSkip
+            ? `ما في أحد داخل نافذة واتساب 24 ساعة. ${outsideSkip} يحتاجون إرسال عبر إنترأكت (قالب).`
             : isFinanceLinkWave
               ? "لا يوجد عملاء في «رابط — بدون متابعة»"
               : "لا يوجد عملاء مؤهلون لمتابعة بلس",
@@ -1425,7 +1488,10 @@ function createAdminRouter(deps) {
       bulkFollowupJob.error = null;
       bulkFollowupJob.startedAt = new Date().toISOString();
       bulkFollowupJob.finishedAt = null;
-      bulkFollowupJob.hint = `جاري الإرسال لـ ${toSend.length} داخل نافذة 24 ساعة`;
+      bulkFollowupJob.via = viaTemplate ? "interakt" : "session";
+      bulkFollowupJob.hint = viaTemplate
+        ? `جاري إرسال قالب إنترأكت لـ ${toSend.length}`
+        : `جاري الإرسال لـ ${toSend.length} داخل نافذة 24 ساعة`;
       bulkFollowupJob.results = [];
       const outsideSkip = skipped.filter((s) =>
         /24 ساعة/.test(s.reason || "")
@@ -1434,6 +1500,8 @@ function createAdminRouter(deps) {
         ok: true,
         started: true,
         sendAll: true,
+        via: viaTemplate ? "interakt" : "session",
+        template: viaTemplate ? templateCfg.name : undefined,
         queued: toSend.length,
         skipped: skipped.length,
         outsideWindow: outsideSkip,
@@ -1444,11 +1512,12 @@ function createAdminRouter(deps) {
         dailyRemaining: Math.max(safe.dailyLimit - usage.count - toSend.length, 0),
         bulkJob: snapshotBulkJob(),
         ...getFinanceLinkFollowupStats(),
-        hint:
-          `بدأ إرسال ${toSend.length} داخل نافذة واتساب 24 ساعة.` +
-          (outsideSkip
-            ? ` تُخطّي ${outsideSkip} خارج النافذة — حمّل CSV وأرسلهم بقالب إنترأكت.`
-            : ` التأخير ${Math.round(delayMs / 1000)} ثانية بين كل رسالة.`),
+        hint: viaTemplate
+          ? `بدأ إرسال قالب إنترأكت «${templateCfg.name}» لـ ${toSend.length} خارج 24 ساعة.`
+          : `بدأ إرسال ${toSend.length} داخل نافذة واتساب 24 ساعة.` +
+            (outsideSkip
+              ? ` تُخطّي ${outsideSkip} خارج النافذة — اضغط «إرسال عبر إنترأكت».`
+              : ` التأخير ${Math.round(delayMs / 1000)} ثانية بين كل رسالة.`),
       });
       deliverBulkQueue()
         .then((results) => {

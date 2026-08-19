@@ -52,8 +52,12 @@ app.use(
     saveDraft: (cc, phone, data) =>
       drafts.set(sessionKey(cc, phone), { data, savedAt: Date.now() }),
     sendInteraktText: async (cc, phone, message) => {
-      sent.push({ cc, phone, message });
+      sent.push({ cc, phone, message, type: "Text" });
       return { ok: true };
+    },
+    sendInteraktTemplate: async (cc, phone, template) => {
+      sent.push({ cc, phone, template, type: "Template" });
+      return { ok: true, id: "tpl-test" };
     },
     sendResultReply: async (cc, phone, result) => {
       sent.push({ cc, phone, result });
@@ -601,6 +605,46 @@ async function waitBulkJob(timeoutMs = 3000) {
   const sentAfterAll = await req("GET", "/customers?day=finance_link_sent");
   assert.ok((sentAfterAll.json.customers || []).some((c) => c.phone === "550000007"));
   assert.ok((sentAfterAll.json.customers || []).some((c) => c.phone === "550000008"));
+
+  const noTpl = await req("POST", "/bulk-followup", {
+    fromOutcome: "finance_link",
+    sendAll: true,
+    via: "template",
+    delayMs: 0,
+  });
+  assert.strictEqual(noTpl.status, 400, "قالب إنترأكت مطلوب");
+
+  const tplSend = await req("POST", "/bulk-followup", {
+    fromOutcome: "finance_link",
+    sendAll: true,
+    via: "interakt",
+    templateName: "followup_order",
+    delayMs: 0,
+  });
+  assert.strictEqual(tplSend.status, 200, tplSend.json?.error || "template send ok");
+  assert.strictEqual(tplSend.json.via, "interakt");
+  assert.ok((tplSend.json.queued || 0) >= 1, "يطابور خارج 24 ساعة للقالب");
+  const tplJob = await waitBulkJob();
+  assert.ok(
+    (tplJob.results || []).some((r) => r.ok && r.phone === "550000009"),
+    "009 يُرسل عبر قالب إنترأكت"
+  );
+  assert.ok(
+    sent.some(
+      (s) =>
+        s.phone === "550000009" &&
+        s.type === "Template" &&
+        s.template?.name === "followup_order"
+    ),
+    "استُدعي sendInteraktTemplate لـ 009"
+  );
+  const pendingAfterTpl = await req("GET", "/customers?day=finance_link_pending");
+  assert.ok(
+    !(pendingAfterTpl.json.customers || []).some((c) => c.phone === "550000009"),
+    "بعد قالب إنترأكت ينتقل 009 إلى تمت المتابعة"
+  );
+  const sentAfterTpl = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok((sentAfterTpl.json.customers || []).some((c) => c.phone === "550000009"));
   CONFIG.outbound = prevOutbound;
 
   CONFIG.outbound = {

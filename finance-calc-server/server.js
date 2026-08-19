@@ -266,6 +266,38 @@ async function sendInteraktText(countryCode, phoneNumber, message) {
   });
 }
 
+/** رسالة قالب معتمد — تعمل خارج نافذة واتساب 24 ساعة */
+async function sendInteraktTemplate(
+  countryCode,
+  phoneNumber,
+  { name, languageCode = "ar", bodyValues = [], headerValues, buttonValues } = {}
+) {
+  const templateName = String(name || "").trim();
+  if (!templateName) {
+    throw new Error("اسم قالب إنترأكت مطلوب");
+  }
+  const template = {
+    name: templateName,
+    languageCode: String(languageCode || "ar").trim() || "ar",
+  };
+  if (Array.isArray(bodyValues) && bodyValues.length) {
+    template.bodyValues = bodyValues.map((v) => String(v));
+  }
+  if (Array.isArray(headerValues) && headerValues.length) {
+    template.headerValues = headerValues.map((v) => String(v));
+  }
+  if (buttonValues && typeof buttonValues === "object") {
+    template.buttonValues = buttonValues;
+  }
+  return postInteraktPayload({
+    countryCode,
+    phoneNumber,
+    type: "Template",
+    callbackData: "admin-followup-template",
+    template,
+  });
+}
+
 /** أزرار Quick Reply أو قائمة InteractiveList عبر Interakt */
 async function sendInteraktInteractive(countryCode, phoneNumber, interactive) {
   if (!interactive || !interactive.kind) {
@@ -927,6 +959,7 @@ mountAdmin(app, {
   isChatPaused,
   saveDraft,
   sendInteraktText,
+  sendInteraktTemplate,
   sendResultReply,
   showMainMenu,
   interaktConfigured: Boolean(INTERAKT_API_KEY),

@@ -26,6 +26,7 @@ function isFollowupOutboundMode(mode) {
   return (
     m === "admin-followup" ||
     m === "admin-bulk-followup" ||
+    m === "admin-bulk-followup-template" ||
     m === "admin-ask-plus" ||
     m === "admin-bulk-followup-plus"
   );

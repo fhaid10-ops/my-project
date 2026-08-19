@@ -454,12 +454,21 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       </div>
       <div class="card" id="bulk-followup-card">
         <p class="muted" style="margin-bottom:12px">
-          ضغطة واحدة ترسل لكل عملاء «رابط — بدون متابعة». بعد كل رسالة ينتقل العميل إلى «رابط — تمت المتابعة»
-          ويبقى هناك حتى لو ردّ البوت. التأخير بين الرسائل لحماية الواتساب من الحظر.
+          «إرسال لكل بدون متابعة» يرسل رسالة عادية فقط لمن راسلكم خلال 24 ساعة.
+          الباقي اضغط «إرسال عبر إنترأكت» بقالب واتساب معتمد — هذا اللي يمرّ خارج النافذة.
+          بعد كل إرسال ينتقل العميل إلى «رابط — تمت المتابعة».
         </p>
         <label class="field">
-          <span>نص الرسالة</span>
+          <span>نص الرسالة (لمن داخل 24 ساعة)</span>
           <textarea id="bulk-followup-message" rows="4" placeholder="السلام عليكم..."></textarea>
+        </label>
+        <label class="field">
+          <span>كود قالب إنترأكت — من Templates (مو العنوان العربي)</span>
+          <input id="bulk-followup-template" dir="ltr" style="text-align:left" placeholder="followup_order" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>متغيرات القالب (اختياري) — {{1}} {{2}} مفصولة بفاصلة</span>
+          <input id="bulk-followup-template-vars" placeholder="اتركه فارغ إذا القالب بدون متغيرات" />
         </label>
         <div class="btn-row" style="margin-bottom:12px;align-items:end">
           <label class="field" style="margin:0;flex:1;min-width:140px">
@@ -475,7 +484,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         <p class="muted" id="bulk-followup-window" style="margin:0 0 12px">داخل 24 ساعة: — · خارج النافذة: —</p>
         <div class="btn-row">
           <button id="bulk-followup-send" class="btn primary" type="button">إرسال لكل بدون متابعة</button>
-          <button id="bulk-followup-csv" class="btn secondary" type="button">CSV لخارج 24 ساعة</button>
+          <button id="bulk-followup-interakt" class="btn primary" type="button">إرسال عبر إنترأكت</button>
+          <button id="bulk-followup-csv" class="btn secondary" type="button">CSV احتياطي</button>
           <button id="bulk-followup-refresh" class="btn secondary" type="button">تحديث الحصة</button>
         </div>
         <p id="bulk-followup-status" class="status" hidden></p>
@@ -498,6 +508,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         <p class="muted" id="bulk-followup-plus-quota" style="margin:0 0 12px">مؤهلون لمتابعة بلس: —</p>
         <div class="btn-row">
           <button id="bulk-followup-plus-send" class="btn primary" type="button">إرسال متابعة بلس</button>
+          <button id="bulk-followup-plus-interakt" class="btn secondary" type="button">بلس عبر إنترأكت</button>
         </div>
         <p id="bulk-followup-plus-status" class="status" hidden></p>
       </div>
@@ -507,7 +518,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "2026-08-19-followup-24h";
+  const UI_VERSION = "2026-08-19-followup-interakt";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -1054,6 +1065,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           ? `رسالة عادية تصل لـ ${inside} (تحدثوا خلال 24 ساعة) · ${outside ?? 0} خارج النافذة يلزم قالب إنترأكت`
           : "نافذة واتساب: —";
     }
+    const tpl = document.getElementById("bulk-followup-template");
+    if (tpl && !tpl.dataset.touched) {
+      tpl.value = status?.followUpTemplate?.name || tpl.value || "";
+    }
     const plusMsg = document.getElementById("bulk-followup-plus-message");
     if (plusMsg && !plusMsg.dataset.touched) {
       plusMsg.value = status?.followUpPlusPreview || plusMsg.value || "";
@@ -1497,12 +1512,112 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   const bulkDelay = document.getElementById("bulk-followup-delay-sec");
   const bulkLimit = document.getElementById("bulk-followup-limit");
   const bulkPlusMsg = document.getElementById("bulk-followup-plus-message");
-  [bulkMsg, bulkDelay, bulkLimit, bulkPlusMsg].forEach((el) => {
+  const bulkTemplate = document.getElementById("bulk-followup-template");
+  const bulkTemplateVars = document.getElementById("bulk-followup-template-vars");
+  [bulkMsg, bulkDelay, bulkLimit, bulkPlusMsg, bulkTemplate, bulkTemplateVars].forEach((el) => {
     if (!el) return;
     el.addEventListener("input", () => {
       el.dataset.touched = "1";
     });
   });
+
+  function readTemplatePayload() {
+    return {
+      templateName: String(bulkTemplate?.value || "").trim(),
+      bodyValues: String(bulkTemplateVars?.value || "").trim(),
+    };
+  }
+
+  async function runBulkFollowupSend({
+    fromOutcome,
+    via,
+    message,
+    delaySec,
+    confirmText,
+    statusEl,
+    sendButtons,
+    runningLabel,
+    afterTab,
+  }) {
+    statusEl.hidden = false;
+    statusEl.className = "status";
+    statusEl.style.color = "";
+    statusEl.textContent = runningLabel;
+    (sendButtons || []).forEach((btn) => {
+      if (btn) btn.disabled = true;
+    });
+    try {
+      const body = {
+        fromOutcome,
+        sendAll: true,
+        message,
+        delayMs: delaySec * 1000,
+      };
+      if (via) {
+        body.via = via;
+        const tpl = readTemplatePayload();
+        body.templateName = tpl.templateName;
+        if (tpl.bodyValues) body.bodyValues = tpl.bodyValues;
+      }
+      let result;
+      try {
+        result = await api("/bulk-followup", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+      } catch (err) {
+        const status = await api("/status");
+        if (!status.bulkJob?.running) throw err;
+        result = {
+          started: true,
+          queued: status.bulkJob.queued,
+          bulkJob: status.bulkJob,
+          hint: "جاري إرسال متابعة حالياً — نتابع التقدم",
+        };
+      }
+      const pollMs = Math.max(Number(result.pollMs || 2500), 1000);
+      statusEl.textContent =
+        result.hint || `جاري الإرسال... 0 من ${result.queued ?? "—"}`;
+      let job = result.bulkJob || { running: Boolean(result.started), queued: result.queued };
+      const deadline = Date.now() + 6 * 60 * 60 * 1000;
+      while (job.running && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, pollMs));
+        const status = await api("/status");
+        applyBulkFollowupDefaults(status);
+        updateLiveCounts(status.counts, status.persistence);
+        job = status.bulkJob || {};
+        renderBulkReceipt(job);
+        const queued = job.queued || result.queued || 0;
+        const viaLabel = job.via === "interakt" || via === "interakt" ? "قالب إنترأكت" : "داخل 24 ساعة";
+        statusEl.textContent =
+          `جاري الإرسال (${viaLabel})... ${job.sent || 0} من ${queued}` +
+          (job.failed ? ` · فشل ${job.failed}` : "") +
+          (job.lastError ? ` · ${job.lastError}` : "") +
+          (job.lastPhone ? ` · آخر رقم ${job.lastPhone}` : "");
+      }
+      const finalStatus = await api("/status");
+      job = finalStatus.bulkJob || job;
+      applyBulkFollowupDefaults(finalStatus);
+      renderBulkReceipt(job);
+      if (afterTab) setCustomerTab(afterTab);
+      await refreshAll();
+      statusEl.className = job.error ? "status" : "status ok";
+      if (job.error) statusEl.style.color = "var(--danger)";
+      statusEl.textContent =
+        job.error ||
+        `تم: ${job.sent || 0} | فشل: ${job.failed || 0}` +
+          (job.deferred ? ` | بعد الحد اليومي: ${job.deferred}` : "") +
+          (job.hint ? ` — ${job.hint}` : "");
+    } catch (err) {
+      statusEl.className = "status";
+      statusEl.style.color = "var(--danger)";
+      statusEl.textContent = err.message;
+    } finally {
+      (sendButtons || []).forEach((btn) => {
+        if (btn) btn.disabled = false;
+      });
+    }
+  }
 
   document.getElementById("bulk-blast-csv").addEventListener("click", () => {
     const statusEl = document.getElementById("bulk-blast-status");
@@ -1550,7 +1665,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       a.click();
       URL.revokeObjectURL(url);
       alert(
-        `تم تحميل ${pack.count} رقم خارج 24 ساعة.\nارفع الملف في إنترأكت: Campaigns → Audience → قالب معتمد.`
+        `تم تحميل ${pack.count} رقم خارج 24 ساعة.\nالأفضل: اضغط «إرسال عبر إنترأكت» من اللوحة.\nهذا الملف احتياطي إذا حاب ترفع حملة يدوي في إنترأكت.`
       );
     } catch (err) {
       alert(err.message);
@@ -1578,14 +1693,14 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       alert("اكتب نص رسالة المتابعة أولًا");
       return;
     }
-    let pendingNow = null;
+    let preview = null;
     try {
-      const preview = await api("/status");
-      pendingNow = preview?.outboundSafe?.financeLinkPending;
+      preview = await api("/status");
       applyBulkFollowupDefaults(preview);
     } catch (_) {
       /* نكمل بالعدد الظاهر */
     }
+    const pendingNow = preview?.outboundSafe?.financeLinkPending;
     const inside = preview?.outboundSafe?.financeLinkPendingInWindow;
     const outside = preview?.outboundSafe?.financeLinkPendingOutsideWindow;
     const pendingLabel = pendingNow == null ? "كل بدون متابعة" : String(pendingNow);
@@ -1596,81 +1711,64 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         `بدون متابعة: ${pendingLabel}\n` +
         `سيُرسل الآن: ${inside ?? "؟"} (داخل 24 ساعة)` +
         (minutes ? ` · تقريباً ${minutes} دقيقة` : "") +
-        `\nيحتاجون قالب إنترأكت: ${outside ?? "؟"}\n` +
+        `\nيحتاجون قالب إنترأكت: ${outside ?? "؟"} — بعد هالزر اضغط «إرسال عبر إنترأكت».\n` +
         `التأخير: ${delaySec} ثانية بين كل رسالة.`
     );
     if (!ok) return;
+    await runBulkFollowupSend({
+      fromOutcome: "finance_link",
+      message,
+      delaySec,
+      statusEl,
+      sendButtons: [
+        document.getElementById("bulk-followup-send"),
+        document.getElementById("bulk-followup-interakt"),
+      ],
+      runningLabel: "بدأ الإرسال لمن داخل 24 ساعة...",
+      afterTab: "finance_link_sent",
+    });
+  });
 
-    statusEl.hidden = false;
-    statusEl.className = "status";
-    statusEl.style.color = "";
-    statusEl.textContent = "بدأ الإرسال لكل بدون متابعة...";
-    const sendBtn = document.getElementById("bulk-followup-send");
-    sendBtn.disabled = true;
-    try {
-      let result;
-      try {
-        result = await api("/bulk-followup", {
-          method: "POST",
-          body: JSON.stringify({
-            fromOutcome: "finance_link",
-            sendAll: true,
-            message,
-            delayMs: delaySec * 1000,
-          }),
-        });
-      } catch (err) {
-        const status = await api("/status");
-        if (!status.bulkJob?.running) throw err;
-        result = {
-          started: true,
-          queued: status.bulkJob.queued,
-          bulkJob: status.bulkJob,
-          hint: "جاري إرسال متابعة حالياً — نتابع التقدم",
-        };
-      }
-      const pollMs = Math.max(
-        Number(result.pollMs || 2500),
-        1000
-      );
-      statusEl.textContent =
-        result.hint || `جاري الإرسال... 0 من ${result.queued ?? "—"}`;
-      let job = result.bulkJob || { running: Boolean(result.started), queued: result.queued };
-      const deadline = Date.now() + 6 * 60 * 60 * 1000;
-      while (job.running && Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, pollMs));
-        const status = await api("/status");
-        applyBulkFollowupDefaults(status);
-        updateLiveCounts(status.counts, status.persistence);
-        job = status.bulkJob || {};
-        renderBulkReceipt(job);
-        const queued = job.queued || result.queued || 0;
-        statusEl.textContent =
-          `جاري الإرسال داخل 24 ساعة... ${job.sent || 0} من ${queued}` +
-          (job.failed ? ` · فشل ${job.failed}` : "") +
-          (job.lastError ? ` · ${job.lastError}` : "") +
-          (job.lastPhone ? ` · آخر رقم ${job.lastPhone}` : "");
-      }
-      const finalStatus = await api("/status");
-      job = finalStatus.bulkJob || job;
-      applyBulkFollowupDefaults(finalStatus);
-      renderBulkReceipt(job);
-      setCustomerTab("finance_link_sent");
-      await refreshAll();
-      statusEl.className = job.error ? "status" : "status ok";
-      if (job.error) statusEl.style.color = "var(--danger)";
-      statusEl.textContent =
-        job.error ||
-        `تم: ${job.sent || 0} | فشل: ${job.failed || 0}` +
-          (job.deferred ? ` | بعد الحد اليومي: ${job.deferred}` : "") +
-          (job.hint ? ` — ${job.hint}` : "");
-    } catch (err) {
-      statusEl.className = "status";
-      statusEl.style.color = "var(--danger)";
-      statusEl.textContent = err.message;
-    } finally {
-      sendBtn.disabled = false;
+  document.getElementById("bulk-followup-interakt").addEventListener("click", async () => {
+    const statusEl = document.getElementById("bulk-followup-status");
+    const delaySec = Math.max(Number(bulkDelay.value || 10), 8);
+    const tpl = readTemplatePayload();
+    if (!tpl.templateName) {
+      alert("اكتب كود قالب إنترأكت المعتمد (من Templates، مثل followup_order)");
+      bulkTemplate?.focus();
+      return;
     }
+    let preview = null;
+    try {
+      preview = await api("/status");
+      applyBulkFollowupDefaults(preview);
+    } catch (_) {
+      /* نكمل بالعدد الظاهر */
+    }
+    const outside = preview?.outboundSafe?.financeLinkPendingOutsideWindow;
+    const minutes =
+      outside > 0 ? Math.ceil((Number(outside) * delaySec) / 60) : null;
+    const ok = confirm(
+      `إرسال قالب إنترأكت «${tpl.templateName}» لمن خارج نافذة واتساب 24 ساعة؟\n\n` +
+        `سيُرسل الآن: ${outside ?? "؟"}` +
+        (minutes ? ` · تقريباً ${minutes} دقيقة` : "") +
+        `\nالتأخير: ${delaySec} ثانية.\n` +
+        `تأكد أن القالب معتمد في إنترأكت بنفس الكود.`
+    );
+    if (!ok) return;
+    await runBulkFollowupSend({
+      fromOutcome: "finance_link",
+      via: "interakt",
+      message: String(bulkMsg.value || "").trim(),
+      delaySec,
+      statusEl,
+      sendButtons: [
+        document.getElementById("bulk-followup-send"),
+        document.getElementById("bulk-followup-interakt"),
+      ],
+      runningLabel: `بدأ إرسال قالب إنترأكت «${tpl.templateName}»...`,
+      afterTab: "finance_link_sent",
+    });
   });
 
   document.getElementById("bulk-followup-plus-send").addEventListener("click", async () => {
@@ -1682,56 +1780,52 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       return;
     }
     const ok = confirm(
-      `إرسال متابعة بلس لكل من تمت متابعتهم؟\n` +
+      `إرسال متابعة بلس (رسالة عادية) لمن راسلكم خلال 24 ساعة؟\n` +
         `التأخير: ${delaySec} ثانية بين كل رسالة\n` +
-        `بعد كل إرسال ينتقل العميل إلى «رابط — متابعة بلس».`
+        `من خارج النافذة استخدم «بلس عبر إنترأكت».`
     );
     if (!ok) return;
+    await runBulkFollowupSend({
+      fromOutcome: "finance_link_plus",
+      message,
+      delaySec,
+      statusEl,
+      sendButtons: [
+        document.getElementById("bulk-followup-plus-send"),
+        document.getElementById("bulk-followup-plus-interakt"),
+      ],
+      runningLabel: "بدأ إرسال متابعة بلس داخل 24 ساعة...",
+      afterTab: "finance_link_plus",
+    });
+  });
 
-    statusEl.hidden = false;
-    statusEl.className = "status";
-    statusEl.style.color = "";
-    statusEl.textContent = "بدأ إرسال متابعة بلس للكل...";
-    const sendBtn = document.getElementById("bulk-followup-plus-send");
-    sendBtn.disabled = true;
-    try {
-      const result = await api("/bulk-followup", {
-        method: "POST",
-        body: JSON.stringify({
-          fromOutcome: "finance_link_plus",
-          sendAll: true,
-          message,
-          delayMs: delaySec * 1000,
-        }),
-      });
-      const pollMs = Math.max(Number(result.pollMs || 2500), 1000);
-      let job = result.bulkJob || { running: Boolean(result.started), queued: result.queued };
-      const deadline = Date.now() + 6 * 60 * 60 * 1000;
-      while (job.running && Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, pollMs));
-        const status = await api("/status");
-        applyBulkFollowupDefaults(status);
-        job = status.bulkJob || {};
-        statusEl.textContent =
-          `جاري متابعة بلس... ${job.sent || 0} من ${job.queued || result.queued || 0}` +
-          (job.failed ? ` · فشل ${job.failed}` : "");
-      }
-      const finalStatus = await api("/status");
-      job = finalStatus.bulkJob || job;
-      await refreshAll();
-      statusEl.className = job.error ? "status" : "status ok";
-      if (job.error) statusEl.style.color = "var(--danger)";
-      statusEl.textContent =
-        job.error ||
-        `تم: ${job.sent || 0} | فشل: ${job.failed || 0}` +
-          (job.hint ? ` — ${job.hint}` : "");
-    } catch (err) {
-      statusEl.className = "status";
-      statusEl.style.color = "var(--danger)";
-      statusEl.textContent = err.message;
-    } finally {
-      sendBtn.disabled = false;
+  document.getElementById("bulk-followup-plus-interakt").addEventListener("click", async () => {
+    const statusEl = document.getElementById("bulk-followup-plus-status");
+    const delaySec = Math.max(Number(bulkDelay.value || 10), 8);
+    const tpl = readTemplatePayload();
+    if (!tpl.templateName) {
+      alert("اكتب كود قالب إنترأكت المعتمد فوق (نفس خانة القالب)");
+      bulkTemplate?.focus();
+      return;
     }
+    const ok = confirm(
+      `إرسال قالب إنترأكت «${tpl.templateName}» كمتابعة بلس لمن خارج نافذة 24 ساعة؟\n` +
+        `التأخير: ${delaySec} ثانية.`
+    );
+    if (!ok) return;
+    await runBulkFollowupSend({
+      fromOutcome: "finance_link_plus",
+      via: "interakt",
+      message: String(bulkPlusMsg.value || "").trim(),
+      delaySec,
+      statusEl,
+      sendButtons: [
+        document.getElementById("bulk-followup-plus-send"),
+        document.getElementById("bulk-followup-plus-interakt"),
+      ],
+      runningLabel: `بدأ بلس عبر قالب إنترأكت «${tpl.templateName}»...`,
+      afterTab: "finance_link_plus",
+    });
   });
 
   document.getElementById("open-followup-btn").addEventListener("click", () => {
