@@ -10,7 +10,7 @@ const {
 } = require("./customer-ledger");
 
 /** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
-const ADMIN_UI_VERSION = "20260819r4";
+const ADMIN_UI_VERSION = "20260819r5";
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
