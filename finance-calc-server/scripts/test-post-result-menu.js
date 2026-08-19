@@ -8,6 +8,8 @@ const { advancePersonalFinanceFlow } = require("../lib/conversation");
 
 assert.strictEqual(looksLikeShowMainMenu("مرحبا"), true);
 assert.strictEqual(looksLikeShowMainMenu("السلام عليكم"), true);
+assert.strictEqual(looksLikeShowMainMenu("وعليكم السلام"), false);
+assert.strictEqual(looksLikeGreeting("وعليكم السلام"), false);
 assert.strictEqual(looksLikeMenuShortcut("1"), true);
 assert.strictEqual(looksLikeMenuShortcut("١"), true);
 
