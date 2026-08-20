@@ -1,4 +1,4 @@
-const CACHE = "followup-panel-v1";
+const CACHE = "followup-panel-v2";
 const ASSETS = [
   "./",
   "./index.html",
