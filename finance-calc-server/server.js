@@ -73,10 +73,8 @@ const {
   parseApplicationOrderNumber,
   buildOrderNumberAckReply,
 } = require("./lib/order-number");
-const {
-  inspectInboundImage,
-  looksLikeLockedPortalAccount,
-} = require("./lib/order-image");
+const { readOrderNumberFromImage } = require("./lib/order-image");
+const { shouldAckInboundImage } = require("./lib/inbound-image");
 const { createInboundDedupe, looksLikeEchoedMenuBody } = require("./lib/inbound-dedupe");
 const CONFIG = require("./config");
 
@@ -457,33 +455,35 @@ app.post("/webhook/interakt", async (req, res) => {
       return;
     }
 
+    if (inboundDedupe.isDuplicate(countryCode, phone, text, { mediaUrl, isImage })) {
+      console.log("[webhook:skip:duplicate]", phone, String(text || mediaUrl || "").slice(0, 40));
+      return;
+    }
+
     let imageOrderAck = false;
-    let portalAccountLocked = looksLikeLockedPortalAccount(text);
-    if (isImage && !looksLikeApplicationOrderNumber(text)) {
+    if (shouldAckInboundImage({ isImage, text })) {
+      // لا ننتظر OCR — أي صورة تُرد عليها فوراً، وإلا الصورة الثانية تعلق إذا تعطل تيسراكت
+      imageOrderAck = true;
       if (mediaUrl) {
-        try {
-          const inspection = await inspectInboundImage(mediaUrl);
-          if (inspection.kind === "account_locked") {
-            portalAccountLocked = true;
-            console.log("[order-image:account-locked]", phone);
-          } else if (inspection.orderNumber) {
-            console.log("[order-image:ok]", phone, inspection.orderNumber);
-            text = inspection.orderNumber;
-          } else {
-            console.log("[order-image:ack-without-digits]", phone);
-          }
-        } catch (err) {
-          console.error("[order-image:fail]", phone, err.message || err);
-        }
+        readOrderNumberFromImage(mediaUrl)
+          .then((fromImage) => {
+            if (!fromImage) {
+              console.log("[order-image:ack-without-digits]", phone);
+              return;
+            }
+            console.log("[order-image:ok]", phone, fromImage);
+            try {
+              applyApplicationOrderNumber(countryCode, phone, fromImage);
+            } catch (err) {
+              console.error("[order-image:save]", phone, err.message || err);
+            }
+          })
+          .catch((err) => {
+            console.error("[order-image:fail]", phone, err.message || err);
+          });
       } else {
         console.log("[order-image:ack-no-url]", phone);
       }
-      imageOrderAck = !portalAccountLocked;
-    }
-
-    if (inboundDedupe.isDuplicate(countryCode, phone, text)) {
-      console.log("[webhook:skip:duplicate]", phone, String(text || "").slice(0, 40));
-      return;
     }
 
     if (!text && !isImage && !isAudio) return;
@@ -492,9 +492,7 @@ app.post("/webhook/interakt", async (req, res) => {
     const yesNo = looksLikeYesNoReply(text);
     const currentSession = getSession(countryCode, phone);
     const draft = getDraft(countryCode, phone);
-    const inboundPreview = portalAccountLocked
-      ? "[صورة: حساب البورتال مقفل]"
-      : text || (isImage ? "[صورة]" : isAudio ? "[صوت]" : "");
+    const inboundPreview = text || (isImage ? "[صورة]" : isAudio ? "[صوت]" : "");
 
     // سجل العميل في لوحة التحكم (اليوم / أمس)
     customerLedger.recordInbound(countryCode, phone, inboundPreview, {
@@ -507,14 +505,7 @@ app.post("/webhook/interakt", async (req, res) => {
         draft?.civilianSubtype || currentSession?.civilianSubtype || null,
     });
 
-    if (portalAccountLocked) {
-      if (isChatPaused(countryCode, phone)) return;
-      result = {
-        ok: true,
-        reply: CONFIG.messages.portalAccountLocked,
-        offer: "portal_account_locked",
-      };
-    } else if (imageOrderAck) {
+    if (imageOrderAck) {
       if (isChatPaused(countryCode, phone)) return;
       if (looksLikeApplicationOrderNumber(text)) {
         result = applyApplicationOrderNumber(
@@ -535,7 +526,7 @@ app.post("/webhook/interakt", async (req, res) => {
     }
     // السلام / قائمة / الرقم 1 → القائمة الرئيسية حتى لو داخل مسار
     if (result) {
-      // صورة رقم طلب أو حساب بورتال مقفل
+      // أي صورة — تم استلام الطلب
     } else if (
       looksLikeShowMainMenu(text) ||
       staffMenuShortcut ||

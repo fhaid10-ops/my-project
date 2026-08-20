@@ -128,6 +128,20 @@ async function createOcrWorker(create) {
   throw lastErr || new Error("ocr worker failed");
 }
 
+async function resetOcrWorker() {
+  const pending = workerPromise;
+  workerPromise = null;
+  if (!pending) return;
+  try {
+    const worker = await pending;
+    if (worker && typeof worker.terminate === "function") {
+      await worker.terminate();
+    }
+  } catch {
+    // العامل عالق أو غير جاهز
+  }
+}
+
 async function getWorker(createWorkerFn) {
   if (!workerPromise) {
     workerPromise = (async () => {
@@ -153,40 +167,44 @@ function withTimeout(promise, ms, label) {
 async function recognizeDigits(buffer, { createWorkerFn } = {}) {
   const worker = await getWorker(createWorkerFn);
   const texts = [];
+  try {
+    const first = await withTimeout(
+      worker.recognize(buffer),
+      OCR_TIMEOUT_MS,
+      "ocr timeout"
+    );
+    texts.push(String(first?.data?.text || ""));
+    if (extractOrderNumberFromOcr(texts[0])) return texts[0];
 
-  const first = await withTimeout(
-    worker.recognize(buffer),
-    OCR_TIMEOUT_MS,
-    "ocr timeout"
-  );
-  texts.push(String(first?.data?.text || ""));
-  if (extractOrderNumberFromOcr(texts[0])) return texts[0];
-
-  const extraPasses = [
-    { tessedit_char_whitelist: OCR_DIGIT_WHITELIST },
-    { tessedit_pageseg_mode: "6" },
-    { tessedit_pageseg_mode: "11" },
-  ];
-  for (const params of extraPasses) {
-    try {
-      await worker.setParameters(params);
-      const { data } = await withTimeout(
-        worker.recognize(buffer),
-        OCR_TIMEOUT_MS,
-        "ocr timeout"
-      );
-      const piece = String(data?.text || "");
-      texts.push(piece);
-      if (extractOrderNumberFromOcr(piece)) {
-        await resetOcrParameters(worker);
-        return piece;
+    const extraPasses = [
+      { tessedit_char_whitelist: OCR_DIGIT_WHITELIST },
+      { tessedit_pageseg_mode: "6" },
+      { tessedit_pageseg_mode: "11" },
+    ];
+    for (const params of extraPasses) {
+      try {
+        await worker.setParameters(params);
+        const { data } = await withTimeout(
+          worker.recognize(buffer),
+          OCR_TIMEOUT_MS,
+          "ocr timeout"
+        );
+        const piece = String(data?.text || "");
+        texts.push(piece);
+        if (extractOrderNumberFromOcr(piece)) {
+          await resetOcrParameters(worker);
+          return piece;
+        }
+      } catch (err) {
+        console.error("[order-image] ocr pass fail", err.message || err);
       }
-    } catch (err) {
-      console.error("[order-image] ocr pass fail", err.message || err);
     }
+    await resetOcrParameters(worker);
+    return texts.filter(Boolean).join("\n");
+  } catch (err) {
+    await resetOcrWorker();
+    throw err;
   }
-  await resetOcrParameters(worker);
-  return texts.filter(Boolean).join("\n");
 }
 
 async function resetOcrParameters(worker) {

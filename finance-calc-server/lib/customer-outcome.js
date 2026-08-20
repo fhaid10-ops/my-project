@@ -44,11 +44,6 @@ function detectCustomerOutcome(result) {
     return OUTCOMES.PACKAGE;
   }
 
-  // قفل حساب البورتال — يبقى على رابط التمويل، مو رقم طلب
-  if (result.offer === "portal_account_locked") {
-    return OUTCOMES.FINANCE_LINK;
-  }
-
   // مسار مستنفذ حد → سؤال عن حلول أخرى
   if (result.offer === "property_combo_interest") {
     return OUTCOMES.LIMIT_EXHAUSTED;

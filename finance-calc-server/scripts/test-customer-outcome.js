@@ -17,10 +17,11 @@ const { startServiceStopFlow, startFinancingSolutionsFlow } = require("../lib/ma
 
 assert.strictEqual(
   detectCustomerOutcome({
-    offer: "portal_account_locked",
-    reply: "تواصل مع عبدالرحمن\n0595243553\nيرفعلك يدوي يوجد مشكله",
+    offer: "order_number_received",
+    reply: "تم استلام رقم الطلب",
+    data: { orderNumber: "10123456" },
   }),
-  OUTCOMES.FINANCE_LINK
+  OUTCOMES.ORDER_NUMBER
 );
 
 assert.strictEqual(
