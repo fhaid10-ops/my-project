@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=لوحة المتابعة
+Comment=لوحة تحكم الطلبات: إضافة وتعديل وحذف وتاريخ
+Exec=xdg-open https://fhaid10-ops.github.io/my-project/followup/
+Icon=https://fhaid10-ops.github.io/my-project/followup/icon-192.png
+Terminal=false
+Categories=Office;Finance;
+StartupNotify=true
