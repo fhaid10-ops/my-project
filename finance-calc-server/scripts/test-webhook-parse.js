@@ -435,6 +435,43 @@ check("جسم القائمة المعاد لا يُعتبر رسالة جديد�
   assert.strictEqual(dedupe.isDuplicate("+966", "579478016", "تمويل شخصي"), false);
   assert.strictEqual(dedupe.isDuplicate("+966", "579478016", "menu_1"), true);
   assert.strictEqual(dedupe.isDuplicate("+966", "579478016", "مدني"), false);
+
+  const imgDedupe = createInboundDedupe({ windowMs: 5000 });
+  assert.strictEqual(
+    imgDedupe.isDuplicate("+966", "501111111", "", {
+      isImage: true,
+      mediaUrl: "https://cdn.interakt.ai/media/one.jpg",
+    }),
+    false
+  );
+  assert.strictEqual(
+    imgDedupe.isDuplicate("+966", "501111111", "", {
+      isImage: true,
+      mediaUrl: "https://cdn.interakt.ai/media/one.jpg",
+    }),
+    true,
+    "نفس رابط الصورة خلال النافذة = تكرار ويب هوك"
+  );
+  assert.strictEqual(
+    imgDedupe.isDuplicate("+966", "501111111", "", {
+      isImage: true,
+      mediaUrl: "https://cdn.interakt.ai/media/two.jpg",
+    }),
+    false,
+    "صورة ثانية برابط مختلف لا تُعتبر تكراراً"
+  );
+
+  const { shouldIgnoreInboundImage, shouldReplyToInboundImage } = require("../lib/inbound-image");
+  assert.strictEqual(shouldIgnoreInboundImage({ isImage: true }), true);
+  assert.strictEqual(shouldIgnoreInboundImage({ isImage: true, text: "" }), true);
+  assert.strictEqual(
+    shouldIgnoreInboundImage({ isImage: true, text: "فشل تسجيل الدخول تم قفل حسابك" }),
+    true
+  );
+  assert.strictEqual(shouldIgnoreInboundImage({ isImage: true, text: "10171915" }), true);
+  assert.strictEqual(shouldIgnoreInboundImage({ isImage: false }), false);
+  assert.strictEqual(shouldReplyToInboundImage({ isImage: true }), false);
+  assert.strictEqual(shouldReplyToInboundImage({ isImage: false }), true);
 });
 
 if (!process.exitCode) {

@@ -67,17 +67,14 @@ const { normalizeDigits } = require("./lib/digits");
 const { mountAdmin } = require("./lib/admin-routes");
 const { createCustomerLedger } = require("./lib/customer-ledger");
 const { createChatState } = require("./lib/chat-state");
-const { detectCustomerOutcome, OUTCOMES } = require("./lib/customer-outcome");
+const { detectCustomerOutcome } = require("./lib/customer-outcome");
 const {
   looksLikeApplicationOrderNumber,
   parseApplicationOrderNumber,
   buildOrderNumberAckReply,
 } = require("./lib/order-number");
-const {
-  inspectInboundImage,
-  looksLikeLockedPortalAccount,
-} = require("./lib/order-image");
 const { createInboundDedupe, looksLikeEchoedMenuBody } = require("./lib/inbound-dedupe");
+const { shouldIgnoreInboundImage } = require("./lib/inbound-image");
 const CONFIG = require("./config");
 
 function normalizeEnvValue(value) {
@@ -457,44 +454,39 @@ app.post("/webhook/interakt", async (req, res) => {
       return;
     }
 
-    let imageOrderAck = false;
-    let portalAccountLocked = looksLikeLockedPortalAccount(text);
-    if (isImage && !looksLikeApplicationOrderNumber(text)) {
-      if (mediaUrl) {
-        try {
-          const inspection = await inspectInboundImage(mediaUrl);
-          if (inspection.kind === "account_locked") {
-            portalAccountLocked = true;
-            console.log("[order-image:account-locked]", phone);
-          } else if (inspection.orderNumber) {
-            console.log("[order-image:ok]", phone, inspection.orderNumber);
-            text = inspection.orderNumber;
-          } else {
-            console.log("[order-image:ack-without-digits]", phone);
-          }
-        } catch (err) {
-          console.error("[order-image:fail]", phone, err.message || err);
-        }
-      } else {
-        console.log("[order-image:ack-no-url]", phone);
-      }
-      imageOrderAck = !portalAccountLocked;
-    }
-
-    if (inboundDedupe.isDuplicate(countryCode, phone, text)) {
-      console.log("[webhook:skip:duplicate]", phone, String(text || "").slice(0, 40));
+    if (inboundDedupe.isDuplicate(countryCode, phone, text, { mediaUrl, isImage })) {
+      console.log("[webhook:skip:duplicate]", phone, String(text || mediaUrl || "").slice(0, 40));
       return;
     }
 
-    if (!text && !isImage && !isAudio) return;
+    const currentSessionEarly = getSession(countryCode, phone);
+    const draftEarly = getDraft(countryCode, phone);
+    if (shouldIgnoreInboundImage({ isImage })) {
+      customerLedger.recordInbound(countryCode, phone, "[صورة]", {
+        flow: draftEarly?.flow || currentSessionEarly?.offer || null,
+        step: draftEarly?.step || null,
+        maxAmount:
+          currentSessionEarly?.maxAmount || currentSessionEarly?.rounded || null,
+        companyName:
+          draftEarly?.companyName || currentSessionEarly?.companyName || null,
+        jobCategory:
+          draftEarly?.jobCategory || currentSessionEarly?.jobCategory || null,
+        civilianSubtype:
+          draftEarly?.civilianSubtype ||
+          currentSessionEarly?.civilianSubtype ||
+          null,
+      });
+      console.log("[webhook:skip:image-no-reply]", phone);
+      return;
+    }
+
+    if (!text && !isAudio) return;
 
     let result = null;
     const yesNo = looksLikeYesNoReply(text);
-    const currentSession = getSession(countryCode, phone);
-    const draft = getDraft(countryCode, phone);
-    const inboundPreview = portalAccountLocked
-      ? "[صورة: حساب البورتال مقفل]"
-      : text || (isImage ? "[صورة]" : isAudio ? "[صوت]" : "");
+    const currentSession = currentSessionEarly;
+    const draft = draftEarly;
+    const inboundPreview = text || (isAudio ? "[صوت]" : "");
 
     // سجل العميل في لوحة التحكم (اليوم / أمس)
     customerLedger.recordInbound(countryCode, phone, inboundPreview, {
@@ -507,36 +499,11 @@ app.post("/webhook/interakt", async (req, res) => {
         draft?.civilianSubtype || currentSession?.civilianSubtype || null,
     });
 
-    if (portalAccountLocked) {
-      if (isChatPaused(countryCode, phone)) return;
-      result = {
-        ok: true,
-        reply: CONFIG.messages.portalAccountLocked,
-        offer: "portal_account_locked",
-      };
-    } else if (imageOrderAck) {
-      if (isChatPaused(countryCode, phone)) return;
-      if (looksLikeApplicationOrderNumber(text)) {
-        result = applyApplicationOrderNumber(
-          countryCode,
-          phone,
-          parseApplicationOrderNumber(text)
-        );
-      } else {
-        customerLedger.setOutcomeNotes(countryCode, phone, OUTCOMES.ORDER_NUMBER);
-        result = {
-          ok: true,
-          reply: buildOrderNumberAckReply(CONFIG.messages),
-          offer: "order_number_received",
-        };
-      }
-    } else if (!text && !(isAudio && draft?.step === "real_estate")) {
+    if (!text && !(isAudio && draft?.step === "real_estate")) {
       return;
     }
     // السلام / قائمة / الرقم 1 → القائمة الرئيسية حتى لو داخل مسار
-    if (result) {
-      // صورة رقم طلب أو حساب بورتال مقفل
-    } else if (
+    if (
       looksLikeShowMainMenu(text) ||
       staffMenuShortcut ||
       looksLikeMenuShortcut(text)
