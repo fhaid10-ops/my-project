@@ -111,8 +111,8 @@ function buildOrderNumberAckReply(configMessages = {}) {
   return `تم استلام رقم الطلب
 سيتم الرد في أقرب وقت ممكن 
 لمتابعة الطلب  ارسل رقم الطلب إلى 
- عبدالرحمن 
-0595243553`;
+ ماجد 
+0507009290`;
 }
 
 function buildOrderImageMissReply(configMessages = {}) {

@@ -122,6 +122,9 @@ check("مسار مدني كامل حتى العرض", () => {
   assert.strictEqual(looksLikeDebtContinueReply("نعم"), "yes");
   const done = advanceDebtPurchaseFlow(r.draft, "نعم");
   assert.strictEqual(done.offer, "debt_purchase_accepted");
+  assert.match(done.reply, /https:\/\/portal\.sfco\.com\.sa\/\?DSA=SF1888/);
+  assert.match(done.reply, /0507009290/);
+  assert.match(done.reply, /ماجد/);
 });
 
 if (!process.exitCode) {

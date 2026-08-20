@@ -575,30 +575,40 @@ function personalEmployeeCode() {
   if (fromConfig) return String(fromConfig);
   const portalUrl =
     CONFIG.financing?.personalPortalUrl ||
-    "https://portal.sfco.com.sa/?DSA=SF1695";
+    "https://portal.sfco.com.sa/?DSA=SF1888";
   const match = String(portalUrl).match(/[?&]DSA=([^&#]+)/i);
-  return match ? match[1] : "SF1695";
+  return match ? match[1] : "SF1888";
 }
 
 /** رسالة التقديم الإلكتروني — تُرسل منفصلة بعد نتيجة الحساب */
 function buildPersonalApplyFollowUp() {
   const custom = CONFIG.messages?.personalApplyFollowUp;
   if (typeof custom === "function") {
-    return custom(personalEmployeeCode(), CONFIG.financing?.personalPortalUrl);
+    return custom(
+      personalEmployeeCode(),
+      CONFIG.financing?.personalPortalUrl,
+      CONFIG.financing?.personalAgentPhone || CONFIG.financing?.employeePhone
+    );
   }
   if (typeof custom === "string" && custom.trim()) return custom;
 
   const code = personalEmployeeCode();
   const portalUrl =
     CONFIG.financing?.personalPortalUrl ||
-    "https://portal.sfco.com.sa/?DSA=SF1695";
+    "https://portal.sfco.com.sa/?DSA=SF1888";
+  const phone =
+    CONFIG.financing?.personalAgentPhone ||
+    CONFIG.financing?.employeePhone ||
+    "0507009290";
   return `قدم الان هنا
 ${portalUrl}
 
 سجل مبلغ التمويل المرغوب فيه بالملاحظات
 داخل الموقع لمتابعة الطلب اضف رمز الموظف
 ${code}
-وارسلي رقم الطلب.`;
+وارسلي رقم الطلب.
+
+${phone}`;
 }
 
 function contactFooter() {

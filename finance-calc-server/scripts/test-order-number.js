@@ -29,8 +29,8 @@ const reply = buildOrderNumberAckReply(CONFIG.messages);
 assert.match(reply, /تم استلام رقم الطلب/);
 assert.match(reply, /أقرب وقت ممكن/);
 assert.match(reply, /لمتابعة الطلب/);
-assert.match(reply, /عبدالرحمن/);
-assert.match(reply, /0595243553/);
+assert.match(reply, /ماجد/);
+assert.match(reply, /0507009290/);
 
 assert.strictEqual(extractOrderNumberFromOcr("10178456"), "10178456");
 assert.strictEqual(extractOrderNumberFromOcr("1017 8456"), "10178456");
@@ -67,6 +67,6 @@ assert.strictEqual(
 
 const miss = buildOrderImageMissReply(CONFIG.messages);
 assert.match(miss, /تم استلام رقم الطلب/);
-assert.match(miss, /عبدالرحمن/);
+assert.match(miss, /ماجد/);
 
 console.log("OK: order number ack (101 + 8 digits)");
