@@ -10,6 +10,8 @@ const {
   looksLikeYesNoReply,
   beginLowerAmountFlow,
   replyWantLowerAmountAsk,
+  looksLikeApplyMethodReply,
+  replyWantApplyMethod,
   applyLowerAmountTerm,
 } = require("../lib/personal-finance");
 const { advancePersonalFinanceFlow } = require("../lib/conversation");
@@ -54,31 +56,48 @@ assert.ok(afterRe.ok);
 assert.ok(!afterRe.draft || afterRe.draft === null);
 assert.strictEqual(afterRe.sessionData?.loanTermMonths, 60);
 assert.strictEqual(afterRe.sessionData?.awaitingLowerAmountAsk, true);
-assert.ok(String(afterRe.followUpReply || "").includes("portal.sfco.com.sa"));
-assert.strictEqual(afterRe.interactive?.kind, "list");
+assert.ok(!String(afterRe.followUpReply || "").includes("portal.sfco.com.sa"));
+assert.strictEqual(afterRe.interactive?.kind, "buttons");
 assert.strictEqual(afterRe.interactive?.body, "هل ترغب بمبلغ أقل");
-assert.strictEqual(afterRe.interactive?.button, "اختر هنا");
-assert.ok(afterRe.interactive?.rows?.some((r) => r.id === "want_lower_yes"));
-assert.ok(afterRe.interactive?.rows?.some((r) => r.id === "want_lower_no"));
+assert.ok(
+  afterRe.interactive?.buttons?.some(
+    (b) => b.id === "want_lower_yes" && b.title === "نعم"
+  )
+);
+assert.ok(
+  afterRe.interactive?.buttons?.some(
+    (b) => b.id === "want_lower_no" && b.title === "لا"
+  )
+);
 assert.ok(String(afterRe.reply).includes("5 سنوات"));
 
 const declined = replyWantLowerAmountAsk("no", afterRe.sessionData);
 assert.ok(!declined.silent);
-assert.match(declined.reply, /على كم سنة/);
-assert.ok(declined.interactive);
-assert.strictEqual(declined.data.awaitingLowerAmountAsk, false);
-assert.strictEqual(declined.data.awaitingLowerAmountTerm, true);
-assert.strictEqual(
-  declined.data.pendingSelectedAmount,
-  afterRe.sessionData.maxAmount
+assert.strictEqual(declined.interactive?.kind, "buttons");
+assert.match(
+  String(declined.interactive?.body || ""),
+  /التقديم الإلكتروني أو زيارة الفرع/
 );
-const declinedYears = declined.data.availableYearsForAmount;
-assert.ok(Array.isArray(declinedYears) && declinedYears.length >= 1);
-const maxTerm = applyLowerAmountTerm(declined.data, declinedYears[0]);
-assert.ok(maxTerm.ok, maxTerm.reply);
-assert.ok(maxTerm.followUpReply);
-assert.ok(!maxTerm.interactive, "بعد لا ما نرجع قائمة مبلغ أقل");
-assert.match(String(maxTerm.reply), /تم اختيار المبلغ/);
+assert.ok(
+  declined.interactive?.buttons?.some((b) => b.id === "apply_electronic")
+);
+assert.ok(declined.interactive?.buttons?.some((b) => b.id === "apply_branch"));
+assert.strictEqual(declined.data.awaitingLowerAmountAsk, false);
+assert.strictEqual(declined.data.awaitingApplyMethod, true);
+assert.ok(!declined.data.awaitingLowerAmountTerm);
+
+assert.strictEqual(looksLikeApplyMethodReply("apply_electronic"), "electronic");
+assert.strictEqual(looksLikeApplyMethodReply("زيارة الفرع"), "branch");
+const electronic = replyWantApplyMethod("electronic", declined.data);
+assert.ok(String(electronic.reply).includes("portal.sfco.com.sa"));
+assert.ok(String(electronic.reply).includes("SF1888"));
+assert.strictEqual(electronic.data.awaitingApplyMethod, false);
+const branch = replyWantApplyMethod("branch", declined.data);
+assert.match(String(branch.reply), /معرض السديري للسيارات/);
+assert.match(String(branch.reply), /رايد الحربي/);
+assert.match(String(branch.reply), /الأحد إلى الخميس/);
+assert.match(String(branch.reply), /9 ص إلى 5 م/);
+assert.ok(!String(branch.reply).includes("portal.sfco.com.sa"));
 
 const accepted = replyWantLowerAmountAsk("yes", afterRe.sessionData);
 assert.strictEqual(accepted.interactive?.kind, "list");

@@ -17,51 +17,47 @@ const sample = `الراتب: 8000
 
 const parsed = parsePersonalFinanceMessage(sample);
 const result = calculatePersonalFinance(parsed);
-console.log("--- الحسبة الأولى (أعلى مبلغ + قائمة أقل) ---");
+console.log("--- الحسبة الأولى (أعلى مبلغ ثم هل ترغب بمبلغ أقل) ---");
 console.log(result.reply);
-console.log("\n--- رسالة التقديم المنفصلة ---");
-console.log(result.followUpReply);
 console.log("\ninteractive:", JSON.stringify(result.interactive, null, 2));
 
 if (String(result.reply).includes("سجل مبلغ التمويل المرغوب فيه")) {
-  console.error("FAIL: رسالة التقديم لازم تكون منفصلة عن نتيجة الحساب");
+  console.error("FAIL: رسالة التقديم لازم ما تنرسل مع أعلى مبلغ");
   process.exitCode = 1;
 }
 
 if (
-  !result.followUpReply ||
-  !String(result.followUpReply).includes("سجل مبلغ التمويل المرغوب فيه") ||
-  !String(result.followUpReply).includes("SF1888") ||
-  !String(result.followUpReply).includes("https://portal.sfco.com.sa/?DSA=SF1888") ||
-  !String(result.followUpReply).includes("0507009290") ||
-  !String(result.followUpReply).includes("وارسلي رقم الطلب")
+  result.followUpReply &&
+  String(result.followUpReply).includes("portal.sfco.com.sa")
 ) {
-  console.error("FAIL: لازم followUpReply برمز الموظف SF1888 ورقم 0507009290");
+  console.error("FAIL: رابط التقديم لازم ينتظر اختيار التقديم الإلكتروني");
   process.exitCode = 1;
 }
 
 if (!result.sendTextThenInteractive) {
-  console.error("FAIL: لازم sendTextThenInteractive: الحسبة ثم الرابط ثم السؤال");
+  console.error("FAIL: لازم sendTextThenInteractive: الحسبة ثم سؤال نعم/لا");
   process.exitCode = 1;
 }
 
-if (
-  !result.followUpReply ||
-  !String(result.followUpReply).includes("https://portal.sfco.com.sa/?DSA=SF1888")
-) {
-  console.error("FAIL: لازم رابط التقديم قبل سؤال المبلغ الأقل");
-  process.exitCode = 1;
-}
-
+const yesNoBody = String(result.interactive?.body || "");
 if (
   !result.interactive ||
-  result.interactive.kind !== "list" ||
+  result.interactive.kind !== "buttons" ||
   result.interactive.body !== "هل ترغب بمبلغ أقل" ||
-  result.interactive.button !== "اختر هنا" ||
-  !result.interactive.rows?.some((r) => r.id === "want_lower_yes") ||
-  !result.interactive.rows?.some((r) => r.id === "want_lower_no")
+  result.interactive.buttons?.length !== 2 ||
+  !result.interactive.buttons.some(
+    (b) => b.id === "want_lower_yes" && b.title === "نعم"
+  ) ||
+  !result.interactive.buttons.some(
+    (b) => b.id === "want_lower_no" && b.title === "لا"
+  ) ||
+  /نعم/.test(yesNoBody) ||
+  /(^|\n)لا(\n|$)/.test(yesNoBody)
 ) {
-  console.error("FAIL: لازم قائمة هل ترغب بمبلغ أقل فيها نعم ولا", result.interactive);
+  console.error(
+    "FAIL: لازم زرين نعم/لا بدون كتابة الخيارات في النص",
+    result.interactive
+  );
   process.exitCode = 1;
 } else if (!result.data.awaitingLowerAmountAsk) {
   console.error("FAIL: لازم awaitingLowerAmountAsk بعد أعلى مبلغ");
@@ -72,7 +68,7 @@ if (
     console.error("FAIL: آخر مبلغ أقل لازم 10,000", lastTier);
     process.exitCode = 1;
   } else {
-    console.log("OK: الرابط ثم هل ترغب بمبلغ أقل (نعم/لا)");
+    console.log("OK: أعلى مبلغ ثم هل ترغب بمبلغ أقل (زرين نعم/لا)");
   }
 }
 

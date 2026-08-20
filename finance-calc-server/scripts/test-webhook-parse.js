@@ -61,6 +61,30 @@ check("interactive.button_reply.title", () => {
   assert.strictEqual(got.phone, "501234567");
 });
 
+check("زر تقديم إلكتروني يرجع المعرف apply_electronic", () => {
+  const got = extractIncomingMessage({
+    type: "message_received",
+    data: {
+      customer: {
+        phone_number: "551850488",
+        country_code: "+966",
+      },
+      message: {
+        message_content_type: "InteractiveButtonReply",
+        message: "هل ترغب بالتقديم الإلكتروني أو زيارة الفرع",
+        interactive: {
+          type: "button_reply",
+          button_reply: {
+            id: "apply_electronic",
+            title: "تقديم إلكتروني",
+          },
+        },
+      },
+    },
+  });
+  assert.strictEqual(got.text, "apply_electronic");
+});
+
 check("لا يأخذ نص الرسالة الأصلية بدل الزر", () => {
   const got = extractIncomingMessage({
     type: "message_received",

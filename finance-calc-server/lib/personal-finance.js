@@ -532,18 +532,17 @@ function calculatePersonalFinance(input) {
 
 ${resultReply}`
     : resultReply;
-  // أول نتيجة: الحسبة → رابط التقديم → هل ترغب بمبلغ أقل
-  const interactive = lowerTiers.length
+  // أول نتيجة: أعلى مبلغ ثم هل ترغب بمبلغ أقل (زرين نعم/لا). الرابط بعد اختيار التقديم.
+  const canOfferLower = lowerTiers.length > 0;
+  const interactive = canOfferLower
     ? buildWantLowerAmountAskInteractive()
-    : null;
-  const followUpReply = buildPersonalApplyFollowUp();
+    : buildApplyMethodAskInteractive();
 
   return {
     ok: true,
     reply,
-    followUpReply,
     interactive,
-    sendTextThenInteractive: Boolean(interactive),
+    sendTextThenInteractive: true,
     data: {
       jobCategory,
       realEstateType,
@@ -564,7 +563,8 @@ ${resultReply}`
       forcedToFallbackTerm,
       awaitingLowerAmountEntry: false,
       awaitingLowerAmountTerm: false,
-      awaitingLowerAmountAsk: Boolean(interactive),
+      awaitingLowerAmountAsk: canOfferLower,
+      awaitingApplyMethod: !canOfferLower,
       awaitingAmountChoice: false,
       pendingSelectedAmount: null,
       availableYearsForAmount: null,
@@ -823,30 +823,116 @@ function selectTiersForWhatsAppList(tiers, maxRows = 10) {
   return unique;
 }
 
-/** بعد الرابط: قائمة هل ترغب بمبلغ أقل — الزر «اختر هنا» مثل قوائم المبالغ */
+/** سؤال هل ترغب بمبلغ أقل — زرين نعم/لا، بدون كتابة الخيارات في النص */
 function wantLowerAmountAskText() {
   return CONFIG.messages?.wantLowerAmountAsk || "هل ترغب بمبلغ أقل";
 }
 
 function buildWantLowerAmountAskInteractive() {
-  const body = wantLowerAmountAskText();
   return {
-    kind: "list",
-    body,
-    button: "اختر هنا",
-    sectionTitle: "الخيار",
-    rows: [
-      {
-        id: "want_lower_yes",
-        title: "نعم",
-        description: "مبلغ أقل",
-      },
-      {
-        id: "want_lower_no",
-        title: "لا",
-        description: "نفس المبلغ",
-      },
+    kind: "buttons",
+    body: wantLowerAmountAskText(),
+    buttons: [
+      { id: "want_lower_yes", title: "نعم" },
+      { id: "want_lower_no", title: "لا" },
     ],
+  };
+}
+
+function applyMethodAskText() {
+  return (
+    CONFIG.messages?.applyMethodAsk ||
+    "هل ترغب بالتقديم الإلكتروني أو زيارة الفرع"
+  );
+}
+
+function buildApplyMethodAskInteractive() {
+  return {
+    kind: "buttons",
+    body: applyMethodAskText(),
+    buttons: [
+      { id: "apply_electronic", title: "تقديم إلكتروني" },
+      { id: "apply_branch", title: "زيارة الفرع" },
+    ],
+  };
+}
+
+function branchVisitReply() {
+  const custom = CONFIG.messages?.branchVisitReply;
+  if (typeof custom === "string" && custom.trim()) return custom.trim();
+  return `حياك الله موقعنا معرض السديري للسيارات منطقة حائل لاجيت اسال عن رايد الحربي
+دوامنا الرسمي من الأحد إلى الخميس
+من 9 ص إلى 5 م`;
+}
+
+function looksLikeApplyMethodReply(text) {
+  const t = normalizeDigits(String(text || "")).trim();
+  if (!t || t.length > 60) return null;
+  if (/^apply_electronic$/i.test(t)) return "electronic";
+  if (/^apply_branch$/i.test(t)) return "branch";
+  if (
+    /^(تقديم(\s*(إلكتروني|الكتروني))?|إلكتروني|الكتروني|اونلاين|أونلاين|online)$/i.test(
+      t
+    )
+  ) {
+    return "electronic";
+  }
+  if (/^(زيارة(\s*الفرع)?|الفرع|فرع|branch)$/i.test(t)) return "branch";
+  if (/^(1|١)(\s*[-.)]?\s*(تقديم|إلكتروني|الكتروني)?)?$/i.test(t)) {
+    return "electronic";
+  }
+  if (/^(2|٢)(\s*[-.)]?\s*(زيارة|الفرع|فرع)?)?$/i.test(t)) return "branch";
+  if (/تقديم|الكترون|إلكترون|اونلاين|أونلاين|online/i.test(t)) {
+    return "electronic";
+  }
+  if (/زيار|فرع|branch/i.test(t)) return "branch";
+  return null;
+}
+
+function askApplyMethod(sessionData = {}) {
+  return {
+    ok: true,
+    interactive: buildApplyMethodAskInteractive(),
+    data: {
+      ...sessionData,
+      awaitingLowerAmountAsk: false,
+      awaitingApplyMethod: true,
+      awaitingLowerAmountTerm: false,
+      awaitingAmountChoice: false,
+    },
+  };
+}
+
+function replyWantApplyMethod(choice, sessionData = {}) {
+  if (choice === "electronic") {
+    return {
+      ok: true,
+      reply: buildPersonalApplyFollowUp(),
+      data: {
+        ...sessionData,
+        awaitingApplyMethod: false,
+        applyMethod: "electronic",
+      },
+    };
+  }
+  if (choice === "branch") {
+    return {
+      ok: true,
+      reply: branchVisitReply(),
+      data: {
+        ...sessionData,
+        awaitingApplyMethod: false,
+        applyMethod: "branch",
+      },
+    };
+  }
+  return {
+    ok: false,
+    interactive: buildApplyMethodAskInteractive(),
+    data: {
+      ...sessionData,
+      awaitingApplyMethod: true,
+    },
   };
 }
 
@@ -875,10 +961,11 @@ function replyWantLowerAmountAsk(choice, sessionData = {}) {
     return beginLowerAmountFlow({
       ...sessionData,
       awaitingLowerAmountAsk: false,
+      awaitingApplyMethod: false,
       skipLowerAmountList: false,
     });
   }
-  return askYearsForOfferedAmount(sessionData);
+  return askApplyMethod(sessionData);
 }
 
 function askYearsForOfferedAmount(sessionData = {}) {
@@ -923,6 +1010,7 @@ function beginLowerAmountFlow(sessionData = {}) {
       awaitingLowerAmountEntry: false,
       awaitingLowerAmountTerm: false,
       awaitingLowerAmountAsk: false,
+      awaitingApplyMethod: false,
       awaitingAmountChoice: Boolean(interactive),
       pendingSelectedAmount: null,
       availableYearsForAmount: null,
@@ -1332,6 +1420,9 @@ module.exports = {
   wantLowerAmountAskText,
   beginLowerAmountFlow,
   replyWantLowerAmountAsk,
+  looksLikeApplyMethodReply,
+  buildApplyMethodAskInteractive,
+  replyWantApplyMethod,
   applyLowerAmountTerm,
   buildWantLowerAmountInteractive,
   replyPropertyComboDecision,
