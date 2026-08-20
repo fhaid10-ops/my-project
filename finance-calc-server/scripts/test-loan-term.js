@@ -116,10 +116,24 @@ const afterAmount = calculateSelectedAmount(afterRe.sessionData, pick);
 assert.ok(afterAmount.ok, afterAmount.reply);
 const available = getAvailableYearsForAmount(afterRe.sessionData, pick);
 assert.ok(available.length >= 1);
+function assertApplyMethodAsk(result) {
+  assert.strictEqual(result.interactive?.kind, "buttons");
+  assert.match(
+    String(result.interactive?.body || ""),
+    /التقديم الإلكتروني أو زيارة الفرع/
+  );
+  assert.ok(
+    result.interactive?.buttons?.some((b) => b.id === "apply_electronic")
+  );
+  assert.ok(result.interactive?.buttons?.some((b) => b.id === "apply_branch"));
+  assert.strictEqual(result.data.awaitingApplyMethod, true);
+  assert.ok(!result.followUpReply);
+}
+
 if (available.length === 1) {
   assert.strictEqual(afterAmount.data.selectedAmount, pick);
   assert.strictEqual(afterAmount.data.loanTermYears, available[0]);
-  assert.ok(afterAmount.followUpReply);
+  assertApplyMethodAsk(afterAmount);
 } else {
   assert.strictEqual(afterAmount.data.awaitingLowerAmountTerm, true);
   assert.strictEqual(afterAmount.data.pendingSelectedAmount, pick);
@@ -131,8 +145,8 @@ if (available.length === 1) {
   assert.ok(finalized.ok, finalized.reply);
   assert.strictEqual(finalized.data.selectedAmount, pick);
   assert.strictEqual(finalized.data.loanTermYears, yearsPick);
-  assert.ok(finalized.followUpReply);
   assert.ok(String(finalized.reply).includes(yearsPick === 1 ? "سنة" : String(yearsPick)));
+  assertApplyMethodAsk(finalized);
 }
 
 // مبلغ قريب من الأعلى → غالبًا 5 سنوات فقط → تثبيت تلقائي
