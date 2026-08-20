@@ -3,8 +3,8 @@
  * يشتغل على جهاز البيت (جهاز عبدالرحمن)
  *
  * التدفق:
- * 1) العميل يرسل بيانات التمويل → نحسب أعلى مبلغ + قائمة أقل
- * 2) إذا أرسل مبلغ من القائمة → نحسب قسط المبلغ المختار
+ * 1) العميل يرسل بيانات التمويل → نحسب أعلى مبلغ ثم نسأل هل يرغب بمبلغ أقل
+ * 2) إذا اختار نعم → قائمة مبالغ أقل، وإذا أرسل مبلغًا نحسب قسطه
  */
 require("dotenv").config();
 const express = require("express");
@@ -20,6 +20,7 @@ const {
   confirmLowerAmountSuggestion,
   looksLikeWantLowerAmount,
   beginLowerAmountFlow,
+  replyWantLowerAmountAsk,
   applyLowerAmountTerm,
   parseLoanTermChoice,
   loanTermChoiceInteractive,
@@ -683,6 +684,9 @@ app.post("/webhook/interakt", async (req, res) => {
         comboDecision: yesNo,
       });
       clearDraft(countryCode, phone);
+    } else if (yesNo && currentSession?.awaitingLowerAmountAsk) {
+      result = replyWantLowerAmountAsk(yesNo, currentSession);
+      if (result?.data) saveSession(countryCode, phone, result.data);
     } else if (yesNo && currentSession?.awaitingLowerAmountConfirm) {
       result = confirmLowerAmountSuggestion(currentSession, yesNo);
       if (result?.data) {

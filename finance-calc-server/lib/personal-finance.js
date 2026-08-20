@@ -532,8 +532,10 @@ function calculatePersonalFinance(input) {
 
 ${resultReply}`
     : resultReply;
-  // أول نتيجة: أعلى مبلغ على 5 سنوات + قائمة «اختر مبلغ أقل هنا»
-  const interactive = buildLowerAmountInteractive(lowerTiers);
+  // أول نتيجة: أعلى مبلغ على 5 سنوات ثم سؤال «هل ترغب بمبلغ أقل»
+  const interactive = lowerTiers.length
+    ? buildWantLowerAmountAskInteractive()
+    : null;
   const followUpReply = buildPersonalApplyFollowUp();
 
   return {
@@ -541,7 +543,7 @@ ${resultReply}`
     reply,
     followUpReply,
     interactive,
-    // نص النتيجة أولًا، ثم رسالة التقديم، ثم قائمة المبالغ الأقل
+    // نص النتيجة أولًا، ثم رسالة التقديم، ثم سؤال المبلغ الأقل
     sendTextThenInteractive: Boolean(interactive),
     data: {
       jobCategory,
@@ -563,7 +565,8 @@ ${resultReply}`
       forcedToFallbackTerm,
       awaitingLowerAmountEntry: false,
       awaitingLowerAmountTerm: false,
-      awaitingAmountChoice: Boolean(interactive),
+      awaitingLowerAmountAsk: Boolean(interactive),
+      awaitingAmountChoice: false,
       pendingSelectedAmount: null,
       availableYearsForAmount: null,
     },
@@ -704,13 +707,13 @@ function looksLikeYesNoReply(text) {
   const t = String(text || "").trim();
   if (!t || t.length > 40) return null;
   if (
-    /^(1|نعم|اي|أي|أجل|موافق|ابي|أبي|أرغب|ارغب|combo_yes|lower_yes|yes)$/i.test(
+    /^(1|نعم|اي|أي|أجل|موافق|ابي|أبي|أرغب|ارغب|combo_yes|lower_yes|want_lower_yes|yes)$/i.test(
       t
     )
   ) {
     return "yes";
   }
-  if (/^(2|لا|لأ|لاء|ما ابي|ماأبي|رفض|combo_no|lower_no|no)$/i.test(t)) {
+  if (/^(2|لا|لأ|لاء|ما ابي|ماأبي|رفض|combo_no|lower_no|want_lower_no|no)$/i.test(t)) {
     return "no";
   }
   return null;
@@ -817,24 +820,54 @@ function selectTiersForWhatsAppList(tiers, maxRows = 10) {
   return unique;
 }
 
-/** توافق قديم: زر «مبلغ أقل» يعيد فتح قائمة المبالغ */
-function buildWantLowerAmountInteractive() {
+/** بعد أعلى مبلغ: سؤال نعم/لا قبل قائمة المبالغ الأقل */
+function buildWantLowerAmountAskInteractive() {
+  const body =
+    CONFIG.messages?.wantLowerAmountAsk || "هل ترغب بمبلغ أقل";
   return {
     kind: "buttons",
-    body: "اختر مبلغ أقل هنا",
-    buttons: [{ id: "want_lower_amount", title: "مبلغ أقل" }],
+    body,
+    buttons: [
+      { id: "want_lower_yes", title: "نعم" },
+      { id: "want_lower_no", title: "لا" },
+    ],
   };
+}
+
+/** توافق قديم: زر «مبلغ أقل» يعيد فتح قائمة المبالغ */
+function buildWantLowerAmountInteractive() {
+  return buildWantLowerAmountAskInteractive();
 }
 
 function looksLikeWantLowerAmount(text) {
   const t = normalizeDigits(String(text || "")).trim();
   if (!t || t.length > 60) return false;
   if (/^want_lower_amount$/i.test(t)) return true;
+  if (/^want_lower_yes$/i.test(t)) return true;
   if (/^مبلغ\s*أقل$/i.test(t)) return true;
   if (/^مبلغ\s*اقل$/i.test(t)) return true;
   if (/اختر\s*مبلغ\s*أقل\s*هنا/i.test(t)) return true;
   if (/اذا\s*ترغب\s*بمبلغ\s*اقل/i.test(t)) return true;
+  if (/هل\s*ترغب\s*بمبلغ\s*أقل/i.test(t)) return true;
+  if (/هل\s*ترغب\s*بمبلغ\s*اقل/i.test(t)) return true;
   return false;
+}
+
+function replyWantLowerAmountAsk(choice, sessionData = {}) {
+  if (choice === "yes") {
+    return beginLowerAmountFlow({
+      ...sessionData,
+      awaitingLowerAmountAsk: false,
+    });
+  }
+  return {
+    ok: true,
+    silent: true,
+    data: {
+      ...sessionData,
+      awaitingLowerAmountAsk: false,
+    },
+  };
 }
 
 /** إعادة عرض قائمة المبالغ الأقل (توافق مع الزر القديم إن وُجد) */
@@ -858,6 +891,7 @@ function beginLowerAmountFlow(sessionData = {}) {
       lowerTiers,
       awaitingLowerAmountEntry: false,
       awaitingLowerAmountTerm: false,
+      awaitingLowerAmountAsk: false,
       awaitingAmountChoice: Boolean(interactive),
       pendingSelectedAmount: null,
       availableYearsForAmount: null,
@@ -1262,6 +1296,7 @@ module.exports = {
   getAvailableYearsForAmount,
   looksLikeWantLowerAmount,
   beginLowerAmountFlow,
+  replyWantLowerAmountAsk,
   applyLowerAmountTerm,
   buildWantLowerAmountInteractive,
   replyPropertyComboDecision,

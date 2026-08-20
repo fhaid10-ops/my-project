@@ -47,23 +47,21 @@ if (!result.sendTextThenInteractive) {
 
 if (
   !result.interactive ||
-  result.interactive.kind !== "list" ||
-  result.interactive.body !== "اختر مبلغ أقل هنا"
+  result.interactive.kind !== "buttons" ||
+  result.interactive.body !== "هل ترغب بمبلغ أقل"
 ) {
-  console.error("FAIL: لازم قائمة اختر مبلغ أقل هنا أولًا", result.interactive);
+  console.error("FAIL: لازم سؤال هل ترغب بمبلغ أقل أولًا", result.interactive);
+  process.exitCode = 1;
+} else if (!result.data.awaitingLowerAmountAsk) {
+  console.error("FAIL: لازم awaitingLowerAmountAsk بعد أعلى مبلغ");
   process.exitCode = 1;
 } else {
-  const first = result.interactive.rows[0];
-  const last = result.interactive.rows[result.interactive.rows.length - 1];
-  const max = result.data.maxAmount;
-  if (first?.id === `amt_${max}`) {
-    console.error("FAIL: أعلى مبلغ ما يكون داخل قائمة الأقل");
-    process.exitCode = 1;
-  } else if (last?.id !== "amt_10000") {
-    console.error("FAIL: آخر خيار لازم 10,000", last);
+  const lastTier = result.data.lowerTiers[result.data.lowerTiers.length - 1];
+  if (lastTier !== 10000) {
+    console.error("FAIL: آخر مبلغ أقل لازم 10,000", lastTier);
     process.exitCode = 1;
   } else {
-    console.log("OK: أول نتيجة تعرض قائمة أقل تنتهي بـ 10,000");
+    console.log("OK: أول نتيجة تسأل هل ترغب بمبلغ أقل وتنتهي المبالغ عند 10,000");
   }
 }
 
