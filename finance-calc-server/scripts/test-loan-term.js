@@ -7,6 +7,7 @@ const {
   loanTermChoiceInteractive,
   getAvailableYearsForAmount,
   looksLikeWantLowerAmount,
+  looksLikeYesNoReply,
   beginLowerAmountFlow,
   replyWantLowerAmountAsk,
   applyLowerAmountTerm,
@@ -22,6 +23,12 @@ assert.ok(looksLikeWantLowerAmount("مبلغ أقل"));
 assert.ok(looksLikeWantLowerAmount("اختر مبلغ أقل هنا"));
 assert.ok(looksLikeWantLowerAmount("هل ترغب بمبلغ أقل"));
 assert.ok(looksLikeWantLowerAmount("هل ترغب بمبلغ اقل"));
+assert.strictEqual(looksLikeYesNoReply("نعم"), "yes");
+assert.strictEqual(looksLikeYesNoReply("لا"), "no");
+assert.strictEqual(looksLikeYesNoReply("1"), "yes");
+assert.strictEqual(looksLikeYesNoReply("2"), "no");
+assert.strictEqual(looksLikeYesNoReply("1- نعم"), "yes");
+assert.strictEqual(looksLikeYesNoReply("2- لا"), "no");
 
 const fiveOpts = loanTermChoiceInteractive([5, 4, 3, 2, 1]);
 assert.strictEqual(fiveOpts.kind, "list");
@@ -47,11 +54,10 @@ assert.ok(afterRe.ok);
 assert.ok(!afterRe.draft || afterRe.draft === null);
 assert.strictEqual(afterRe.sessionData?.loanTermMonths, 60);
 assert.strictEqual(afterRe.sessionData?.awaitingLowerAmountAsk, true);
-assert.strictEqual(afterRe.interactive?.kind, "list");
-assert.strictEqual(afterRe.interactive?.button, "اختر");
-assert.ok(afterRe.interactive?.rows?.some((r) => r.id === "want_lower_yes"));
-assert.ok(afterRe.interactive?.rows?.some((r) => r.id === "want_lower_no"));
-assert.match(afterRe.interactive?.body || "", /هل ترغب بمبلغ أقل/);
+assert.ok(!afterRe.interactive);
+assert.match(afterRe.afterFollowUpReply || "", /هل ترغب بمبلغ أقل/);
+assert.match(afterRe.afterFollowUpReply || "", /\nنعم/);
+assert.match(afterRe.afterFollowUpReply || "", /\nلا/);
 assert.ok(String(afterRe.reply).includes("5 سنوات"));
 
 const declined = replyWantLowerAmountAsk("no", afterRe.sessionData);

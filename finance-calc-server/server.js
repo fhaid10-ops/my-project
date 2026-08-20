@@ -362,29 +362,39 @@ async function sendInteraktInteractive(countryCode, phoneNumber, interactive) {
   throw new Error(`نوع interactive غير مدعوم: ${interactive.kind}`);
 }
 
+async function sendFollowUpMessages(countryCode, phone, result) {
+  if (result?.followUpReply) {
+    await sendInteraktText(countryCode, phone, result.followUpReply);
+  }
+  if (result?.afterFollowUpReply) {
+    await sendInteraktText(countryCode, phone, result.afterFollowUpReply);
+  }
+}
+
 async function sendResultReply(countryCode, phone, result) {
   // نص أولًا ثم تفاعل (مثل: سبب الرفض ثم أزرار الباقة / أعلى مبلغ ثم قائمة أقل)
   if (result?.sendTextThenInteractive && result?.reply && result?.interactive) {
     await sendInteraktText(countryCode, phone, result.reply);
-    if (result.followUpReply) {
-      await sendInteraktText(countryCode, phone, result.followUpReply);
-    }
+    await sendFollowUpMessages(countryCode, phone, result);
     await sendInteraktInteractive(countryCode, phone, result.interactive);
-    return result.followUpReply
+    return result.followUpReply || result.afterFollowUpReply
       ? "text+followup+interactive"
       : "text+interactive";
   }
   if (result?.interactive) {
     await sendInteraktInteractive(countryCode, phone, result.interactive);
-    if (result.followUpReply) {
-      await sendInteraktText(countryCode, phone, result.followUpReply);
-    }
-    return result.followUpReply ? "interactive+followup" : "interactive";
+    await sendFollowUpMessages(countryCode, phone, result);
+    return result.followUpReply || result.afterFollowUpReply
+      ? "interactive+followup"
+      : "interactive";
   }
-  if (result?.reply) {
-    await sendInteraktText(countryCode, phone, result.reply);
-    if (result.followUpReply) {
-      await sendInteraktText(countryCode, phone, result.followUpReply);
+  if (result?.reply || result?.afterFollowUpReply) {
+    if (result?.reply) {
+      await sendInteraktText(countryCode, phone, result.reply);
+    }
+    await sendFollowUpMessages(countryCode, phone, result);
+    if (result.afterFollowUpReply) {
+      return result.followUpReply ? "text+followup+ask" : "text+ask";
     }
     return result.followUpReply ? "text+followup" : "text";
   }
@@ -503,8 +513,11 @@ app.post("/webhook/interakt", async (req, res) => {
     if (!text && !(isAudio && draft?.step === "real_estate")) {
       return;
     }
-    // السلام / قائمة / الرقم 1 → القائمة الرئيسية حتى لو داخل مسار
-    if (
+    // نعم/لا لمبلغ أقل قبل اختصار القائمة (الرقم 1)
+    if (yesNo && currentSession?.awaitingLowerAmountAsk) {
+      result = replyWantLowerAmountAsk(yesNo, currentSession);
+      if (result?.data) saveSession(countryCode, phone, result.data);
+    } else if (
       looksLikeShowMainMenu(text) ||
       staffMenuShortcut ||
       looksLikeMenuShortcut(text)
@@ -684,9 +697,6 @@ app.post("/webhook/interakt", async (req, res) => {
         comboDecision: yesNo,
       });
       clearDraft(countryCode, phone);
-    } else if (yesNo && currentSession?.awaitingLowerAmountAsk) {
-      result = replyWantLowerAmountAsk(yesNo, currentSession);
-      if (result?.data) saveSession(countryCode, phone, result.data);
     } else if (yesNo && currentSession?.awaitingLowerAmountConfirm) {
       result = confirmLowerAmountSuggestion(currentSession, yesNo);
       if (result?.data) {
