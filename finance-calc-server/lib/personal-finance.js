@@ -582,35 +582,45 @@ function personalEmployeeCode() {
   return match ? match[1] : "SF1888";
 }
 
-/** رسالة التقديم الإلكتروني — تُرسل منفصلة بعد نتيجة الحساب */
-function buildPersonalApplyFollowUp() {
-  const custom = CONFIG.messages?.personalApplyFollowUp;
-  if (typeof custom === "function") {
-    return custom(
-      personalEmployeeCode(),
-      CONFIG.financing?.personalPortalUrl,
-      CONFIG.financing?.personalAgentPhone || CONFIG.financing?.employeePhone
-    );
-  }
-  if (typeof custom === "string" && custom.trim()) return custom;
-
+/** رسالتا التقديم الإلكتروني: الرابط ثم الملاحظة ورمز الموظف */
+function buildPersonalApplyMessages() {
   const code = personalEmployeeCode();
   const portalUrl =
     CONFIG.financing?.personalPortalUrl ||
     "https://portal.sfco.com.sa/?DSA=SF1888";
-  const phone =
-    CONFIG.financing?.personalAgentPhone ||
-    CONFIG.financing?.employeePhone ||
-    "0507009290";
-  return `قدم الان هنا
-${portalUrl}
+
+  const linkCustom = CONFIG.messages?.personalApplyLink;
+  const noteCustom = CONFIG.messages?.personalApplyNote;
+
+  let reply;
+  if (typeof linkCustom === "function") reply = linkCustom(portalUrl);
+  else if (typeof linkCustom === "string" && linkCustom.trim()) reply = linkCustom;
+  else {
+    reply = `قدم الان هنا
+${portalUrl}`;
+  }
+
+  let followUpReply;
+  if (typeof noteCustom === "function") followUpReply = noteCustom(code);
+  else if (typeof noteCustom === "string" && noteCustom.trim()) {
+    followUpReply = noteCustom;
+  } else {
+    followUpReply = `ملاحظه
 
 سجل مبلغ التمويل المرغوب فيه بالملاحظات
 داخل الموقع لمتابعة الطلب اضف رمز الموظف
-${code}
-وارسلي رقم الطلب.
+${code}`;
+  }
 
-${phone}`;
+  return { reply: String(reply).trim(), followUpReply: String(followUpReply).trim() };
+}
+
+/** النصان معًا — للتوافق وكشف «أخذ رابط التمويل» */
+function buildPersonalApplyFollowUp() {
+  const { reply, followUpReply } = buildPersonalApplyMessages();
+  return `${reply}
+
+${followUpReply}`;
 }
 
 function contactFooter() {
@@ -905,9 +915,11 @@ function askApplyMethod(sessionData = {}) {
 
 function replyWantApplyMethod(choice, sessionData = {}) {
   if (choice === "electronic") {
+    const messages = buildPersonalApplyMessages();
     return {
       ok: true,
-      reply: buildPersonalApplyFollowUp(),
+      reply: messages.reply,
+      followUpReply: messages.followUpReply,
       data: {
         ...sessionData,
         awaitingApplyMethod: false,
@@ -1426,6 +1438,7 @@ module.exports = {
   replyPropertyComboInterestDecision,
   buildMaxAmountReply,
   buildPersonalApplyFollowUp,
+  buildPersonalApplyMessages,
   buildAmountChoiceInteractive,
   buildLowerAmountInteractive,
   selectTiersForWhatsAppList,

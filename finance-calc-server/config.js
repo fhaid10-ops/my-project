@@ -477,24 +477,17 @@ module.exports = {
     propertyComboInterest: `هل ترغب بحلول تمويلية أخرى؟`,
 
     /**
-     * رسالة منفصلة بعد نتيجة التمويل الشخصي (وأبعد اختيار مبلغ):
-     * رابط التقديم + المبلغ في الملاحظات + رمز الموظف + رقم الطلب
+     * رسالتا التقديم الإلكتروني بعد اختيار «تقديم إلكتروني»:
+     * 1) الرابط  2) الملاحظة ورمز الموظف
      */
-    personalApplyFollowUp: (employeeCode, portalUrl, agentPhone) => {
-      const code = employeeCode || "SF1888";
-      const url =
-        portalUrl || "https://portal.sfco.com.sa/?DSA=SF1888";
-      const phone = agentPhone || "0507009290";
-      return `قدم الان هنا
-${url}
+    personalApplyLink: (portalUrl) => `قدم الان هنا
+${portalUrl || "https://portal.sfco.com.sa/?DSA=SF1888"}`,
+
+    personalApplyNote: (employeeCode) => `ملاحظه
 
 سجل مبلغ التمويل المرغوب فيه بالملاحظات
 داخل الموقع لمتابعة الطلب اضف رمز الموظف
-${code}
-وارسلي رقم الطلب.
-
-${phone}`;
-    },
+${employeeCode || "SF1888"}`,
 
     serviceStopQualify: `هل راتبك لا يقل عن 7000 ريال
 وما عليك عقاري؟`,
