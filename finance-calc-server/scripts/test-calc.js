@@ -119,21 +119,29 @@ if (amountSession?.lowerTiers?.length) {
       const finalized = applyLowerAmountTerm(selected.data, years[0]);
       console.log("\n--- بعد اختيار السنوات ---");
       console.log(finalized.reply);
-      console.log("\n--- follow-up بعد الاختيار ---");
-      console.log(finalized.followUpReply);
+      console.log("\ninteractive:", JSON.stringify(finalized.interactive, null, 2));
       if (
-        !finalized.followUpReply ||
-        !String(finalized.followUpReply).includes("SF1888")
+        finalized.followUpReply ||
+        finalized.interactive?.kind !== "buttons" ||
+        !finalized.data?.awaitingApplyMethod ||
+        !finalized.interactive.buttons?.some((b) => b.id === "apply_electronic") ||
+        !finalized.interactive.buttons?.some((b) => b.id === "apply_branch")
       ) {
-        console.error("FAIL: اختيار المدة لازم followUpReply برمز SF1888");
+        console.error(
+          "FAIL: بعد السنوات لازم سؤال التقديم الإلكتروني أو زيارة الفرع",
+          finalized.interactive
+        );
         process.exitCode = 1;
+      } else {
+        console.log("OK: بعد السنوات نسأل طريقة التقديم");
       }
     }
   } else if (
-    !selected.followUpReply ||
-    !String(selected.followUpReply).includes("SF1888")
+    selected.interactive?.kind !== "buttons" ||
+    !selected.data?.awaitingApplyMethod ||
+    !selected.interactive.buttons?.some((b) => b.id === "apply_electronic")
   ) {
-    console.error("FAIL: اختيار المبلغ (مدة واحدة) لازم followUpReply برمز SF1888");
+    console.error("FAIL: اختيار المبلغ (مدة واحدة) لازم سؤال طريقة التقديم");
     process.exitCode = 1;
   }
 }
