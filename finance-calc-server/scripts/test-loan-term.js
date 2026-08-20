@@ -52,8 +52,22 @@ assert.strictEqual(afterRe.interactive?.body, "هل ترغب بمبلغ أقل")
 assert.ok(String(afterRe.reply).includes("5 سنوات"));
 
 const declined = replyWantLowerAmountAsk("no", afterRe.sessionData);
-assert.strictEqual(declined.silent, true);
+assert.ok(!declined.silent);
+assert.match(declined.reply, /على كم سنة/);
+assert.ok(declined.interactive);
 assert.strictEqual(declined.data.awaitingLowerAmountAsk, false);
+assert.strictEqual(declined.data.awaitingLowerAmountTerm, true);
+assert.strictEqual(
+  declined.data.pendingSelectedAmount,
+  afterRe.sessionData.maxAmount
+);
+const declinedYears = declined.data.availableYearsForAmount;
+assert.ok(Array.isArray(declinedYears) && declinedYears.length >= 1);
+const maxTerm = applyLowerAmountTerm(declined.data, declinedYears[0]);
+assert.ok(maxTerm.ok, maxTerm.reply);
+assert.ok(maxTerm.followUpReply);
+assert.ok(!maxTerm.interactive, "بعد لا ما نرجع قائمة مبلغ أقل");
+assert.match(String(maxTerm.reply), /تم اختيار المبلغ/);
 
 const accepted = replyWantLowerAmountAsk("yes", afterRe.sessionData);
 assert.strictEqual(accepted.interactive?.kind, "list");

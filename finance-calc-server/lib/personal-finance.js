@@ -858,14 +858,28 @@ function replyWantLowerAmountAsk(choice, sessionData = {}) {
     return beginLowerAmountFlow({
       ...sessionData,
       awaitingLowerAmountAsk: false,
+      skipLowerAmountList: false,
     });
   }
+  return askYearsForOfferedAmount(sessionData);
+}
+
+function askYearsForOfferedAmount(sessionData = {}) {
+  const amount = Number(sessionData.maxAmount || sessionData.rounded || 0);
+  const available = getAvailableYearsForAmount(sessionData, amount);
+  const years = available.length ? available : [loanTermFallbackYears()];
   return {
     ok: true,
-    silent: true,
+    reply: "ترغب المبلغ على كم سنة؟",
+    interactive: loanTermChoiceInteractive(years),
     data: {
       ...sessionData,
+      pendingSelectedAmount: amount,
+      availableYearsForAmount: years,
       awaitingLowerAmountAsk: false,
+      awaitingLowerAmountTerm: true,
+      awaitingAmountChoice: false,
+      skipLowerAmountList: true,
     },
   };
 }
@@ -1029,7 +1043,9 @@ function buildSelectedAmountSuccess(sessionData, amount, months) {
           AMOUNT_MENU_STEP,
           CONFIG.financing.minLowerAmount || 10000
         );
-  const interactive = buildLowerAmountInteractive(lowerTiers);
+  const interactive = sessionData?.skipLowerAmountList
+    ? null
+    : buildLowerAmountInteractive(lowerTiers);
   const reply = `تم اختيار المبلغ:
 
 قيمة التمويل:
@@ -1058,13 +1074,14 @@ ${formatMoney(total)} ريال
       loanTermMonths: months,
       loanTermYears: Math.round(months / 12),
       maxAmount: Number(sessionData?.maxAmount || sessionData?.rounded || 0),
-      awaitingAmountChoice: true,
+      awaitingAmountChoice: Boolean(interactive),
       awaitingLowerAmountTerm: false,
       awaitingLowerAmountConfirm: false,
       pendingSelectedAmount: null,
       availableYearsForAmount: null,
       suggestedAmount: null,
       requestedAmount: null,
+      skipLowerAmountList: false,
     },
   };
 }
