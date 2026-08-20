@@ -1148,9 +1148,6 @@ function buildSelectedAmountSuccess(sessionData, amount, months) {
           AMOUNT_MENU_STEP,
           CONFIG.financing.minLowerAmount || 10000
         );
-  const interactive = sessionData?.skipLowerAmountList
-    ? null
-    : buildLowerAmountInteractive(lowerTiers);
   const reply = `تم اختيار المبلغ:
 
 قيمة التمويل:
@@ -1167,9 +1164,8 @@ ${formatMoney(total)} ريال
   return {
     ok: true,
     reply,
-    followUpReply: buildPersonalApplyFollowUp(),
-    interactive,
-    sendTextThenInteractive: Boolean(interactive),
+    interactive: buildApplyMethodAskInteractive(),
+    sendTextThenInteractive: true,
     data: {
       ...sessionData,
       selectedAmount: amount,
@@ -1179,7 +1175,8 @@ ${formatMoney(total)} ريال
       loanTermMonths: months,
       loanTermYears: Math.round(months / 12),
       maxAmount: Number(sessionData?.maxAmount || sessionData?.rounded || 0),
-      awaitingAmountChoice: Boolean(interactive),
+      awaitingAmountChoice: false,
+      awaitingApplyMethod: true,
       awaitingLowerAmountTerm: false,
       awaitingLowerAmountConfirm: false,
       pendingSelectedAmount: null,
