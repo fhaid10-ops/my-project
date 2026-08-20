@@ -73,7 +73,10 @@ const {
   parseApplicationOrderNumber,
   buildOrderNumberAckReply,
 } = require("./lib/order-number");
-const { readOrderNumberFromImage } = require("./lib/order-image");
+const {
+  inspectInboundImage,
+  looksLikeLockedPortalAccount,
+} = require("./lib/order-image");
 const { createInboundDedupe, looksLikeEchoedMenuBody } = require("./lib/inbound-dedupe");
 const CONFIG = require("./config");
 
@@ -455,13 +458,17 @@ app.post("/webhook/interakt", async (req, res) => {
     }
 
     let imageOrderAck = false;
+    let portalAccountLocked = looksLikeLockedPortalAccount(text);
     if (isImage && !looksLikeApplicationOrderNumber(text)) {
       if (mediaUrl) {
         try {
-          const fromImage = await readOrderNumberFromImage(mediaUrl);
-          if (fromImage) {
-            console.log("[order-image:ok]", phone, fromImage);
-            text = fromImage;
+          const inspection = await inspectInboundImage(mediaUrl);
+          if (inspection.kind === "account_locked") {
+            portalAccountLocked = true;
+            console.log("[order-image:account-locked]", phone);
+          } else if (inspection.orderNumber) {
+            console.log("[order-image:ok]", phone, inspection.orderNumber);
+            text = inspection.orderNumber;
           } else {
             console.log("[order-image:ack-without-digits]", phone);
           }
@@ -471,7 +478,7 @@ app.post("/webhook/interakt", async (req, res) => {
       } else {
         console.log("[order-image:ack-no-url]", phone);
       }
-      imageOrderAck = true;
+      imageOrderAck = !portalAccountLocked;
     }
 
     if (inboundDedupe.isDuplicate(countryCode, phone, text)) {
@@ -485,7 +492,9 @@ app.post("/webhook/interakt", async (req, res) => {
     const yesNo = looksLikeYesNoReply(text);
     const currentSession = getSession(countryCode, phone);
     const draft = getDraft(countryCode, phone);
-    const inboundPreview = text || (isImage ? "[صورة]" : isAudio ? "[صوت]" : "");
+    const inboundPreview = portalAccountLocked
+      ? "[صورة: حساب البورتال مقفل]"
+      : text || (isImage ? "[صورة]" : isAudio ? "[صوت]" : "");
 
     // سجل العميل في لوحة التحكم (اليوم / أمس)
     customerLedger.recordInbound(countryCode, phone, inboundPreview, {
@@ -498,7 +507,14 @@ app.post("/webhook/interakt", async (req, res) => {
         draft?.civilianSubtype || currentSession?.civilianSubtype || null,
     });
 
-    if (imageOrderAck) {
+    if (portalAccountLocked) {
+      if (isChatPaused(countryCode, phone)) return;
+      result = {
+        ok: true,
+        reply: CONFIG.messages.portalAccountLocked,
+        offer: "portal_account_locked",
+      };
+    } else if (imageOrderAck) {
       if (isChatPaused(countryCode, phone)) return;
       if (looksLikeApplicationOrderNumber(text)) {
         result = applyApplicationOrderNumber(
@@ -519,7 +535,7 @@ app.post("/webhook/interakt", async (req, res) => {
     }
     // السلام / قائمة / الرقم 1 → القائمة الرئيسية حتى لو داخل مسار
     if (result) {
-      // صورة — تم استلام رقم الطلب
+      // صورة رقم طلب أو حساب بورتال مقفل
     } else if (
       looksLikeShowMainMenu(text) ||
       staffMenuShortcut ||

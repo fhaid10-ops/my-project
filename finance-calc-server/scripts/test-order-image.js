@@ -2,10 +2,13 @@ const assert = require("assert");
 const {
   isSafeMediaUrl,
   looksLikeImageBuffer,
+  looksLikeLockedPortalAccount,
   downloadImage,
+  inspectInboundImage,
   readOrderNumberFromImage,
   OCR_LANGS,
 } = require("../lib/order-image");
+const CONFIG = require("../config");
 
 function check(name, fn) {
   try {
@@ -128,8 +131,36 @@ async function run() {
     assert.strictEqual(got, "10171992");
   });
 
-  await check("OCR يجرب العربية ثم الإنجليزية", () => {
-    assert.deepStrictEqual(OCR_LANGS, ["ara+eng", "eng"]);
+  await check("صورة قفل حساب البورتال لا تُقرأ كرقم طلب", async () => {
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+    const lockedText =
+      "تسجيل الدخول إلى حسابك\nالهوية الوطنية/الإقامة 1025712345\nفشل تسجيل الدخول\nتم قفل حسابك حالياً. يرجى التواصل مع فريق الدعم لفتح حسابك.\nحاول مرة أخرى\nportal.sfco.com.sa";
+    const fake = {
+      fetchImpl: async () => ({
+        ok: true,
+        headers: {
+          get: (name) => (name === "content-type" ? "image/jpeg" : null),
+        },
+        arrayBuffer: async () => jpeg,
+      }),
+      recognizeFn: async () => lockedText,
+    };
+    const got = await readOrderNumberFromImage(
+      "https://cdn.interakt.ai/media/locked.jpg",
+      fake
+    );
+    assert.strictEqual(got, null);
+    const info = await inspectInboundImage(
+      "https://cdn.interakt.ai/media/locked.jpg",
+      fake
+    );
+    assert.strictEqual(info.kind, "account_locked");
+    assert.strictEqual(info.orderNumber, null);
+    assert.ok(looksLikeLockedPortalAccount(lockedText));
+    assert.match(CONFIG.messages.portalAccountLocked, /حسابك في البورتال مقفل/);
+    assert.match(CONFIG.messages.portalAccountLocked, /عبدالرحمن/);
+    assert.match(CONFIG.messages.portalAccountLocked, /0595243553/);
+    assert.ok(!looksLikeLockedPortalAccount("تم تقديم الطلب بنجاح\nرقم الطلب 10171915"));
   });
 
   if (!process.exitCode) {

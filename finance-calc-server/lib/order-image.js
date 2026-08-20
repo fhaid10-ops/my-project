@@ -4,6 +4,20 @@
  */
 const { extractOrderNumberFromOcr } = require("./order-number");
 
+function looksLikeLockedPortalAccount(text) {
+  const s = String(text || "").replace(/\s+/g, " ").trim();
+  if (!s) return false;
+  const locked =
+    /تم\s*قفل\s*حسابك|قفل\s*حسابك|حسابك\s+حاليا.?[^\n]{0,40}قفل|account[^\n]{0,60}locked|locked[^\n]{0,40}account/i.test(
+      s
+    );
+  const loginFail = /فشل\s*تسجيل\s*الدخول|login\s*failed/i.test(s);
+  const portal =
+    /portal\.sfco|sfco\.com|الشركة السعودية للتمويل|saudi finance/i.test(s);
+  const support = /فريق الدعم|contact[^\n]{0,24}support/i.test(s);
+  return locked || (loginFail && (portal || support));
+}
+
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const DOWNLOAD_TIMEOUT_MS = 12000;
 const OCR_TIMEOUT_MS = 25000;
@@ -196,24 +210,41 @@ function enqueue(fn) {
   return run;
 }
 
-async function readOrderNumberFromImage(url, deps = {}) {
-  if (!isOcrEnabled()) return null;
-  if (!url) return null;
+async function inspectInboundImage(url, deps = {}) {
+  if (!isOcrEnabled() || !url) {
+    return { kind: "unknown", orderNumber: null, ocrText: "" };
+  }
   return enqueue(async () => {
     const buf = await downloadImage(url, deps);
     const ocrText =
       typeof deps.recognizeFn === "function"
         ? await deps.recognizeFn(buf)
         : await recognizeDigits(buf, deps);
-    const found = extractOrderNumberFromOcr(ocrText);
-    if (!found) {
+    const text = String(ocrText || "");
+    const orderNumber = extractOrderNumberFromOcr(text) || null;
+    if (orderNumber) {
+      return { kind: "order_number", orderNumber, ocrText: text };
+    }
+    if (looksLikeLockedPortalAccount(text)) {
+      console.log(
+        "[order-image:account-locked]",
+        text.replace(/\s+/g, " ").slice(0, 180)
+      );
+      return { kind: "account_locked", orderNumber: null, ocrText: text };
+    }
+    if (text.trim()) {
       console.log(
         "[order-image:ocr-text]",
-        String(ocrText || "").replace(/\s+/g, " ").slice(0, 220)
+        text.replace(/\s+/g, " ").slice(0, 220)
       );
     }
-    return found;
+    return { kind: "unknown", orderNumber: null, ocrText: text };
   });
+}
+
+async function readOrderNumberFromImage(url, deps = {}) {
+  const info = await inspectInboundImage(url, deps);
+  return info.orderNumber || null;
 }
 
 module.exports = {
@@ -222,7 +253,9 @@ module.exports = {
   isOcrEnabled,
   isSafeMediaUrl,
   looksLikeImageBuffer,
+  looksLikeLockedPortalAccount,
   downloadImage,
+  inspectInboundImage,
   readOrderNumberFromImage,
   extractOrderNumberFromOcr,
 };
