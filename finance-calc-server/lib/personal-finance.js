@@ -592,11 +592,13 @@ function buildPersonalApplyFollowUp() {
   const portalUrl =
     CONFIG.financing?.personalPortalUrl ||
     "https://portal.sfco.com.sa/?DSA=SF1695";
-  return `سجل مبلغ التمويل المرغوب فيه
-واكتب رمز الموظف ${code} بالتقديم لمتابعة الطلب
-وارسلي رقم الطلب
+  return `قدم الان هنا
+${portalUrl}
 
-${portalUrl}`;
+سجل مبلغ التمويل المرغوب فيه بالملاحظات
+داخل الموقع لمتابعة الطلب اضف رمز الموظف
+${code}
+وارسلي رقم الطلب.`;
 }
 
 function contactFooter() {
