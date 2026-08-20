@@ -2,6 +2,7 @@ const assert = require("assert");
 const express = require("express");
 const os = require("os");
 const path = require("path");
+const fs = require("fs");
 const { createAdminRouter, normalizePhoneParts, parsePhoneList, isSaudiMobile, toInteraktAudienceCsv } = require("../lib/admin-routes");
 const { showMainMenu } = require("../lib/main-menu");
 const { createCustomerLedger } = require("../lib/customer-ledger");
@@ -318,12 +319,20 @@ async function waitBulkJob(timeoutMs = 3000) {
   assert.strictEqual(followup.json.sent, true);
   assert.strictEqual(followup.json.tab, "finance_link_sent");
   assert.ok(
-    String(sent[sent.length - 1].message).includes("هل تم تقديم الطلب"),
+    String(sent[sent.length - 1].message).includes("هل تم التقديم"),
     "رسالة سؤال التقديم"
   );
   assert.ok(
     String(sent[sent.length - 1].message).includes("ارسل رقم الطلب"),
     "طلب رقم الطلب"
+  );
+  assert.ok(
+    String(sent[sent.length - 1].message).includes("ماجد 0507009290"),
+    "رقم ماجد في متابعة التقديم"
+  );
+  assert.ok(
+    String(sent[sent.length - 1].message).includes("عبدالرحمن 0595243553"),
+    "رقم عبدالرحمن في متابعة التقديم"
   );
   const sentAfterAsk = await req("GET", "/customers?day=finance_link_sent");
   assert.ok(
@@ -464,6 +473,20 @@ async function waitBulkJob(timeoutMs = 3000) {
   );
 
   const CONFIG = require("../config");
+  assert.match(
+    CONFIG.followUp.electronicMessage,
+    /هل تم التقديم/,
+    "نص متابعة أخذ الرابط"
+  );
+  assert.match(CONFIG.followUp.electronicMessage, /0507009290/);
+  assert.match(CONFIG.followUp.electronicMessage, /0595243553/);
+  const adminHtml = fs.readFileSync(
+    path.join(__dirname, "../public/admin/index.html"),
+    "utf8"
+  );
+  assert.match(adminHtml, /id="pending-followup-send-card"/);
+  assert.match(adminHtml, /id="pending-followup-count"/);
+  assert.match(adminHtml, /id="pending-followup-send-btn"/);
   assert.ok((CONFIG.outbound?.dailyLimit || 0) >= 250);
   const prevOutbound = { ...CONFIG.outbound };
   CONFIG.outbound = {
@@ -669,6 +692,51 @@ async function waitBulkJob(timeoutMs = 3000) {
   );
   const sentAfterTpl = await req("GET", "/customers?day=finance_link_sent");
   assert.ok((sentAfterTpl.json.customers || []).some((c) => c.phone === "550000009"));
+  CONFIG.outbound = prevOutbound;
+
+  CONFIG.outbound = {
+    ...prevOutbound,
+    minDelayMs: 0,
+    delayMs: 0,
+    maxBatchSize: 10,
+    dailyLimit: 250,
+    skipIfFollowedUpWithinHours: 0,
+  };
+  customerLedger.recordInbound("+966", "550000010", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000010", "أخذ رابط التمويل");
+  customerLedger.recordInbound("+966", "550000011", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000011", "أخذ رابط التمويل");
+  const pendingBeforeLimit = await req("GET", "/customers?day=finance_link_pending");
+  const pendingBeforeLimitCount = pendingBeforeLimit.json.counts?.finance_link_pending || 0;
+  const limitedAll = await req("POST", "/bulk-followup", {
+    fromOutcome: "finance_link",
+    sendAll: true,
+    delayMs: 0,
+    limit: 1,
+  });
+  assert.strictEqual(limitedAll.status, 200, limitedAll.json?.error || "limit+sendAll ok");
+  assert.strictEqual(limitedAll.json.queued, 1, "الحد من مربع العدد يرسل واحد فقط");
+  const limitedJob = await waitBulkJob();
+  assert.strictEqual(limitedJob.sent, 1);
+  const pendingAfterLimit = await req("GET", "/customers?day=finance_link_pending");
+  assert.strictEqual(
+    pendingAfterLimit.json.counts?.finance_link_pending,
+    pendingBeforeLimitCount - 1,
+    "الباقي يبقى في بدون متابعة"
+  );
+  const movedLimited = (limitedJob.results || []).find((r) => r.ok)?.phone;
+  assert.ok(movedLimited, "رقم نُقل بعد إرسال العدد المحدد");
+  const sentAfterLimit = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok(
+    (sentAfterLimit.json.customers || []).some((c) => c.phone === movedLimited),
+    "بعد إرسال العدد المحدد يظهر في تمت المتابعة"
+  );
+  assert.ok(
+    String(
+      sent.find((s) => s.phone === movedLimited && s.type === "Text")?.message || ""
+    ).includes("كلم احد الموظفين"),
+    "نص متابعة القائمة يشمل أرقام الموظفين"
+  );
   CONFIG.outbound = prevOutbound;
 
   CONFIG.outbound = {

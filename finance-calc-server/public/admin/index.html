@@ -462,6 +462,19 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
       </div>
       <p id="rejected-add-status" class="status" hidden></p>
     </div>
+    <div class="card" id="pending-followup-send-card" style="margin-bottom:12px;display:none">
+      <h3 style="margin:0 0 8px;font-size:1.05rem">إرسال لهذه القائمة فقط</h3>
+      <p class="muted" style="margin-bottom:12px">الزر يرسل لمن في «أخذ الرابط — بدون متابعة» فقط. خفّض العدد إذا تبي دفعة أصغر؛ الباقي يبقى هنا حتى ينتقلوا إلى «تمت المتابعة».</p>
+      <div class="btn-row" style="align-items:end">
+        <label class="field" style="margin:0;min-width:140px;max-width:180px">
+          <span>العدد</span>
+          <input id="pending-followup-count" type="number" min="1" step="1" value="0" />
+        </label>
+        <button id="pending-followup-send-btn" class="btn primary" type="button">إرسال</button>
+      </div>
+      <p class="muted" id="pending-followup-count-meta" style="margin:10px 0 0">في القائمة الآن: —</p>
+      <p id="pending-followup-send-status" class="status" hidden></p>
+    </div>
     <div class="card" id="plus-add-card" style="margin-bottom:12px;display:none">
       <h3 style="margin:0 0 8px;font-size:1.05rem">إضافة رقم إلى متابعة بلس</h3>
       <p class="muted" style="margin-bottom:12px">لإضافة رقم جديد لهذا القسم. البحث عن عميل يكون من الرئيسية فقط.</p>
@@ -598,7 +611,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "20260820r1";
+  const UI_VERSION = "20260820r2";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -962,6 +975,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     if (rejectedCard) rejectedCard.style.display = customerDay === "rejected" ? "block" : "none";
     const plusCard = document.getElementById("plus-add-card");
     if (plusCard) plusCard.style.display = customerDay === "finance_link_plus" ? "block" : "none";
+    const pendingSendCard = document.getElementById("pending-followup-send-card");
+    if (pendingSendCard) {
+      pendingSendCard.style.display = customerDay === "finance_link_pending" ? "block" : "none";
+    }
     const dateBar = document.querySelector(".ledger-date-bar");
     if (dateBar) dateBar.hidden = !isDayFilter(customerDay);
     const dateInput = document.getElementById("ledger-date");
@@ -1202,6 +1219,31 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     const moreBtn = document.getElementById("load-more-customers");
     if (moreBtn) moreBtn.hidden = !customersHasMore;
     updateTabCounts(counts);
+    syncPendingFollowupSendBox(pack, counts);
+  }
+
+  function pendingFollowupListCount(pack, counts) {
+    const fromPack = Number(pack?.count);
+    if (Number.isFinite(fromPack) && pack?.day === "finance_link_pending") return fromPack;
+    const fromCounts = Number(counts?.finance_link_pending ?? counts?.customersFinanceLinkPending);
+    if (Number.isFinite(fromCounts)) return fromCounts;
+    return 0;
+  }
+
+  function syncPendingFollowupSendBox(pack, counts) {
+    const card = document.getElementById("pending-followup-send-card");
+    const input = document.getElementById("pending-followup-count");
+    const meta = document.getElementById("pending-followup-count-meta");
+    const onPending = customerDay === "finance_link_pending";
+    if (card) card.style.display = onPending ? "block" : "none";
+    if (!onPending) return;
+    const total = Math.max(pendingFollowupListCount(pack, counts), 0);
+    if (card) card.dataset.count = String(total);
+    if (meta) meta.textContent = `في القائمة الآن: ${total}`;
+    if (!input) return;
+    input.max = String(Math.max(total, 1));
+    if (document.activeElement === input) return;
+    input.value = String(total);
   }
 
   async function refreshCustomers({ append = false } = {}) {
@@ -1730,6 +1772,8 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     sendButtons,
     runningLabel,
     afterTab,
+    sendAll = true,
+    limit,
   }) {
     statusEl.hidden = false;
     statusEl.className = "status";
@@ -1741,10 +1785,11 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     try {
       const body = {
         fromOutcome,
-        sendAll: true,
-        message,
+        sendAll,
         delayMs: delaySec * 1000,
       };
+      if (message) body.message = message;
+      if (limit != null && Number.isFinite(Number(limit))) body.limit = Number(limit);
       if (via) {
         body.via = via;
         const tpl = readTemplatePayload();
@@ -1875,6 +1920,42 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     } catch (err) {
       alert(err.message);
     }
+  });
+
+  document.getElementById("pending-followup-send-btn").addEventListener("click", async () => {
+    const statusEl = document.getElementById("pending-followup-send-status");
+    const card = document.getElementById("pending-followup-send-card");
+    const input = document.getElementById("pending-followup-count");
+    const listed = Math.max(0, Math.floor(Number(card?.dataset?.count || 0)));
+    const requested = Math.floor(Number(input?.value || 0));
+    if (!listed) {
+      alert("ما فيه أحد في قائمة بدون متابعة");
+      return;
+    }
+    if (!Number.isFinite(requested) || requested < 1) {
+      alert("اكتب عدد أكبر من صفر");
+      input?.focus();
+      return;
+    }
+    const n = Math.min(requested, listed);
+    if (input && Number(input.value) !== n) input.value = String(n);
+    const delaySec = Math.max(Number(bulkDelay?.value || 10), 8);
+    const minutes = Math.ceil((n * delaySec) / 60);
+    const ok = confirm(
+      `إرسال لـ ${n} من قائمة «أخذ الرابط — بدون متابعة» فقط؟\nالباقي يبقى في هالقائمة.\nالرسالة تصل لمن راسلكم خلال 24 ساعة` +
+        (minutes > 1 ? `\nتقريباً ${minutes} دقيقة.` : ".")
+    );
+    if (!ok) return;
+    await runBulkFollowupSend({
+      fromOutcome: "finance_link",
+      sendAll: true,
+      limit: n,
+      delaySec,
+      statusEl,
+      sendButtons: [document.getElementById("pending-followup-send-btn")],
+      runningLabel: `جاري الإرسال لـ ${n} من هالقائمة...`,
+      afterTab: "finance_link_pending",
+    });
   });
 
   document.getElementById("bulk-followup-send").addEventListener("click", async () => {

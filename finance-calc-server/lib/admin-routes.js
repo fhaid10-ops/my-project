@@ -10,7 +10,7 @@ const {
 } = require("./customer-ledger");
 
 /** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
-const ADMIN_UI_VERSION = "20260820r1";
+const ADMIN_UI_VERSION = "20260820r2";
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
@@ -1151,8 +1151,14 @@ function createAdminRouter(deps) {
 في حال لديك اي استفسارات، انا بخدمتك.`
           : CONFIG.followUp?.electronicMessage ||
             `السلام عليكم
-هل تم تقديم الطلب
-في حال تم التقديم ارسل رقم الطلب`);
+هل تم التقديم
+في حال تم التقديم ارسل رقم الطلب
+
+في حال لديك مشكله بالرفع اكتروني وتبي ترفع يدوي
+كلم احد الموظفين
+
+ماجد 0507009290
+عبدالرحمن 0595243553`);
       await sendInteraktText(countryCode, phone, message);
       customerLedger?.recordOutbound?.(countryCode, phone, message, {
         mode: isAskPlus ? "admin-ask-plus" : "admin-followup",
@@ -1260,8 +1266,12 @@ function createAdminRouter(deps) {
     if (!Number.isFinite(delayMs) || delayMs < safe.minDelayMs) {
       delayMs = Math.max(safe.delayMs, safe.minDelayMs);
     }
+    const hasExplicitLimit =
+      req.body?.limit != null &&
+      req.body.limit !== "" &&
+      req.body.limit !== false;
     const requestedLimit = Number(
-      req.body?.limit != null ? req.body.limit : safe.maxBatchSize
+      hasExplicitLimit ? req.body.limit : safe.maxBatchSize
     );
     const batchLimit = Math.min(
       Math.max(Number.isFinite(requestedLimit) ? requestedLimit : safe.maxBatchSize, 1),
@@ -1405,9 +1415,10 @@ function createAdminRouter(deps) {
       req.body?.sendAll === "false" ||
       req.body?.sendAll === 0;
     const sendAll = (isFinanceLinkWave || isPlusWave) && !sendAllOff;
-    const sendCap = sendAll
-      ? Math.min(dailyRemaining, queue.length)
-      : Math.min(batchLimit, dailyRemaining, queue.length);
+    const honorLimit = !sendAll || hasExplicitLimit;
+    const sendCap = honorLimit
+      ? Math.min(batchLimit, dailyRemaining, queue.length)
+      : Math.min(dailyRemaining, queue.length);
     const toSend = queue.slice(0, sendCap);
     const deferred = queue.slice(sendCap);
 
@@ -1498,7 +1509,9 @@ function createAdminRouter(deps) {
         skippedDetails: skipped.slice(0, 40),
         hint:
           deferred.length > 0
-            ? `تبقّى ${deferred.length} بعد بلوغ الحد اليومي.`
+            ? sendCap >= dailyRemaining && dailyRemaining < queue.length
+              ? `تبقّى ${deferred.length} بعد بلوغ الحد اليومي.`
+              : `تبقّى ${deferred.length} في قائمة بدون متابعة.`
             : isPlusWave && financeStats.financeLinkPlusEligible > 0
               ? `تبقّى ${financeStats.financeLinkPlusEligible} مؤهلون لمتابعة بلس.`
               : financeStats.financeLinkPending > 0
