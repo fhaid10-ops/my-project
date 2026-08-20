@@ -159,8 +159,8 @@ async function run() {
     assert.ok(looksLikeLockedPortalAccount(lockedText));
     assert.match(CONFIG.messages.portalAccountLocked, /عبدالرحمن/);
     assert.match(CONFIG.messages.portalAccountLocked, /0595243553/);
+    assert.match(CONFIG.messages.portalAccountLocked, /يرفعلك يدوي يوجد مشكله/);
     assert.doesNotMatch(CONFIG.messages.portalAccountLocked, /دعم الشركة/);
-    assert.doesNotMatch(CONFIG.messages.portalAccountLocked, /حسابك في البورتال/);
     assert.ok(!looksLikeLockedPortalAccount("تم تقديم الطلب بنجاح\nرقم الطلب 10171915"));
   });
 

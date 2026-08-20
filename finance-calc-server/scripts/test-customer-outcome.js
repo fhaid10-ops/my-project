@@ -18,7 +18,7 @@ const { startServiceStopFlow, startFinancingSolutionsFlow } = require("../lib/ma
 assert.strictEqual(
   detectCustomerOutcome({
     offer: "portal_account_locked",
-    reply: "تواصل مع عبدالرحمن\n0595243553",
+    reply: "تواصل مع عبدالرحمن\n0595243553\nيرفعلك يدوي يوجد مشكله",
   }),
   OUTCOMES.FINANCE_LINK
 );
