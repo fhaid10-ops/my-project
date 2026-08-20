@@ -66,10 +66,9 @@ function detectCustomerOutcome(result) {
 
   // إرسال رابط/رسالة التقديم الإلكتروني للتمويل الشخصي
   if (
-    followUp &&
-    (/portal\.sfco\.com/i.test(followUp) ||
-      /سجل مبلغ التمويل المرغوب/i.test(followUp) ||
-      /رابط التقديم/i.test(followUp))
+    /portal\.sfco\.com/i.test(blob) ||
+    /سجل مبلغ التمويل المرغوب/i.test(blob) ||
+    /رابط التقديم/i.test(blob)
   ) {
     return OUTCOMES.FINANCE_LINK;
   }

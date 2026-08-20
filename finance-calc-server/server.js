@@ -3,8 +3,8 @@
  * يشتغل على جهاز البيت (جهاز عبدالرحمن)
  *
  * التدفق:
- * 1) العميل يرسل بيانات التمويل → نحسب أعلى مبلغ ثم نسأل هل يرغب بمبلغ أقل
- * 2) إذا اختار نعم → قائمة مبالغ أقل، وإذا أرسل مبلغًا نحسب قسطه
+ * 1) العميل يرسل بيانات التمويل → نحسب أعلى مبلغ ثم نسأل هل يرغب بمبلغ أقل (زرين)
+ * 2) إذا اختار نعم → قائمة مبالغ أقل. إذا اختار لا → تقديم إلكتروني أو زيارة الفرع
  */
 require("dotenv").config();
 const express = require("express");
@@ -21,6 +21,9 @@ const {
   looksLikeWantLowerAmount,
   beginLowerAmountFlow,
   replyWantLowerAmountAsk,
+  looksLikeApplyMethodReply,
+  buildApplyMethodAskInteractive,
+  replyWantApplyMethod,
   applyLowerAmountTerm,
   parseLoanTermChoice,
   loanTermChoiceInteractive,
@@ -305,25 +308,42 @@ async function sendInteraktInteractive(countryCode, phoneNumber, interactive) {
   }
 
   if (interactive.kind === "buttons") {
-    const buttons = (interactive.buttons || []).slice(0, 3).map((b) => ({
-      type: "reply",
-      reply: {
-        id: String(b.id || b.title),
-        title: String(b.title).slice(0, 20),
-      },
+    const body = String(interactive.body || "").slice(0, 1024);
+    const simpleButtons = (interactive.buttons || []).slice(0, 3).map((b) => ({
+      id: String(b.id || b.title).slice(0, 256),
+      title: String(b.title).slice(0, 20),
     }));
-    return postInteraktPayload({
-      countryCode,
-      phoneNumber,
-      type: "InteractiveButton",
-      data: {
-        message: {
-          type: "button",
-          body: { text: String(interactive.body || "").slice(0, 1024) },
-          action: { buttons },
+    const replyButtons = simpleButtons.map((b) => ({
+      type: "reply",
+      reply: { id: b.id, title: b.title },
+    }));
+    // Interakt يتوقع نص الرسالة + الأزرار في data، مو payload واتساب المتداخل.
+    // الصيغة المتداخلة كانت تحول زرين نعم/لا إلى قائمة زرها «نعم».
+    try {
+      return await postInteraktPayload({
+        countryCode,
+        phoneNumber,
+        type: "InteractiveButton",
+        data: {
+          message: body,
+          buttons: simpleButtons,
         },
-      },
-    });
+      });
+    } catch (err) {
+      if (err?.outsideWindow) throw err;
+      return postInteraktPayload({
+        countryCode,
+        phoneNumber,
+        type: "InteractiveButton",
+        data: {
+          message: {
+            type: "button",
+            body: { text: body },
+            action: { buttons: replyButtons },
+          },
+        },
+      });
+    }
   }
 
   if (interactive.kind === "list") {
@@ -513,9 +533,19 @@ app.post("/webhook/interakt", async (req, res) => {
     if (!text && !(isAudio && draft?.step === "real_estate")) {
       return;
     }
-    // نعم/لا لمبلغ أقل قبل اختصار القائمة (الرقم 1)
+    // نعم/لا لمبلغ أقل، ثم طريقة التقديم — قبل اختصار القائمة (الرقم 1)
     if (yesNo && currentSession?.awaitingLowerAmountAsk) {
       result = replyWantLowerAmountAsk(yesNo, currentSession);
+      if (result?.data) saveSession(countryCode, phone, result.data);
+    } else if (currentSession?.awaitingApplyMethod) {
+      const method = looksLikeApplyMethodReply(text);
+      result = method
+        ? replyWantApplyMethod(method, currentSession)
+        : {
+            ok: false,
+            interactive: buildApplyMethodAskInteractive(),
+            data: { ...currentSession, awaitingApplyMethod: true },
+          };
       if (result?.data) saveSession(countryCode, phone, result.data);
     } else if (
       looksLikeShowMainMenu(text) ||
@@ -537,7 +567,8 @@ app.post("/webhook/interakt", async (req, res) => {
             currentSession?.rounded ||
             currentSession?.awaitingAmountChoice ||
             currentSession?.awaitingCombo ||
-            currentSession?.awaitingComboInterest
+            currentSession?.awaitingComboInterest ||
+            currentSession?.awaitingApplyMethod
         );
       const inDebt =
         draft?.flow === "debt_chat" ||

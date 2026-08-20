@@ -12,6 +12,7 @@ const {
   buildPropertyComboInterestAsk,
   replyPropertyComboDecision,
   calculatePersonalFinance,
+  replyWantApplyMethod,
 } = require("../lib/personal-finance");
 const { startServiceStopFlow, startFinancingSolutionsFlow } = require("../lib/main-menu");
 
@@ -139,8 +140,14 @@ const okCalc = calculatePersonalFinance({
   commitments: 500,
   realEstateType: "none",
 });
-if (okCalc.ok && okCalc.followUpReply) {
-  assert.strictEqual(detectCustomerOutcome(okCalc), OUTCOMES.FINANCE_LINK);
+if (okCalc.ok) {
+  assert.notStrictEqual(
+    detectCustomerOutcome(okCalc),
+    OUTCOMES.FINANCE_LINK,
+    "أعلى مبلغ بدون رابط ما يصير أخذ رابط التمويل"
+  );
+  const electronic = replyWantApplyMethod("electronic", okCalc.data || {});
+  assert.strictEqual(detectCustomerOutcome(electronic), OUTCOMES.FINANCE_LINK);
 }
 
 console.log("OK: customer outcome auto-detect");
