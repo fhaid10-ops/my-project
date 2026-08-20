@@ -532,18 +532,18 @@ function calculatePersonalFinance(input) {
 
 ${resultReply}`
     : resultReply;
-  // أول نتيجة: أعلى مبلغ ثم رابط التقديم ثم سؤال نصي نعم/لا
-  // (إنترأكت يعرض أزرار نعم/لا كزر واحد، فالسؤال يُرسل نصاً)
-  const askLower = lowerTiers.length ? wantLowerAmountAskText() : null;
+  // أول نتيجة: الحسبة → رابط التقديم → هل ترغب بمبلغ أقل
+  const interactive = lowerTiers.length
+    ? buildWantLowerAmountAskInteractive()
+    : null;
   const followUpReply = buildPersonalApplyFollowUp();
 
   return {
     ok: true,
     reply,
     followUpReply,
-    afterFollowUpReply: askLower,
-    interactive: null,
-    sendTextThenInteractive: false,
+    interactive,
+    sendTextThenInteractive: Boolean(interactive),
     data: {
       jobCategory,
       realEstateType,
@@ -564,7 +564,7 @@ ${resultReply}`
       forcedToFallbackTerm,
       awaitingLowerAmountEntry: false,
       awaitingLowerAmountTerm: false,
-      awaitingLowerAmountAsk: Boolean(askLower),
+      awaitingLowerAmountAsk: Boolean(interactive),
       awaitingAmountChoice: false,
       pendingSelectedAmount: null,
       availableYearsForAmount: null,
@@ -823,19 +823,31 @@ function selectTiersForWhatsAppList(tiers, maxRows = 10) {
   return unique;
 }
 
-/** بعد أعلى مبلغ: سؤال نصي نعم/لا — إنترأكت ما يعرض الزرين مع بعض */
+/** بعد الرابط: قائمة هل ترغب بمبلغ أقل — الزر «اختر هنا» مثل قوائم المبالغ */
 function wantLowerAmountAskText() {
-  return (
-    CONFIG.messages?.wantLowerAmountAsk ||
-    `هل ترغب بمبلغ أقل
-
-نعم
-لا`
-  );
+  return CONFIG.messages?.wantLowerAmountAsk || "هل ترغب بمبلغ أقل";
 }
 
 function buildWantLowerAmountAskInteractive() {
-  return null;
+  const body = wantLowerAmountAskText();
+  return {
+    kind: "list",
+    body,
+    button: "اختر هنا",
+    sectionTitle: "الخيار",
+    rows: [
+      {
+        id: "want_lower_yes",
+        title: "نعم",
+        description: "مبلغ أقل",
+      },
+      {
+        id: "want_lower_no",
+        title: "لا",
+        description: "نفس المبلغ",
+      },
+    ],
+  };
 }
 
 /** توافق قديم: زر «مبلغ أقل» يعيد فتح قائمة المبالغ */
