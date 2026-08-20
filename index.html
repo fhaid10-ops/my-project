@@ -3,25 +3,72 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="0;url=expenses/">
-  <title>المصاريف والمبيعات</title>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(regs) {
-        regs.forEach(function(reg) {
-          if (!reg.scope.includes('/expenses/') && !reg.scope.includes('/sales/')) {
-            reg.unregister();
-          }
-        });
-      });
+  <title>رائد الحربي | تمويل وتطبيقات</title>
+  <meta name="description" content="موقع رائد الحربي للتمويل الشخصي وتطبيقات المصاريف والمبيعات" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Changa:wght@600;700&family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0c3b36;
+      --foam: #f3f7f4;
+      --accent: #c9862d;
+      --muted: #4d6762;
     }
-    location.replace('expenses/');
-  </script>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 2rem 1.25rem;
+      font-family: "IBM Plex Sans Arabic", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(800px 400px at 90% 0%, rgba(201, 134, 45, 0.14), transparent 55%),
+        linear-gradient(180deg, #f7faf8, var(--foam));
+    }
+    .box {
+      width: min(420px, 100%);
+      text-align: center;
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-family: "Changa", sans-serif;
+      font-size: clamp(1.8rem, 6vw, 2.4rem);
+    }
+    p {
+      margin: 0 0 1.5rem;
+      color: var(--muted);
+    }
+    a {
+      display: block;
+      margin: 0.55rem 0;
+      padding: 0.9rem 1rem;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    a:hover { transform: translateY(-2px); }
+    .primary {
+      background: linear-gradient(135deg, #0c3b36, #164942);
+      color: #fff;
+    }
+    .secondary {
+      background: rgba(12, 59, 54, 0.06);
+      color: var(--ink);
+      border: 1px solid rgba(12, 59, 54, 0.12);
+    }
+  </style>
 </head>
 <body>
-  <p style="font-family:system-ui;text-align:center;margin-top:3rem;line-height:2">
-    <a href="expenses/">المصاريف اليومية</a><br>
-    <a href="sales/">مبيعات</a>
-  </p>
+  <div class="box">
+    <h1>رائد الحربي</h1>
+    <p>اختر الوجهة المناسبة لك</p>
+    <a class="primary" href="finance/">موقع التمويل الشخصي</a>
+    <a class="secondary" href="expenses/">المصاريف اليومية</a>
+    <a class="secondary" href="sales/">المبيعات</a>
+  </div>
 </body>
 </html>
