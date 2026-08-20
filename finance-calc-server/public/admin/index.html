@@ -405,6 +405,10 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           <span class="tab-label">إيقاف خدمات</span>
           <span class="tab-count" id="tab-count-service_stop">—</span>
         </button>
+        <button class="tab" data-day="financing_solutions" type="button">
+          <span class="tab-label">حلول تمويلية</span>
+          <span class="tab-count" id="tab-count-financing_solutions">—</span>
+        </button>
         <button class="tab" data-day="archive" type="button">
           <span class="tab-label">أرشيف</span>
           <span class="tab-count" id="tab-count-archive">—</span>
@@ -594,12 +598,13 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "20260819r6";
+  const UI_VERSION = "20260820r1";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
     { id: "limit_exhausted", label: "مستنفذ حد" },
     { id: "service_stop", label: "إيقاف خدمات" },
+    { id: "financing_solutions", label: "حلول تمويلية" },
     { id: "order_number", label: "رقم طلب" },
   ];
   const OUTCOME_TAB_LABELS = {
@@ -611,6 +616,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     package: "أخذ باقة",
     limit_exhausted: "مستنفذ حد",
     service_stop: "إيقاف خدمات",
+    financing_solutions: "حلول تمويلية",
   };
   const PAGE_SIZE = 100;
   let customerDay = "today";
@@ -925,6 +931,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     set("tab-count-package", counts?.package ?? counts?.customersPackage);
     set("tab-count-limit_exhausted", counts?.limit_exhausted ?? counts?.customersLimitExhausted);
     set("tab-count-service_stop", counts?.service_stop ?? counts?.customersServiceStop);
+    set("tab-count-financing_solutions", counts?.financing_solutions ?? counts?.customersFinancingSolutions);
     set("tab-count-archive", archive);
     set("tab-count-manual", counts?.manual ?? counts?.customersManual);
     set("tab-count-rejected", counts?.rejected ?? counts?.customersRejected);

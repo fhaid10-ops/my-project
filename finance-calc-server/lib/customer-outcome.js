@@ -6,6 +6,7 @@ const OUTCOMES = {
   PACKAGE: "أخذ باقة",
   LIMIT_EXHAUSTED: "مستنفذ حد",
   SERVICE_STOP: "إيقاف خدمات",
+  FINANCING_SOLUTIONS: "حلول تمويلية",
   ORDER_NUMBER: "رقم طلب",
 };
 
@@ -27,6 +28,15 @@ function detectCustomerOutcome(result) {
     result.draft?.step === "awaiting_service_stop_agent"
   ) {
     return OUTCOMES.SERVICE_STOP;
+  }
+
+  if (
+    result.offer === "financing_solutions" ||
+    result.offer === "financing_solutions_accepted" ||
+    result.draft?.step === "awaiting_financing_solutions_qualify" ||
+    result.draft?.step === "awaiting_financing_solutions_agent"
+  ) {
+    return OUTCOMES.FINANCING_SOLUTIONS;
   }
 
   // قبول الباقة (عقاري + شخصي)
@@ -77,6 +87,7 @@ const OUTCOME_TAB_FILTERS = {
   package: OUTCOMES.PACKAGE,
   limit_exhausted: OUTCOMES.LIMIT_EXHAUSTED,
   service_stop: OUTCOMES.SERVICE_STOP,
+  financing_solutions: OUTCOMES.FINANCING_SOLUTIONS,
 };
 
 function outcomeLabelForTab(day) {

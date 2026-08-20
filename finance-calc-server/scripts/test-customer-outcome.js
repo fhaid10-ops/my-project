@@ -13,7 +13,7 @@ const {
   replyPropertyComboDecision,
   calculatePersonalFinance,
 } = require("../lib/personal-finance");
-const { startServiceStopFlow } = require("../lib/main-menu");
+const { startServiceStopFlow, startFinancingSolutionsFlow } = require("../lib/main-menu");
 
 assert.strictEqual(
   detectCustomerOutcome({
@@ -51,6 +51,11 @@ assert.strictEqual(
 assert.strictEqual(
   detectCustomerOutcome(startServiceStopFlow()),
   OUTCOMES.SERVICE_STOP
+);
+
+assert.strictEqual(
+  detectCustomerOutcome(startFinancingSolutionsFlow()),
+  OUTCOMES.FINANCING_SOLUTIONS
 );
 
 assert.strictEqual(

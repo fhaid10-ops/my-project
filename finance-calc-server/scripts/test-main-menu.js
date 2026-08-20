@@ -41,7 +41,7 @@ const welcome = showMainMenu("السلام عليكم");
 assert.ok(welcome.reply.includes("وعليكم السلام"));
 assert.ok(welcome.interactive);
 assert.strictEqual(welcome.interactive.kind, "list");
-assert.strictEqual(welcome.interactive.rows.length, 7);
+assert.strictEqual(welcome.interactive.rows.length, 8);
 assert.ok(
   welcome.interactive.rows.some((r) => r.title === "تمويل شخصي")
 );
@@ -50,6 +50,9 @@ assert.ok(
 );
 assert.ok(
   welcome.interactive.rows.some((r) => r.title === "مبالغ التمويل")
+);
+assert.ok(
+  welcome.interactive.rows.some((r) => r.title === "حلول تمويلية")
 );
 assert.ok(
   !welcome.interactive.rows.some((r) => /إيقاف الرد/.test(r.title))
@@ -61,9 +64,10 @@ assert.strictEqual(parseMainMenuChoice("تمويل شخصي"), "1");
 assert.strictEqual(parseMainMenuChoice("شراء مديونية"), "2");
 assert.strictEqual(parseMainMenuChoice("مبالغ التمويل"), "3");
 assert.strictEqual(parseMainMenuChoice("إيقاف خدمات"), "4");
-assert.strictEqual(parseMainMenuChoice("ساعات الدوام"), "5");
-assert.strictEqual(parseMainMenuChoice("موقعنا"), "6");
-assert.strictEqual(parseMainMenuChoice("رقم المساعد"), "7");
+assert.strictEqual(parseMainMenuChoice("حلول تمويلية"), "5");
+assert.strictEqual(parseMainMenuChoice("ساعات الدوام"), "6");
+assert.strictEqual(parseMainMenuChoice("موقعنا"), "7");
+assert.strictEqual(parseMainMenuChoice("رقم المساعد"), "8");
 assert.strictEqual(parseMainMenuChoice("إيقاف الرد الآلي"), null);
 assert.strictEqual(parseMainMenuChoice("xyz"), null);
 
@@ -73,15 +77,16 @@ const debt = handleMainMenuChoice("2");
 assert.strictEqual(debt.startFlow, "debt");
 const amounts = handleMainMenuChoice("3");
 assert.strictEqual(amounts.draft.step, "awaiting_amount_examples_sector");
-const hours = handleMainMenuChoice("5");
+const hours = handleMainMenuChoice("6");
 assert.ok(hours.reply.includes("الأحد") || hours.reply.includes("دوام"));
-const assistant = handleMainMenuChoice("7");
+const assistant = handleMainMenuChoice("8");
 assert.ok(assistant.reply.includes("ماجد"));
 assert.ok(assistant.reply.includes("0507009290"));
 assert.ok(!assistant.reply.includes("0501812339"));
 
 const {
   startServiceStopFlow,
+  startFinancingSolutionsFlow,
   advanceServiceStopFlow,
 } = require("../lib/main-menu");
 const stopStart = handleMainMenuChoice("4");
@@ -108,5 +113,16 @@ assert.ok(!stopAgentYes.interactive);
 
 const stopQualifyNo = advanceServiceStopFlow(stopStart.draft, "لا");
 assert.match(stopQualifyNo.reply, /بالتوفيق وحياك الله/);
+
+const solutions = handleMainMenuChoice("5");
+assert.strictEqual(solutions.draft.step, "awaiting_financing_solutions_qualify");
+assert.strictEqual(solutions.offer, "financing_solutions");
+assert.match(solutions.interactive.body, /7000/);
+const solYes = advanceServiceStopFlow(solutions.draft, "نعم");
+assert.strictEqual(solYes.draft.step, "awaiting_financing_solutions_agent");
+assert.match(solYes.interactive.body, /تبي ارسلك رقم المندوب/);
+const solAgentYes = advanceServiceStopFlow(solYes.draft, "نعم");
+assert.strictEqual(solAgentYes.silent, true);
+assert.strictEqual(solAgentYes.offer, "financing_solutions_accepted");
 
 console.log("test-main-menu: OK");

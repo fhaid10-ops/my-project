@@ -620,7 +620,9 @@ app.post("/webhook/interakt", async (req, res) => {
     } else if (
       draft?.flow === "main_menu" &&
       (draft.step === "awaiting_service_stop_qualify" ||
-        draft.step === "awaiting_service_stop_agent")
+        draft.step === "awaiting_service_stop_agent" ||
+        draft.step === "awaiting_financing_solutions_qualify" ||
+        draft.step === "awaiting_financing_solutions_agent")
     ) {
       result = advanceServiceStopFlow(draft, text, yesNo);
       if (result.clearDraft || result.draft == null) {
@@ -831,7 +833,7 @@ app.post("/webhook/interakt", async (req, res) => {
     } else if (!draft && parseMainMenuChoice(text)) {
       // عناوين القائمة بدون مسودة — الرقم وحده (2–7) نتجاهله؛ 1 يظهر القائمة من الاختصار
       const choice = parseMainMenuChoice(text);
-      if (/^[1-7]$/.test(normalizeDigits(text).trim())) {
+      if (/^[1-8]$/.test(normalizeDigits(text).trim())) {
         // القائمة فقط عند مرحبا / السلام عليكم / 1
         console.log("[webhook:skip:digit-without-menu]", phone, text);
         return;

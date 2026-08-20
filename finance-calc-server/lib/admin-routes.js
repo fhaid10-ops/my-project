@@ -10,7 +10,7 @@ const {
 } = require("./customer-ledger");
 
 /** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
-const ADMIN_UI_VERSION = "20260819r6";
+const ADMIN_UI_VERSION = "20260820r1";
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
@@ -503,6 +503,7 @@ function createAdminRouter(deps) {
         customersPackage: ledgerSummary?.counts?.package || 0,
         customersLimitExhausted: ledgerSummary?.counts?.limit_exhausted || 0,
         customersServiceStop: ledgerSummary?.counts?.service_stop || 0,
+        customersFinancingSolutions: ledgerSummary?.counts?.financing_solutions || 0,
         customersFinanceLink: financeStats.financeLinkTotal,
         customersFinanceLinkPending: financeStats.financeLinkPending,
         customersFinanceLinkSent: financeStats.financeLinkSent,
@@ -537,7 +538,7 @@ function createAdminRouter(deps) {
 
   /**
    * عملاء اليوم / أمس / الكل / حسب «وش صار» / الأرشيف
-   * ?day=today|yesterday|all|archive|manual|rejected|finance_link|finance_link_pending|finance_link_sent|finance_link_plus|order_number|package|limit_exhausted|service_stop|YYYY-MM-DD
+   * ?day=today|yesterday|all|archive|manual|rejected|finance_link|finance_link_pending|finance_link_sent|finance_link_plus|order_number|package|limit_exhausted|service_stop|financing_solutions|YYYY-MM-DD
    * ?limit=&offset= للصفحات (افتراضي 100) — يقلل ثقل الجوال
    * ?phonesOnly=1 لنسخ الأرقام فقط
    */

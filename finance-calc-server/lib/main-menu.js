@@ -84,9 +84,10 @@ function numberedMenuFallback(body) {
 2- شراء مديونية
 3- مبالغ التمويل
 4- عليك إيقاف خدمات وتبي الحل
-5- ساعات ووقت الدوام الرسمي
-6- موقعنا
-7- رقم المساعد`;
+5- حلول تمويلية
+6- ساعات ووقت الدوام الرسمي
+7- موقعنا
+8- رقم المساعد`;
 }
 
 function mainMenuInteractive(body) {
@@ -118,16 +119,21 @@ function mainMenuInteractive(body) {
       },
       {
         id: "menu_5",
+        title: "حلول تمويلية",
+        description: "باقة عقاري وشخصي",
+      },
+      {
+        id: "menu_6",
         title: "ساعات الدوام",
         description: "ساعات ووقت الدوام الرسمي",
       },
       {
-        id: "menu_6",
+        id: "menu_7",
         title: "موقعنا",
         description: "عنوان المعرض والتواصل",
       },
       {
-        id: "menu_7",
+        id: "menu_8",
         title: "رقم المساعد",
         description: "للتواصل مع المساعد",
       },
@@ -149,7 +155,7 @@ function showMainMenu(text) {
 }
 
 /**
- * يُرجع "1"…"7" أو null
+ * يُرجع "1"…"8" أو null
  */
 function parseMainMenuChoice(text) {
   const raw = String(text || "").trim();
@@ -183,20 +189,27 @@ function parseMainMenuChoice(text) {
   }
   if (
     /^[5]$/.test(t) ||
-    /ساعات|الدوام|وقت الدوام/i.test(t) ||
+    /حلول\s*تمويلي/i.test(t) ||
     /^menu_5$/i.test(t)
   ) {
     return "5";
   }
-  if (/^[6]$/.test(t) || /^موقعنا$/i.test(t) || /^menu_6$/i.test(t)) {
+  if (
+    /^[6]$/.test(t) ||
+    /ساعات|الدوام|وقت الدوام/i.test(t) ||
+    /^menu_6$/i.test(t)
+  ) {
     return "6";
   }
-  if (
-    /^[7]$/.test(t) ||
-    /رقم\s*المساعد|^المساعد$/i.test(t) ||
-    /^menu_7$/i.test(t)
-  ) {
+  if (/^[7]$/.test(t) || /^موقعنا$/i.test(t) || /^menu_7$/i.test(t)) {
     return "7";
+  }
+  if (
+    /^[8]$/.test(t) ||
+    /رقم\s*المساعد|^المساعد$/i.test(t) ||
+    /^menu_8$/i.test(t)
+  ) {
+    return "8";
   }
   return null;
 }
@@ -220,7 +233,33 @@ function parseServiceStopYesNo(text) {
   return null;
 }
 
-function startServiceStopFlow() {
+function qualifyAgentVariant(kind) {
+  if (kind === "financing_solutions") {
+    return {
+      qualifyStep: "awaiting_financing_solutions_qualify",
+      agentStep: "awaiting_financing_solutions_agent",
+      offer: "financing_solutions",
+      accepted: "financing_solutions_accepted",
+    };
+  }
+  return {
+    qualifyStep: "awaiting_service_stop_qualify",
+    agentStep: "awaiting_service_stop_agent",
+    offer: "service_stop",
+    accepted: "service_stop_accepted",
+  };
+}
+
+function kindFromDraft(draft) {
+  const step = String(draft?.step || "");
+  if (draft?.kind === "financing_solutions" || /financing_solutions/.test(step)) {
+    return "financing_solutions";
+  }
+  return "service_stop";
+}
+
+function startQualifyAgentFlow(kind = "service_stop") {
+  const v = qualifyAgentVariant(kind);
   const tpl =
     CONFIG.messages?.serviceStopQualify ||
     CONFIG.templates?.serviceStopQualify;
@@ -233,10 +272,18 @@ function startServiceStopFlow() {
   return {
     ok: true,
     flow: "main_menu",
-    offer: "service_stop",
+    offer: v.offer,
     interactive: serviceStopYesNoButtons(body),
-    draft: { flow: "main_menu", step: "awaiting_service_stop_qualify" },
+    draft: { flow: "main_menu", step: v.qualifyStep, kind },
   };
+}
+
+function startServiceStopFlow() {
+  return startQualifyAgentFlow("service_stop");
+}
+
+function startFinancingSolutionsFlow() {
+  return startQualifyAgentFlow("financing_solutions");
 }
 
 function serviceStopOfferBody() {
@@ -264,17 +311,19 @@ ${fmt(combo.personalAmount || 600000)} ريال شخصي
  * خطوات إيقاف الخدمات بعد اختيار القائمة
  */
 function advanceServiceStopFlow(draft, text, yesNoHint) {
+  const kind = kindFromDraft(draft);
+  const v = qualifyAgentVariant(kind);
   const step = draft?.step;
   const choice = yesNoHint || parseServiceStopYesNo(text);
 
-  if (step === "awaiting_service_stop_qualify") {
+  if (step === v.qualifyStep) {
     if (choice === "yes") {
       return {
         ok: true,
         flow: "main_menu",
-        offer: "service_stop",
+        offer: v.offer,
         interactive: serviceStopYesNoButtons(serviceStopOfferBody()),
-        draft: { flow: "main_menu", step: "awaiting_service_stop_agent" },
+        draft: { flow: "main_menu", step: v.agentStep, kind },
       };
     }
     if (choice === "no") {
@@ -284,7 +333,7 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
       return {
         ok: true,
         flow: "main_menu",
-        offer: "service_stop",
+        offer: v.offer,
         reply:
           typeof declined === "function"
             ? declined()
@@ -299,7 +348,7 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
     return {
       ok: false,
       flow: "main_menu",
-      offer: "service_stop",
+      offer: v.offer,
       interactive: serviceStopYesNoButtons(
         typeof reask === "function"
           ? reask()
@@ -307,17 +356,17 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
               `هل راتبك لا يقل عن 7000 ريال
 وما عليك عقاري؟`
       ),
-      draft: { flow: "main_menu", step: "awaiting_service_stop_qualify" },
+      draft: { flow: "main_menu", step: v.qualifyStep, kind },
     };
   }
 
-  if (step === "awaiting_service_stop_agent") {
+  if (step === v.agentStep) {
     if (choice === "yes") {
       // طلب صريح: إذا نعم لا ترسل أي شيء
       return {
         ok: true,
         flow: "main_menu",
-        offer: "service_stop_accepted",
+        offer: v.accepted,
         silent: true,
         clearDraft: true,
         draft: null,
@@ -330,7 +379,7 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
       return {
         ok: true,
         flow: "main_menu",
-        offer: "service_stop",
+        offer: v.offer,
         reply:
           typeof declined === "function"
             ? declined()
@@ -342,13 +391,13 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
     return {
       ok: false,
       flow: "main_menu",
-      offer: "service_stop",
+      offer: v.offer,
       interactive: serviceStopYesNoButtons(serviceStopOfferBody()),
-      draft: { flow: "main_menu", step: "awaiting_service_stop_agent" },
+      draft: { flow: "main_menu", step: v.agentStep, kind },
     };
   }
 
-  return startServiceStopFlow();
+  return startQualifyAgentFlow(kind);
 }
 
 function serviceStopInfoReply() {
@@ -421,20 +470,22 @@ function handleMainMenuChoice(choice) {
     case "4":
       return startServiceStopFlow();
     case "5":
+      return startFinancingSolutionsFlow();
+    case "6":
       return {
         ok: true,
         flow: "main_menu",
         reply: CONFIG.brand?.workingHours || "ساعات الدوام: الأحد–الخميس 9ص–5م",
         draft: { flow: "main_menu", step: "awaiting_choice" },
       };
-    case "6":
+    case "7":
       return {
         ok: true,
         flow: "main_menu",
         reply: CONFIG.brand?.locationInfo || "موقعنا: معرض السديري للسيارات",
         draft: { flow: "main_menu", step: "awaiting_choice" },
       };
-    case "7":
+    case "8":
       return {
         ok: true,
         flow: "main_menu",
@@ -475,6 +526,7 @@ module.exports = {
   parseMainMenuChoice,
   handleMainMenuChoice,
   startServiceStopFlow,
+  startFinancingSolutionsFlow,
   advanceServiceStopFlow,
   parseServiceStopYesNo,
   sectorButtonsInteractive,
