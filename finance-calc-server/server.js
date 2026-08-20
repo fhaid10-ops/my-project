@@ -654,7 +654,7 @@ app.post("/webhook/interakt", async (req, res) => {
         saveDraft(countryCode, phone, result.draft);
       } else if (menuResult.startFlow === "debt") {
         clearSession(countryCode, phone);
-        result = startDebtPurchaseFlow({ askSector: false });
+        result = startDebtPurchaseFlow({ askSector: true });
         saveDraft(countryCode, phone, result.draft);
       } else {
         result = menuResult;
@@ -751,12 +751,8 @@ app.post("/webhook/interakt", async (req, res) => {
       result = startPersonalFinanceFlow({ askSector: false });
       saveDraft(countryCode, phone, result.draft);
     } else if (looksLikeStartDebtPurchase(text)) {
-      if (draft?.flow === "debt_chat" && (draft.step === "sector" || !draft.step)) {
-        console.log("[webhook:skip:already-debt-sector]", phone);
-        return;
-      }
       clearSession(countryCode, phone);
-      result = startDebtPurchaseFlow({ askSector: false });
+      result = startDebtPurchaseFlow({ askSector: true });
       saveDraft(countryCode, phone, result.draft);
     } else if (draft?.flow === "personal_chat" && draft.step && draft.step !== "done") {
       result = advancePersonalFinanceFlow(draft, text);
@@ -850,7 +846,6 @@ app.post("/webhook/interakt", async (req, res) => {
           saveDraft(countryCode, phone, result.draft);
         } else if (menuResult.startFlow === "debt") {
           clearSession(countryCode, phone);
-          result = startDebtPurchaseFlow({ askSector: false });
           result = startDebtPurchaseFlow({ askSector: true });
           saveDraft(countryCode, phone, result.draft);
         } else {

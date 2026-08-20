@@ -35,6 +35,10 @@ check("بداية شراء المديونية", () => {
   assert.strictEqual(silent.reply, null);
   assert.strictEqual(silent.interactive, null);
   assert.strictEqual(start.draft.flow, "debt_chat");
+  // الويبهوك لازم يسأل القطاع (ما في Auto Reply لإنترأكت على شراء مديونية)
+  const fromWebhook = startDebtPurchaseFlow({ askSector: true });
+  assert.ok(fromWebhook.interactive);
+  assert.strictEqual(fromWebhook.reply, "اختر");
 });
 
 check("مثال العميل: 10000 مدني بدون عقاري والتزام 3500 ومديونية 10000", () => {
