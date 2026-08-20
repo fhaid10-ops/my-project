@@ -47,8 +47,11 @@ assert.ok(afterRe.ok);
 assert.ok(!afterRe.draft || afterRe.draft === null);
 assert.strictEqual(afterRe.sessionData?.loanTermMonths, 60);
 assert.strictEqual(afterRe.sessionData?.awaitingLowerAmountAsk, true);
-assert.strictEqual(afterRe.interactive?.kind, "buttons");
-assert.strictEqual(afterRe.interactive?.body, "هل ترغب بمبلغ أقل");
+assert.strictEqual(afterRe.interactive?.kind, "list");
+assert.strictEqual(afterRe.interactive?.button, "اختر");
+assert.ok(afterRe.interactive?.rows?.some((r) => r.id === "want_lower_yes"));
+assert.ok(afterRe.interactive?.rows?.some((r) => r.id === "want_lower_no"));
+assert.match(afterRe.interactive?.body || "", /هل ترغب بمبلغ أقل/);
 assert.ok(String(afterRe.reply).includes("5 سنوات"));
 
 const declined = replyWantLowerAmountAsk("no", afterRe.sessionData);

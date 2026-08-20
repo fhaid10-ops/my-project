@@ -825,11 +825,21 @@ function buildWantLowerAmountAskInteractive() {
   const body =
     CONFIG.messages?.wantLowerAmountAsk || "هل ترغب بمبلغ أقل";
   return {
-    kind: "buttons",
+    kind: "list",
     body,
-    buttons: [
-      { id: "want_lower_yes", title: "نعم" },
-      { id: "want_lower_no", title: "لا" },
+    button: "اختر",
+    sectionTitle: "الخيار",
+    rows: [
+      {
+        id: "want_lower_yes",
+        title: "نعم",
+        description: "اختيار مبلغ أقل",
+      },
+      {
+        id: "want_lower_no",
+        title: "لا",
+        description: "نفس أعلى مبلغ — اختيار المدة",
+      },
     ],
   };
 }
@@ -844,6 +854,7 @@ function looksLikeWantLowerAmount(text) {
   if (!t || t.length > 60) return false;
   if (/^want_lower_amount$/i.test(t)) return true;
   if (/^want_lower_yes$/i.test(t)) return true;
+  if (/^want_lower_no$/i.test(t)) return false;
   if (/^مبلغ\s*أقل$/i.test(t)) return true;
   if (/^مبلغ\s*اقل$/i.test(t)) return true;
   if (/اختر\s*مبلغ\s*أقل\s*هنا/i.test(t)) return true;
