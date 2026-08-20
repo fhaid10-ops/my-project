@@ -532,19 +532,18 @@ function calculatePersonalFinance(input) {
 
 ${resultReply}`
     : resultReply;
-  // أول نتيجة: أعلى مبلغ على 5 سنوات ثم سؤال «هل ترغب بمبلغ أقل»
-  const interactive = lowerTiers.length
-    ? buildWantLowerAmountAskInteractive()
-    : null;
+  // أول نتيجة: أعلى مبلغ ثم رابط التقديم ثم سؤال نصي نعم/لا
+  // (إنترأكت يعرض أزرار نعم/لا كزر واحد، فالسؤال يُرسل نصاً)
+  const askLower = lowerTiers.length ? wantLowerAmountAskText() : null;
   const followUpReply = buildPersonalApplyFollowUp();
 
   return {
     ok: true,
     reply,
     followUpReply,
-    interactive,
-    // نص النتيجة أولًا، ثم رسالة التقديم، ثم سؤال المبلغ الأقل
-    sendTextThenInteractive: Boolean(interactive),
+    afterFollowUpReply: askLower,
+    interactive: null,
+    sendTextThenInteractive: false,
     data: {
       jobCategory,
       realEstateType,
@@ -565,7 +564,7 @@ ${resultReply}`
       forcedToFallbackTerm,
       awaitingLowerAmountEntry: false,
       awaitingLowerAmountTerm: false,
-      awaitingLowerAmountAsk: Boolean(interactive),
+      awaitingLowerAmountAsk: Boolean(askLower),
       awaitingAmountChoice: false,
       pendingSelectedAmount: null,
       availableYearsForAmount: null,
@@ -707,13 +706,17 @@ function looksLikeYesNoReply(text) {
   const t = String(text || "").trim();
   if (!t || t.length > 40) return null;
   if (
-    /^(1|نعم|اي|أي|أجل|موافق|ابي|أبي|أرغب|ارغب|combo_yes|lower_yes|want_lower_yes|yes)$/i.test(
+    /^(1|١)(\s*[-.)]?\s*نعم)?$/i.test(t) ||
+    /^(نعم|اي|أي|أجل|موافق|ابي|أبي|أرغب|ارغب|combo_yes|lower_yes|want_lower_yes|yes)$/i.test(
       t
     )
   ) {
     return "yes";
   }
-  if (/^(2|لا|لأ|لاء|ما ابي|ماأبي|رفض|combo_no|lower_no|want_lower_no|no)$/i.test(t)) {
+  if (
+    /^(2|٢)(\s*[-.)]?\s*لا)?$/i.test(t) ||
+    /^(لا|لأ|لاء|ما ابي|ماأبي|رفض|combo_no|lower_no|want_lower_no|no)$/i.test(t)
+  ) {
     return "no";
   }
   return null;
@@ -820,28 +823,19 @@ function selectTiersForWhatsAppList(tiers, maxRows = 10) {
   return unique;
 }
 
-/** بعد أعلى مبلغ: سؤال نعم/لا قبل قائمة المبالغ الأقل */
+/** بعد أعلى مبلغ: سؤال نصي نعم/لا — إنترأكت ما يعرض الزرين مع بعض */
+function wantLowerAmountAskText() {
+  return (
+    CONFIG.messages?.wantLowerAmountAsk ||
+    `هل ترغب بمبلغ أقل
+
+نعم
+لا`
+  );
+}
+
 function buildWantLowerAmountAskInteractive() {
-  const body =
-    CONFIG.messages?.wantLowerAmountAsk || "هل ترغب بمبلغ أقل";
-  return {
-    kind: "list",
-    body,
-    button: "اختر",
-    sectionTitle: "الخيار",
-    rows: [
-      {
-        id: "want_lower_yes",
-        title: "نعم",
-        description: "اختيار مبلغ أقل",
-      },
-      {
-        id: "want_lower_no",
-        title: "لا",
-        description: "نفس أعلى مبلغ — اختيار المدة",
-      },
-    ],
-  };
+  return null;
 }
 
 /** توافق قديم: زر «مبلغ أقل» يعيد فتح قائمة المبالغ */
@@ -1323,6 +1317,7 @@ module.exports = {
   resolveLoanTermMonths,
   getAvailableYearsForAmount,
   looksLikeWantLowerAmount,
+  wantLowerAmountAskText,
   beginLowerAmountFlow,
   replyWantLowerAmountAsk,
   applyLowerAmountTerm,

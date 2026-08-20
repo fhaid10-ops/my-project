@@ -40,20 +40,18 @@ if (
   process.exitCode = 1;
 }
 
-if (!result.sendTextThenInteractive) {
-  console.error("FAIL: لازم sendTextThenInteractive");
+if (!result.sendTextThenInteractive && result.interactive) {
+  console.error("FAIL: سؤال المبلغ الأقل لازم نص بدون قائمة/أزرار");
   process.exitCode = 1;
 }
 
 if (
-  !result.interactive ||
-  result.interactive.kind !== "list" ||
-  !/هل ترغب بمبلغ أقل/.test(result.interactive.body || "") ||
-  result.interactive.button !== "اختر" ||
-  !result.interactive.rows?.some((r) => r.id === "want_lower_yes") ||
-  !result.interactive.rows?.some((r) => r.id === "want_lower_no")
+  !result.afterFollowUpReply ||
+  !/هل ترغب بمبلغ أقل/.test(result.afterFollowUpReply) ||
+  !/\nنعم/.test(result.afterFollowUpReply) ||
+  !/\nلا/.test(result.afterFollowUpReply)
 ) {
-  console.error("FAIL: لازم قائمة هل ترغب بمبلغ أقل فيها نعم ولا", result.interactive);
+  console.error("FAIL: لازم سؤال هل ترغب بمبلغ أقل نصاً بنعم ولا", result.afterFollowUpReply);
   process.exitCode = 1;
 } else if (!result.data.awaitingLowerAmountAsk) {
   console.error("FAIL: لازم awaitingLowerAmountAsk بعد أعلى مبلغ");
@@ -64,7 +62,7 @@ if (
     console.error("FAIL: آخر مبلغ أقل لازم 10,000", lastTier);
     process.exitCode = 1;
   } else {
-    console.log("OK: أول نتيجة تسأل هل ترغب بمبلغ أقل وتنتهي المبالغ عند 10,000");
+    console.log("OK: أول نتيجة تسأل هل ترغب بمبلغ أقل نصاً وتنتهي المبالغ عند 10,000");
   }
 }
 

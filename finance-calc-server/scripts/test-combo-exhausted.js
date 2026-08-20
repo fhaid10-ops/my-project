@@ -55,7 +55,8 @@ const result = calculatePersonalFinance({
 assert.ok(
   result.offer === "property_combo_interest" ||
     String(result.reply || "").includes("مستنفذ") ||
-    result.sendTextThenInteractive,
+    result.sendTextThenInteractive ||
+    result.data?.awaitingLowerAmountAsk,
   "مستنفذ حد مع شروط الباقة لازم مسار حلول أخرى"
 );
 if (result.data?.rounded != null && result.data.rounded < 15000) {
