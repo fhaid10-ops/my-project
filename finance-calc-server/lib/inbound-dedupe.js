@@ -39,10 +39,14 @@ function createInboundDedupe(options = {}) {
     }
   }
 
-  function isDuplicate(countryCode, phone, text) {
+  function isDuplicate(countryCode, phone, text, extra = {}) {
     const phoneKey = String(phone || "").replace(/\D/g, "");
     if (!phoneKey) return false;
-    const normalized = canonicalizeInbound(text);
+    let normalized = canonicalizeInbound(text);
+    if (!normalized && extra && extra.isImage) {
+      const url = String(extra.mediaUrl || "").split("?")[0];
+      normalized = url ? `img:${url}` : "";
+    }
     if (!normalized) return false;
     prune();
     const key = keyOf(countryCode, phoneKey);
