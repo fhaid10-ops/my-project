@@ -40,18 +40,28 @@ if (
   process.exitCode = 1;
 }
 
-if (!result.sendTextThenInteractive && result.interactive) {
-  console.error("FAIL: سؤال المبلغ الأقل لازم نص بدون قائمة/أزرار");
+if (!result.sendTextThenInteractive) {
+  console.error("FAIL: لازم sendTextThenInteractive: الحسبة ثم الرابط ثم السؤال");
   process.exitCode = 1;
 }
 
 if (
-  !result.afterFollowUpReply ||
-  !/هل ترغب بمبلغ أقل/.test(result.afterFollowUpReply) ||
-  !/\nنعم/.test(result.afterFollowUpReply) ||
-  !/\nلا/.test(result.afterFollowUpReply)
+  !result.followUpReply ||
+  !String(result.followUpReply).includes("https://portal.sfco.com.sa/?DSA=SF1888")
 ) {
-  console.error("FAIL: لازم سؤال هل ترغب بمبلغ أقل نصاً بنعم ولا", result.afterFollowUpReply);
+  console.error("FAIL: لازم رابط التقديم قبل سؤال المبلغ الأقل");
+  process.exitCode = 1;
+}
+
+if (
+  !result.interactive ||
+  result.interactive.kind !== "list" ||
+  result.interactive.body !== "هل ترغب بمبلغ أقل" ||
+  result.interactive.button !== "اختر هنا" ||
+  !result.interactive.rows?.some((r) => r.id === "want_lower_yes") ||
+  !result.interactive.rows?.some((r) => r.id === "want_lower_no")
+) {
+  console.error("FAIL: لازم قائمة هل ترغب بمبلغ أقل فيها نعم ولا", result.interactive);
   process.exitCode = 1;
 } else if (!result.data.awaitingLowerAmountAsk) {
   console.error("FAIL: لازم awaitingLowerAmountAsk بعد أعلى مبلغ");
@@ -62,7 +72,7 @@ if (
     console.error("FAIL: آخر مبلغ أقل لازم 10,000", lastTier);
     process.exitCode = 1;
   } else {
-    console.log("OK: أول نتيجة تسأل هل ترغب بمبلغ أقل نصاً وتنتهي المبالغ عند 10,000");
+    console.log("OK: الرابط ثم هل ترغب بمبلغ أقل (نعم/لا)");
   }
 }
 
