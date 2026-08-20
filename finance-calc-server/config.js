@@ -19,8 +19,9 @@ module.exports = {
     name: "رائد الحربي",
     contactPhone: "0501812339",
     contactHint: "من طرف رائد الحربي",
-    /** أرقام المساعدين — خيار «رقم المساعد» في القائمة */
+    /** أرقام الموظفين — خيار «رقم الموظفين» في القائمة */
     assistants: [
+      { name: "عبدالرحمن", phone: "0595243553" },
       { name: "ماجد", phone: "0507009290" },
     ],
     /** عدّل نصوص الخيارات 2 و 4 و 5 من هنا */
@@ -392,7 +393,7 @@ module.exports = {
 5- حلول تمويلية
 6- ساعات ووقت الدوام الرسمي
 7- موقعنا
-8- رقم المساعد`,
+8- رقم الموظفين`,
 
     pauseChatAutoReply: `تم إيقاف الرد الآلي على هذه المحادثة فقط.
 
@@ -409,7 +410,7 @@ module.exports = {
 5- حلول تمويلية
 6- ساعات ووقت الدوام الرسمي
 7- موقعنا
-8- رقم المساعد`,
+8- رقم الموظفين`,
 
     inquiryMenuFooter: `
 
@@ -702,20 +703,20 @@ ${code}
    */
   templates: {
     assistantContact: (name, phone) =>
-      `رقم المساعد — ${name}:
-${phone}
-
-رائد الحربي`,
+      `رقم الموظفين
+${name} ${phone}`,
 
     assistantContacts: (assistants = []) => {
       const lines = (assistants || [])
         .filter((a) => a && a.name && a.phone)
-        .map((a) => `رقم المساعد — ${a.name}:\n${a.phone}`);
+        .map((a) => `${a.name} ${a.phone}`);
       if (!lines.length) {
-        return `رقم المساعد — رائد الحربي:
-0501812339`;
+        return `رقم الموظفين
+عبدالرحمن 0595243553
+ماجد 0507009290`;
       }
-      return lines.join("\n\n");
+      return `رقم الموظفين
+${lines.join("\n")}`;
     },
 
     serviceStopWelcome: (

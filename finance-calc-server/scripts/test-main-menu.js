@@ -55,6 +55,9 @@ assert.ok(
   welcome.interactive.rows.some((r) => r.title === "حلول تمويلية")
 );
 assert.ok(
+  welcome.interactive.rows.some((r) => r.title === "رقم الموظفين")
+);
+assert.ok(
   !welcome.interactive.rows.some((r) => /إيقاف الرد/.test(r.title))
 );
 assert.strictEqual(welcome.draft.flow, "main_menu");
@@ -67,6 +70,7 @@ assert.strictEqual(parseMainMenuChoice("إيقاف خدمات"), "4");
 assert.strictEqual(parseMainMenuChoice("حلول تمويلية"), "5");
 assert.strictEqual(parseMainMenuChoice("ساعات الدوام"), "6");
 assert.strictEqual(parseMainMenuChoice("موقعنا"), "7");
+assert.strictEqual(parseMainMenuChoice("رقم الموظفين"), "8");
 assert.strictEqual(parseMainMenuChoice("رقم المساعد"), "8");
 assert.strictEqual(parseMainMenuChoice("إيقاف الرد الآلي"), null);
 assert.strictEqual(parseMainMenuChoice("xyz"), null);
@@ -80,6 +84,9 @@ assert.strictEqual(amounts.draft.step, "awaiting_amount_examples_sector");
 const hours = handleMainMenuChoice("6");
 assert.ok(hours.reply.includes("الأحد") || hours.reply.includes("دوام"));
 const assistant = handleMainMenuChoice("8");
+assert.ok(assistant.reply.includes("رقم الموظفين"));
+assert.ok(assistant.reply.includes("عبدالرحمن"));
+assert.ok(assistant.reply.includes("0595243553"));
 assert.ok(assistant.reply.includes("ماجد"));
 assert.ok(assistant.reply.includes("0507009290"));
 assert.ok(!assistant.reply.includes("0501812339"));

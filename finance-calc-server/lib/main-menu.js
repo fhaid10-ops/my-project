@@ -87,7 +87,7 @@ function numberedMenuFallback(body) {
 5- حلول تمويلية
 6- ساعات ووقت الدوام الرسمي
 7- موقعنا
-8- رقم المساعد`;
+8- رقم الموظفين`;
 }
 
 function mainMenuInteractive(body) {
@@ -134,8 +134,8 @@ function mainMenuInteractive(body) {
       },
       {
         id: "menu_8",
-        title: "رقم المساعد",
-        description: "للتواصل مع المساعد",
+        title: "رقم الموظفين",
+        description: "عبدالرحمن وماجد",
       },
     ],
   };
@@ -206,7 +206,7 @@ function parseMainMenuChoice(text) {
   }
   if (
     /^[8]$/.test(t) ||
-    /رقم\s*المساعد|^المساعد$/i.test(t) ||
+    /رقم\s*الموظفين|رقم\s*المساعد|^المساعد$|^الموظفين$/i.test(t) ||
     /^menu_8$/i.test(t)
   ) {
     return "8";
@@ -427,10 +427,12 @@ function assistantContactReply() {
     return multiTpl(assistants);
   }
   if (Array.isArray(assistants) && assistants.length) {
-    return assistants
+    const lines = assistants
       .filter((a) => a && a.name && a.phone)
-      .map((a) => `رقم المساعد — ${a.name}:\n${a.phone}`)
-      .join("\n\n");
+      .map((a) => `${a.name} ${a.phone}`)
+      .join("\n");
+    return `رقم الموظفين
+${lines}`;
   }
   const name =
     CONFIG.financing?.branchEmployeeName ||
@@ -442,8 +444,8 @@ function assistantContactReply() {
     "0501812339";
   const tpl = CONFIG.templates?.assistantContact;
   if (typeof tpl === "function") return tpl(name, phone);
-  return `رقم المساعد — ${name}:
-${phone}`;
+  return `رقم الموظفين
+${name} ${phone}`;
 }
 
 /**
