@@ -31,10 +31,12 @@ if (String(result.reply).includes("سجل مبلغ التمويل المرغوب
 if (
   !result.followUpReply ||
   !String(result.followUpReply).includes("سجل مبلغ التمويل المرغوب فيه") ||
-  !String(result.followUpReply).includes("SF1695") ||
+  !String(result.followUpReply).includes("SF1888") ||
+  !String(result.followUpReply).includes("https://portal.sfco.com.sa/?DSA=SF1888") ||
+  !String(result.followUpReply).includes("0507009290") ||
   !String(result.followUpReply).includes("وارسلي رقم الطلب")
 ) {
-  console.error("FAIL: لازم followUpReply برمز الموظف SF1695");
+  console.error("FAIL: لازم followUpReply برمز الموظف SF1888 ورقم 0507009290");
   process.exitCode = 1;
 }
 
@@ -116,17 +118,17 @@ if (amountSession?.lowerTiers?.length) {
       console.log(finalized.followUpReply);
       if (
         !finalized.followUpReply ||
-        !String(finalized.followUpReply).includes("SF1695")
+        !String(finalized.followUpReply).includes("SF1888")
       ) {
-        console.error("FAIL: اختيار المدة لازم followUpReply برمز SF1695");
+        console.error("FAIL: اختيار المدة لازم followUpReply برمز SF1888");
         process.exitCode = 1;
       }
     }
   } else if (
     !selected.followUpReply ||
-    !String(selected.followUpReply).includes("SF1695")
+    !String(selected.followUpReply).includes("SF1888")
   ) {
-    console.error("FAIL: اختيار المبلغ (مدة واحدة) لازم followUpReply برمز SF1695");
+    console.error("FAIL: اختيار المبلغ (مدة واحدة) لازم followUpReply برمز SF1888");
     process.exitCode = 1;
   }
 }

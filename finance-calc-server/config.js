@@ -228,14 +228,14 @@ module.exports = {
     /** شراء المديونية */
     portalUrl: "https://portal.sfco.com.sa/?DSA=SF1888",
     /** التمويل الشخصي — رابط التقديم الإلكتروني */
-    personalPortalUrl: "https://portal.sfco.com.sa/?DSA=SF1695",
+    personalPortalUrl: "https://portal.sfco.com.sa/?DSA=SF1888",
     /** رمز الموظف في التقديم الإلكتروني */
-    personalEmployeeCode: "SF1695",
-    employeeName: "عبدالرحمن",
+    personalEmployeeCode: "SF1888",
+    employeeName: "ماجد",
     employeePhone: "0507009290",
     /** التمويل الشخصي — تقديم إلكتروني واستفسارات المسار الشخصي */
-    personalAgentName: "عبدالرحمن",
-    personalAgentPhone: "0595243553",
+    personalAgentName: "ماجد",
+    personalAgentPhone: "0507009290",
     /** شراء المديونية — بعد موافقة العميل على الإكمال */
     debtPurchaseAgentName: "ماجد",
     debtPurchaseAgentPhone: "0507009290",
@@ -480,17 +480,20 @@ module.exports = {
      * رسالة منفصلة بعد نتيجة التمويل الشخصي (وأبعد اختيار مبلغ):
      * رابط التقديم + المبلغ في الملاحظات + رمز الموظف + رقم الطلب
      */
-    personalApplyFollowUp: (employeeCode, portalUrl) => {
-      const code = employeeCode || "SF1695";
+    personalApplyFollowUp: (employeeCode, portalUrl, agentPhone) => {
+      const code = employeeCode || "SF1888";
       const url =
-        portalUrl || "https://portal.sfco.com.sa/?DSA=SF1695";
+        portalUrl || "https://portal.sfco.com.sa/?DSA=SF1888";
+      const phone = agentPhone || "0507009290";
       return `قدم الان هنا
 ${url}
 
 سجل مبلغ التمويل المرغوب فيه بالملاحظات
 داخل الموقع لمتابعة الطلب اضف رمز الموظف
 ${code}
-وارسلي رقم الطلب.`;
+وارسلي رقم الطلب.
+
+${phone}`;
     },
 
     serviceStopQualify: `هل راتبك لا يقل عن 7000 ريال
@@ -658,14 +661,14 @@ ${code}
     orderNumberRecorded: `تم استلام رقم الطلب
 سيتم الرد في أقرب وقت ممكن 
 لمتابعة الطلب  ارسل رقم الطلب إلى 
- عبدالرحمن 
-0595243553`,
+ ماجد 
+0507009290`,
 
     orderImageUnreadable: `تم استلام رقم الطلب
 سيتم الرد في أقرب وقت ممكن 
 لمتابعة الطلب  ارسل رقم الطلب إلى 
- عبدالرحمن 
-0595243553`,
+ ماجد 
+0507009290`,
 
     portalAccountLocked: `تواصل مع عبدالرحمن
 0595243553
@@ -853,7 +856,7 @@ ${employeePhone}
 ${portalUrl}`,
 
     electronicApplication: (portalUrl, employeeName, employeePhone, salesCode) => {
-      const code = String(salesCode || "SF1695").toLowerCase();
+      const code = String(salesCode || "SF1888").toLowerCase();
       return `تقديم إلكتروني
 
 رابط التقديم:
