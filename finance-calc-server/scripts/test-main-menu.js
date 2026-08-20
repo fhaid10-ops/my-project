@@ -114,9 +114,10 @@ const stopAgentYes = advanceServiceStopFlow(
   { flow: "main_menu", step: "awaiting_service_stop_agent" },
   "نعم"
 );
-assert.strictEqual(stopAgentYes.silent, true);
-assert.ok(!stopAgentYes.reply);
-assert.ok(!stopAgentYes.interactive);
+assert.ok(!stopAgentYes.silent);
+assert.match(stopAgentYes.reply, /أبو تركي/);
+assert.match(stopAgentYes.reply, /0566817985/);
+assert.match(stopAgentYes.reply, /من طرف رائد الحربي/);
 
 const stopQualifyNo = advanceServiceStopFlow(stopStart.draft, "لا");
 assert.match(stopQualifyNo.reply, /بالتوفيق وحياك الله/);
@@ -129,7 +130,10 @@ const solYes = advanceServiceStopFlow(solutions.draft, "نعم");
 assert.strictEqual(solYes.draft.step, "awaiting_financing_solutions_agent");
 assert.match(solYes.interactive.body, /تبي ارسلك رقم المندوب/);
 const solAgentYes = advanceServiceStopFlow(solYes.draft, "نعم");
-assert.strictEqual(solAgentYes.silent, true);
+assert.ok(!solAgentYes.silent);
 assert.strictEqual(solAgentYes.offer, "financing_solutions_accepted");
+assert.match(solAgentYes.reply, /أبو تركي/);
+assert.match(solAgentYes.reply, /0566817985/);
+assert.match(solAgentYes.reply, /من طرف رائد الحربي/);
 
 console.log("test-main-menu: OK");

@@ -307,6 +307,30 @@ ${fmt(combo.personalAmount || 600000)} ريال شخصي
 تبي ارسلك رقم المندوب؟`;
 }
 
+function packageAgentContactReply() {
+  const name =
+    CONFIG.financing?.serviceStopAgentName ||
+    CONFIG.financing?.propertyComboAgentName ||
+    "أبو تركي";
+  const phone =
+    CONFIG.financing?.serviceStopAgentPhone ||
+    CONFIG.financing?.propertyComboAgentPhone ||
+    "0566817985";
+  const attribution =
+    CONFIG.financing?.serviceStopContactHint ||
+    CONFIG.financing?.propertyComboContactFooter ||
+    "من طرف رائد الحربي";
+  const tpl =
+    CONFIG.messages?.serviceStopAgentContact ||
+    CONFIG.templates?.serviceStopAgentContact;
+  if (typeof tpl === "function") {
+    return tpl(name, phone, attribution);
+  }
+  return `للتواصل مع المندوب ${name}:
+${phone}
+${attribution}`;
+}
+
 /**
  * خطوات إيقاف الخدمات بعد اختيار القائمة
  */
@@ -362,12 +386,11 @@ function advanceServiceStopFlow(draft, text, yesNoHint) {
 
   if (step === v.agentStep) {
     if (choice === "yes") {
-      // طلب صريح: إذا نعم لا ترسل أي شيء
       return {
         ok: true,
         flow: "main_menu",
         offer: v.accepted,
-        silent: true,
+        reply: packageAgentContactReply(),
         clearDraft: true,
         draft: null,
       };
