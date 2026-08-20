@@ -658,7 +658,10 @@ ${phone}`;
 
     invalidLowerAmountPick: `الرجاء اختيار رقم من القائمة أعلاه.`,
 
-    wantLowerAmountAsk: `هل ترغب بمبلغ أقل`,
+    wantLowerAmountAsk: `هل ترغب بمبلغ أقل
+
+1- نعم
+2- لا`,
 
     orderNumberRecorded: `تم استلام رقم الطلب
 سيتم الرد في أقرب وقت ممكن 

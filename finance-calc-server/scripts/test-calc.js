@@ -47,10 +47,13 @@ if (!result.sendTextThenInteractive) {
 
 if (
   !result.interactive ||
-  result.interactive.kind !== "buttons" ||
-  result.interactive.body !== "هل ترغب بمبلغ أقل"
+  result.interactive.kind !== "list" ||
+  !/هل ترغب بمبلغ أقل/.test(result.interactive.body || "") ||
+  result.interactive.button !== "اختر" ||
+  !result.interactive.rows?.some((r) => r.id === "want_lower_yes") ||
+  !result.interactive.rows?.some((r) => r.id === "want_lower_no")
 ) {
-  console.error("FAIL: لازم سؤال هل ترغب بمبلغ أقل أولًا", result.interactive);
+  console.error("FAIL: لازم قائمة هل ترغب بمبلغ أقل فيها نعم ولا", result.interactive);
   process.exitCode = 1;
 } else if (!result.data.awaitingLowerAmountAsk) {
   console.error("FAIL: لازم awaitingLowerAmountAsk بعد أعلى مبلغ");
