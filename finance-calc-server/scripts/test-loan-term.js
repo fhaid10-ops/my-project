@@ -8,6 +8,7 @@ const {
   getAvailableYearsForAmount,
   looksLikeWantLowerAmount,
   beginLowerAmountFlow,
+  replyWantLowerAmountAsk,
   applyLowerAmountTerm,
 } = require("../lib/personal-finance");
 const { advancePersonalFinanceFlow } = require("../lib/conversation");
@@ -19,6 +20,8 @@ assert.strictEqual(parseLoanTermChoice("سنة"), 1);
 assert.ok(looksLikeWantLowerAmount("want_lower_amount"));
 assert.ok(looksLikeWantLowerAmount("مبلغ أقل"));
 assert.ok(looksLikeWantLowerAmount("اختر مبلغ أقل هنا"));
+assert.ok(looksLikeWantLowerAmount("هل ترغب بمبلغ أقل"));
+assert.ok(looksLikeWantLowerAmount("هل ترغب بمبلغ اقل"));
 
 const fiveOpts = loanTermChoiceInteractive([5, 4, 3, 2, 1]);
 assert.strictEqual(fiveOpts.kind, "list");
@@ -28,7 +31,7 @@ const twoOpts = loanTermChoiceInteractive([5, 4]);
 assert.strictEqual(twoOpts.kind, "buttons");
 assert.strictEqual(twoOpts.buttons.length, 2);
 
-// بعد العقاري → حسبة على 5 سنوات + قائمة مبلغ أقل مباشرة
+// بعد العقاري → حسبة على 5 سنوات + سؤال هل ترغب بمبلغ أقل
 const afterRe = advancePersonalFinanceFlow(
   {
     flow: "personal_chat",
@@ -43,10 +46,20 @@ const afterRe = advancePersonalFinanceFlow(
 assert.ok(afterRe.ok);
 assert.ok(!afterRe.draft || afterRe.draft === null);
 assert.strictEqual(afterRe.sessionData?.loanTermMonths, 60);
-assert.strictEqual(afterRe.sessionData?.awaitingAmountChoice, true);
-assert.strictEqual(afterRe.interactive?.kind, "list");
-assert.strictEqual(afterRe.interactive?.body, "اختر مبلغ أقل هنا");
+assert.strictEqual(afterRe.sessionData?.awaitingLowerAmountAsk, true);
+assert.strictEqual(afterRe.interactive?.kind, "buttons");
+assert.strictEqual(afterRe.interactive?.body, "هل ترغب بمبلغ أقل");
 assert.ok(String(afterRe.reply).includes("5 سنوات"));
+
+const declined = replyWantLowerAmountAsk("no", afterRe.sessionData);
+assert.strictEqual(declined.silent, true);
+assert.strictEqual(declined.data.awaitingLowerAmountAsk, false);
+
+const accepted = replyWantLowerAmountAsk("yes", afterRe.sessionData);
+assert.strictEqual(accepted.interactive?.kind, "list");
+assert.strictEqual(accepted.interactive?.body, "اختر مبلغ أقل هنا");
+assert.strictEqual(accepted.data.awaitingAmountChoice, true);
+assert.strictEqual(accepted.data.awaitingLowerAmountAsk, false);
 
 // توافق: «مبلغ أقل» يعيد قائمة المبالغ
 const lowerStart = beginLowerAmountFlow(afterRe.sessionData);
