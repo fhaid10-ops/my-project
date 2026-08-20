@@ -464,7 +464,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     </div>
     <div class="card" id="pending-followup-send-card" style="margin-bottom:12px;display:none">
       <h3 style="margin:0 0 8px;font-size:1.05rem">إرسال لهذه القائمة فقط</h3>
-      <p class="muted" style="margin-bottom:12px">الزر يرسل لمن في «أخذ الرابط — بدون متابعة» فقط. خفّض العدد إذا تبي دفعة أصغر؛ الباقي يبقى هنا حتى ينتقلوا إلى «تمت المتابعة».</p>
+      <p class="muted" id="list-followup-send-help" style="margin-bottom:12px">الزر يرسل لمن في هالقائمة فقط. خفّض العدد إذا تبي دفعة أصغر.</p>
       <div class="btn-row" style="align-items:end">
         <label class="field" style="margin:0;min-width:140px;max-width:180px">
           <span>العدد</span>
@@ -611,7 +611,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "20260820r2";
+  const UI_VERSION = "20260820r3";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -630,6 +630,32 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     limit_exhausted: "مستنفذ حد",
     service_stop: "إيقاف خدمات",
     financing_solutions: "حلول تمويلية",
+  };
+  const LIST_FOLLOWUP_SEND = {
+    finance_link_pending: {
+      fromOutcome: "finance_link",
+      afterTab: "finance_link_pending",
+      countKey: "finance_link_pending",
+      emptyAlert: "ما فيه أحد في قائمة بدون متابعة",
+      confirmName: "أخذ الرابط — بدون متابعة",
+      help: "الزر يرسل لمن في «أخذ الرابط — بدون متابعة» فقط. خفّض العدد إذا تبي دفعة أصغر؛ الباقي يبقى هنا حتى ينتقلوا إلى «تمت المتابعة».",
+    },
+    finance_link_sent: {
+      fromOutcome: "finance_link_plus",
+      afterTab: "finance_link_sent",
+      countKey: "finance_link_sent",
+      emptyAlert: "ما فيه أحد في قائمة تمت المتابعة",
+      confirmName: "أخذ الرابط — تمت المتابعة",
+      help: "الزر يرسل متابعة بلس لمن في «أخذ الرابط — تمت المتابعة» فقط. خفّض العدد إذا تبي دفعة أصغر؛ الباقي يبقى هنا حتى ينتقلوا إلى «متابعة بلس».",
+    },
+    finance_link_plus: {
+      fromOutcome: "finance_link_plus_list",
+      afterTab: "finance_link_plus",
+      countKey: "finance_link_plus",
+      emptyAlert: "ما فيه أحد في قائمة متابعة بلس",
+      confirmName: "أخذ الرابط — متابعة بلس",
+      help: "الزر يرسل لمن في «أخذ الرابط — متابعة بلس» فقط. خفّض العدد إذا تبي دفعة أصغر؛ الباقي يبقى هنا.",
+    },
   };
   const PAGE_SIZE = 100;
   let customerDay = "today";
@@ -975,9 +1001,9 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     if (rejectedCard) rejectedCard.style.display = customerDay === "rejected" ? "block" : "none";
     const plusCard = document.getElementById("plus-add-card");
     if (plusCard) plusCard.style.display = customerDay === "finance_link_plus" ? "block" : "none";
-    const pendingSendCard = document.getElementById("pending-followup-send-card");
-    if (pendingSendCard) {
-      pendingSendCard.style.display = customerDay === "finance_link_pending" ? "block" : "none";
+    const listSendCard = document.getElementById("pending-followup-send-card");
+    if (listSendCard) {
+      listSendCard.style.display = LIST_FOLLOWUP_SEND[customerDay] ? "block" : "none";
     }
     const dateBar = document.querySelector(".ledger-date-bar");
     if (dateBar) dateBar.hidden = !isDayFilter(customerDay);
@@ -1222,23 +1248,26 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     syncPendingFollowupSendBox(pack, counts);
   }
 
-  function pendingFollowupListCount(pack, counts) {
+  function listFollowupCount(pack, counts, day) {
+    const cfg = LIST_FOLLOWUP_SEND[day];
     const fromPack = Number(pack?.count);
-    if (Number.isFinite(fromPack) && pack?.day === "finance_link_pending") return fromPack;
-    const fromCounts = Number(counts?.finance_link_pending ?? counts?.customersFinanceLinkPending);
+    if (Number.isFinite(fromPack) && pack?.day === day) return fromPack;
+    const fromCounts = Number(counts?.[cfg?.countKey] ?? counts?.[day]);
     if (Number.isFinite(fromCounts)) return fromCounts;
     return 0;
   }
 
   function syncPendingFollowupSendBox(pack, counts) {
+    const cfg = LIST_FOLLOWUP_SEND[customerDay];
     const card = document.getElementById("pending-followup-send-card");
     const input = document.getElementById("pending-followup-count");
     const meta = document.getElementById("pending-followup-count-meta");
-    const onPending = customerDay === "finance_link_pending";
-    if (card) card.style.display = onPending ? "block" : "none";
-    if (!onPending) return;
-    const total = Math.max(pendingFollowupListCount(pack, counts), 0);
+    const help = document.getElementById("list-followup-send-help");
+    if (card) card.style.display = cfg ? "block" : "none";
+    if (!cfg) return;
+    const total = Math.max(listFollowupCount(pack, counts, customerDay), 0);
     if (card) card.dataset.count = String(total);
+    if (help) help.textContent = cfg.help;
     if (meta) meta.textContent = `في القائمة الآن: ${total}`;
     if (!input) return;
     input.max = String(Math.max(total, 1));
@@ -1774,6 +1803,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     afterTab,
     sendAll = true,
     limit,
+    fromList = false,
   }) {
     statusEl.hidden = false;
     statusEl.className = "status";
@@ -1788,6 +1818,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         sendAll,
         delayMs: delaySec * 1000,
       };
+      if (fromList) body.fromList = true;
       if (message) body.message = message;
       if (limit != null && Number.isFinite(Number(limit))) body.limit = Number(limit);
       if (via) {
@@ -1923,13 +1954,18 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
   });
 
   document.getElementById("pending-followup-send-btn").addEventListener("click", async () => {
+    const cfg = LIST_FOLLOWUP_SEND[customerDay];
     const statusEl = document.getElementById("pending-followup-send-status");
     const card = document.getElementById("pending-followup-send-card");
     const input = document.getElementById("pending-followup-count");
+    if (!cfg) {
+      alert("هالزر لهالقوائم: بدون متابعة، تمت المتابعة، ومتابعة بلس");
+      return;
+    }
     const listed = Math.max(0, Math.floor(Number(card?.dataset?.count || 0)));
     const requested = Math.floor(Number(input?.value || 0));
     if (!listed) {
-      alert("ما فيه أحد في قائمة بدون متابعة");
+      alert(cfg.emptyAlert);
       return;
     }
     if (!Number.isFinite(requested) || requested < 1) {
@@ -1942,19 +1978,20 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     const delaySec = Math.max(Number(bulkDelay?.value || 10), 8);
     const minutes = Math.ceil((n * delaySec) / 60);
     const ok = confirm(
-      `إرسال لـ ${n} من قائمة «أخذ الرابط — بدون متابعة» فقط؟\nالباقي يبقى في هالقائمة.\nالرسالة تصل لمن راسلكم خلال 24 ساعة` +
+      `إرسال لـ ${n} من قائمة «${cfg.confirmName}» فقط؟\nالباقي يبقى في هالقائمة.\nالرسالة تصل لمن راسلكم خلال 24 ساعة` +
         (minutes > 1 ? `\nتقريباً ${minutes} دقيقة.` : ".")
     );
     if (!ok) return;
     await runBulkFollowupSend({
-      fromOutcome: "finance_link",
+      fromOutcome: cfg.fromOutcome,
       sendAll: true,
+      fromList: true,
       limit: n,
       delaySec,
       statusEl,
       sendButtons: [document.getElementById("pending-followup-send-btn")],
       runningLabel: `جاري الإرسال لـ ${n} من هالقائمة...`,
-      afterTab: "finance_link_pending",
+      afterTab: cfg.afterTab,
     });
   });
 

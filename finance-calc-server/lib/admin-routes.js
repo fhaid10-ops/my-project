@@ -10,7 +10,7 @@ const {
 } = require("./customer-ledger");
 
 /** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
-const ADMIN_UI_VERSION = "20260820r2";
+const ADMIN_UI_VERSION = "20260820r3";
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
@@ -1229,12 +1229,20 @@ function createAdminRouter(deps) {
     const fromOutcome = String(req.body?.fromOutcome || req.body?.outcome || "")
       .trim()
       .toLowerCase();
+    const isPlusListWave =
+      fromOutcome === "finance_link_plus_list" ||
+      fromOutcome === "finance_link_plus_members";
     const isPlusWave =
-      fromOutcome === "finance_link_plus" ||
-      fromOutcome === "متابعة بلس" ||
-      fromOutcome === "plus";
+      !isPlusListWave &&
+      (fromOutcome === "finance_link_plus" ||
+        fromOutcome === "متابعة بلس" ||
+        fromOutcome === "plus");
     const isFinanceLinkWave =
       fromOutcome === "finance_link" || fromOutcome === "أخذ رابط التمويل";
+    const fromList =
+      req.body?.fromList === true ||
+      req.body?.fromList === "true" ||
+      req.body?.fromList === 1;
     const via = String(req.body?.via || req.body?.channel || "")
       .trim()
       .toLowerCase();
@@ -1257,7 +1265,7 @@ function createAdminRouter(deps) {
 
     const message =
       String(req.body?.message || "").trim() ||
-      (isPlusWave
+      (isPlusWave || isPlusListWave
         ? CONFIG.followUp?.plusMessage || CONFIG.followUp?.electronicMessage || ""
         : CONFIG.followUp?.electronicMessage || "");
     let delayMs = Number(
@@ -1293,7 +1301,7 @@ function createAdminRouter(deps) {
     }
 
     let candidates = [];
-    if (isFinanceLinkWave || isPlusWave) {
+    if (isFinanceLinkWave || isPlusWave || isPlusListWave) {
       if (!customerLedger) {
         return res.status(503).json({
           ok: false,
@@ -1315,6 +1323,12 @@ function createAdminRouter(deps) {
       if (isFinanceLinkWave) {
         candidates = candidates.filter(
           (row) => !row.followupPlus && !hasFirstFollowup(row)
+        );
+      } else if (isPlusListWave) {
+        candidates = candidates.filter((row) => Boolean(row.followupPlus));
+      } else if (isPlusWave) {
+        candidates = candidates.filter(
+          (row) => !row.followupPlus && hasFirstFollowup(row)
         );
       }
     } else {
@@ -1350,9 +1364,11 @@ function createAdminRouter(deps) {
         ok: false,
         error: isFinanceLinkWave
           ? "لا يوجد عملاء في «رابط — بدون متابعة»"
-          : isPlusWave
-            ? "لا يوجد عملاء مؤهلون لمتابعة بلس"
-            : "لا يوجد أرقام للإرسال (الصق قائمة الجوالات أو استخدم تبويب أخذ رابط التمويل)",
+          : isPlusListWave
+            ? "لا يوجد عملاء في «رابط — متابعة بلس»"
+            : isPlusWave
+              ? "لا يوجد عملاء في «رابط — تمت المتابعة»"
+              : "لا يوجد أرقام للإرسال (الصق قائمة الجوالات أو استخدم تبويب أخذ رابط التمويل)",
       });
     }
 
@@ -1370,7 +1386,9 @@ function createAdminRouter(deps) {
         skipped.push({ phone: parts.phone, reason: "ليس جوال واتساب" });
         continue;
       }
-      if (isPlusWave) {
+      if (isPlusListWave) {
+        /* قائمة متابعة بلس: نرسل لمن فيها فقط */
+      } else if (isPlusWave) {
         if (raw.followupPlus) {
           skipped.push({ phone: parts.phone, reason: "في متابعة بلس مسبقاً" });
           continue;
@@ -1386,7 +1404,11 @@ function createAdminRouter(deps) {
         skipped.push({ phone: parts.phone, reason: "تمت المتابعة مسبقاً" });
         continue;
       }
-      if ((isFinanceLinkWave || isPlusWave) && !viaTemplate && !isInsideWhatsappSession(raw)) {
+      if (
+        (isFinanceLinkWave || isPlusWave || isPlusListWave) &&
+        !viaTemplate &&
+        !isInsideWhatsappSession(raw)
+      ) {
         skipped.push({
           phone: parts.phone,
           reason: "خارج نافذة واتساب 24 ساعة — يلزم قالب إنترأكت",
@@ -1400,7 +1422,7 @@ function createAdminRouter(deps) {
         });
         continue;
       }
-      if (wasFollowedUpRecently(raw, skipMs, now)) {
+      if (!fromList && wasFollowedUpRecently(raw, skipMs, now)) {
         skipped.push({
           phone: parts.phone,
           reason: `تمت المتابعة خلال ${safe.skipIfFollowedUpWithinHours} ساعة`,
@@ -1414,7 +1436,7 @@ function createAdminRouter(deps) {
       req.body?.sendAll === false ||
       req.body?.sendAll === "false" ||
       req.body?.sendAll === 0;
-    const sendAll = (isFinanceLinkWave || isPlusWave) && !sendAllOff;
+    const sendAll = (isFinanceLinkWave || isPlusWave || isPlusListWave) && !sendAllOff;
     const honorLimit = !sendAll || hasExplicitLimit;
     const sendCap = honorLimit
       ? Math.min(batchLimit, dailyRemaining, queue.length)
@@ -1437,7 +1459,7 @@ function createAdminRouter(deps) {
             parts.countryCode,
             parts.phone,
             outboundPreview,
-            { mode: viaTemplate ? "admin-bulk-followup-template" : isPlusWave ? "admin-bulk-followup-plus" : "admin-bulk-followup" }
+            { mode: viaTemplate ? "admin-bulk-followup-template" : isPlusWave || isPlusListWave ? "admin-bulk-followup-plus" : "admin-bulk-followup" }
           );
           if (isPlusWave) {
             customerLedger?.setFollowupPlus?.(parts.countryCode, parts.phone, true);
@@ -1461,7 +1483,7 @@ function createAdminRouter(deps) {
               : null,
           });
           pushLog({
-            action: isPlusWave ? "bulk-followup-plus" : "bulk-followup",
+            action: isPlusWave || isPlusListWave ? "bulk-followup-plus" : "bulk-followup",
             phone: parts.phone,
             countryCode: parts.countryCode,
             fromOutcome: fromOutcome || null,
@@ -1534,7 +1556,9 @@ function createAdminRouter(deps) {
             ? `ما في أحد داخل نافذة واتساب 24 ساعة. ${outsideSkip} يحتاجون إرسال عبر إنترأكت (قالب).`
             : isFinanceLinkWave
               ? "لا يوجد عملاء في «رابط — بدون متابعة»"
-              : "لا يوجد عملاء مؤهلون لمتابعة بلس",
+              : isPlusListWave
+                ? "لا يوجد عملاء في «رابط — متابعة بلس» داخل 24 ساعة"
+                : "لا يوجد عملاء في «رابط — تمت المتابعة» داخل 24 ساعة",
         skipped: skipped.length,
         deferred: deferred.length,
         dailyLimit: safe.dailyLimit,

@@ -487,6 +487,8 @@ async function waitBulkJob(timeoutMs = 3000) {
   assert.match(adminHtml, /id="pending-followup-send-card"/);
   assert.match(adminHtml, /id="pending-followup-count"/);
   assert.match(adminHtml, /id="pending-followup-send-btn"/);
+  assert.match(adminHtml, /fromOutcome: "finance_link_plus"/);
+  assert.match(adminHtml, /fromOutcome: "finance_link_plus_list"/);
   assert.ok((CONFIG.outbound?.dailyLimit || 0) >= 250);
   const prevOutbound = { ...CONFIG.outbound };
   CONFIG.outbound = {
@@ -736,6 +738,101 @@ async function waitBulkJob(timeoutMs = 3000) {
       sent.find((s) => s.phone === movedLimited && s.type === "Text")?.message || ""
     ).includes("كلم احد الموظفين"),
     "نص متابعة القائمة يشمل أرقام الموظفين"
+  );
+  CONFIG.outbound = prevOutbound;
+
+  CONFIG.outbound = {
+    ...prevOutbound,
+    minDelayMs: 0,
+    delayMs: 0,
+    maxBatchSize: 10,
+    dailyLimit: 250,
+    skipIfFollowedUpWithinHours: 20,
+  };
+  customerLedger.recordInbound("+966", "550000012", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000012", "أخذ رابط التمويل");
+  customerLedger.recordOutbound(
+    "+966",
+    "550000012",
+    "السلام عليكم / هل تم التقديم / ارسل رقم الطلب"
+  );
+  customerLedger.recordInbound("+966", "550000013", "تمويل");
+  customerLedger.setOutcomeNotes("+966", "550000013", "أخذ رابط التمويل");
+  customerLedger.recordOutbound(
+    "+966",
+    "550000013",
+    "السلام عليكم / هل تم التقديم / ارسل رقم الطلب"
+  );
+  const sentListBefore = await req("GET", "/customers?day=finance_link_sent");
+  assert.ok((sentListBefore.json.customers || []).some((c) => c.phone === "550000012"));
+  assert.ok((sentListBefore.json.customers || []).some((c) => c.phone === "550000013"));
+  const sentListCountBefore = sentListBefore.json.counts?.finance_link_sent || 0;
+  const plusCountBeforeSent = (await req("GET", "/customers?day=finance_link_plus")).json
+    .counts?.finance_link_plus || 0;
+  const sentListSend = await req("POST", "/bulk-followup", {
+    fromOutcome: "finance_link_plus",
+    sendAll: true,
+    fromList: true,
+    delayMs: 0,
+    limit: 1,
+  });
+  assert.strictEqual(sentListSend.status, 200, sentListSend.json?.error || "sent-list send ok");
+  assert.strictEqual(sentListSend.json.queued, 1, "مربع العدد من تمت المتابعة يرسل واحد");
+  const sentListJob = await waitBulkJob();
+  assert.strictEqual(sentListJob.sent, 1);
+  const movedFromSent = (sentListJob.results || []).find((r) => r.ok)?.phone;
+  assert.ok(movedFromSent, "رقم من تمت المتابعة بعد الإرسال");
+  const sentListAfter = await req("GET", "/customers?day=finance_link_sent");
+  assert.strictEqual(
+    sentListAfter.json.counts?.finance_link_sent,
+    sentListCountBefore - 1,
+    "الباقي يبقى في تمت المتابعة"
+  );
+  const plusAfterSentList = await req("GET", "/customers?day=finance_link_plus");
+  assert.strictEqual(
+    plusAfterSentList.json.counts?.finance_link_plus,
+    plusCountBeforeSent + 1,
+    "بعد الإرسال من تمت المتابعة ينتقل لمتابعة بلس"
+  );
+  assert.ok(
+    (plusAfterSentList.json.customers || []).some((c) => c.phone === movedFromSent),
+    "المنقول يظهر في متابعة بلس"
+  );
+  assert.ok(
+    String(
+      sent.find(
+        (s) =>
+          s.phone === movedFromSent &&
+          s.type === "Text" &&
+          String(s.message || "").includes("نذكرك بتقديم الطلب")
+      )?.message || ""
+    ).includes("نذكرك بتقديم الطلب"),
+    "نص متابعة بلس من قائمة تمت المتابعة"
+  );
+
+  const plusListCountBefore = plusAfterSentList.json.counts?.finance_link_plus || 0;
+  const plusListSend = await req("POST", "/bulk-followup", {
+    fromOutcome: "finance_link_plus_list",
+    sendAll: true,
+    fromList: true,
+    delayMs: 0,
+    limit: 1,
+  });
+  assert.strictEqual(plusListSend.status, 200, plusListSend.json?.error || "plus-list send ok");
+  assert.strictEqual(plusListSend.json.queued, 1, "مربع العدد من متابعة بلس يرسل واحد");
+  const plusListJob = await waitBulkJob();
+  assert.strictEqual(plusListJob.sent, 1);
+  const plusListAfter = await req("GET", "/customers?day=finance_link_plus");
+  assert.strictEqual(
+    plusListAfter.json.counts?.finance_link_plus,
+    plusListCountBefore,
+    "الإرسال من متابعة بلس يبقيهم في نفس القائمة"
+  );
+  const plusListPhone = (plusListJob.results || []).find((r) => r.ok)?.phone;
+  assert.ok(plusListPhone);
+  assert.ok(
+    (plusListAfter.json.customers || []).some((c) => c.phone === plusListPhone),
+    "بعد الإرسال يبقى في متابعة بلس"
   );
   CONFIG.outbound = prevOutbound;
 
