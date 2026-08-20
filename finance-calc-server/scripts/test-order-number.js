@@ -66,7 +66,7 @@ assert.strictEqual(
 );
 
 const miss = buildOrderImageMissReply(CONFIG.messages);
-assert.match(miss, /ما قدرت أقرأ رقم الطلب/);
-assert.match(miss, /8 أرقام/);
+assert.match(miss, /تم استلام رقم الطلب/);
+assert.match(miss, /عبدالرحمن/);
 
 console.log("OK: order number ack (101 + 8 digits)");

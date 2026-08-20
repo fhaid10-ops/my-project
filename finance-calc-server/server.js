@@ -67,12 +67,11 @@ const { normalizeDigits } = require("./lib/digits");
 const { mountAdmin } = require("./lib/admin-routes");
 const { createCustomerLedger } = require("./lib/customer-ledger");
 const { createChatState } = require("./lib/chat-state");
-const { detectCustomerOutcome } = require("./lib/customer-outcome");
+const { detectCustomerOutcome, OUTCOMES } = require("./lib/customer-outcome");
 const {
   looksLikeApplicationOrderNumber,
   parseApplicationOrderNumber,
   buildOrderNumberAckReply,
-  buildOrderImageMissReply,
 } = require("./lib/order-number");
 const { readOrderNumberFromImage } = require("./lib/order-image");
 const { createInboundDedupe, looksLikeEchoedMenuBody } = require("./lib/inbound-dedupe");
@@ -455,7 +454,7 @@ app.post("/webhook/interakt", async (req, res) => {
       return;
     }
 
-    let orderImageMiss = false;
+    let imageOrderAck = false;
     if (isImage && !looksLikeApplicationOrderNumber(text)) {
       if (mediaUrl) {
         try {
@@ -464,17 +463,15 @@ app.post("/webhook/interakt", async (req, res) => {
             console.log("[order-image:ok]", phone, fromImage);
             text = fromImage;
           } else {
-            orderImageMiss = true;
-            console.log("[order-image:miss]", phone);
+            console.log("[order-image:ack-without-digits]", phone);
           }
         } catch (err) {
-          orderImageMiss = true;
           console.error("[order-image:fail]", phone, err.message || err);
         }
       } else {
-        orderImageMiss = true;
-        console.log("[order-image:miss:no-url]", phone);
+        console.log("[order-image:ack-no-url]", phone);
       }
+      imageOrderAck = true;
     }
 
     if (inboundDedupe.isDuplicate(countryCode, phone, text)) {
@@ -501,19 +498,28 @@ app.post("/webhook/interakt", async (req, res) => {
         draft?.civilianSubtype || currentSession?.civilianSubtype || null,
     });
 
-    if (orderImageMiss && !looksLikeApplicationOrderNumber(text)) {
+    if (imageOrderAck) {
       if (isChatPaused(countryCode, phone)) return;
-      result = {
-        ok: true,
-        reply: buildOrderImageMissReply(CONFIG.messages),
-        offer: "order_image_miss",
-      };
+      if (looksLikeApplicationOrderNumber(text)) {
+        result = applyApplicationOrderNumber(
+          countryCode,
+          phone,
+          parseApplicationOrderNumber(text)
+        );
+      } else {
+        customerLedger.setOutcomeNotes(countryCode, phone, OUTCOMES.ORDER_NUMBER);
+        result = {
+          ok: true,
+          reply: buildOrderNumberAckReply(CONFIG.messages),
+          offer: "order_number_received",
+        };
+      }
     } else if (!text && !(isAudio && draft?.step === "real_estate")) {
       return;
     }
     // السلام / قائمة / الرقم 1 → القائمة الرئيسية حتى لو داخل مسار
     if (result) {
-      // صورة بدون رقم مقروء — رد جاهز
+      // صورة — تم استلام رقم الطلب
     } else if (
       looksLikeShowMainMenu(text) ||
       staffMenuShortcut ||

@@ -116,10 +116,7 @@ function buildOrderNumberAckReply(configMessages = {}) {
 }
 
 function buildOrderImageMissReply(configMessages = {}) {
-  const custom = configMessages.orderImageUnreadable;
-  if (typeof custom === "string" && custom.trim()) return custom.trim();
-  return `ما قدرت أقرأ رقم الطلب من الصورة.
-أرسل رقم الطلب (8 أرقام ويبدأ بـ 101).`;
+  return buildOrderNumberAckReply(configMessages);
 }
 
 module.exports = {
