@@ -1,0 +1,21 @@
+{
+  "id": "hotmail-contacts",
+  "name": "جهات Hotmail",
+  "short_name": "Hotmail",
+  "description": "استيراد دفتر عناوين Hotmail والبحث فيه محلياً",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/my-project/contacts/index.html",
+  "scope": "/my-project/contacts/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef2ff",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
