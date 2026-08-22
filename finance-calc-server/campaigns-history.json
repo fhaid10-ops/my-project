@@ -9,12 +9,13 @@
       "audienceFile": "interakt-audience-raied.csv",
       "attempted": 145,
       "sent": 122,
-      "delivered": 118,
-      "read": 55,
-      "replied": 63,
+      "delivered": 119,
+      "read": 56,
+      "replied": 65,
       "limitedByMeta": 7,
       "otherFailures": 16,
-      "costUsd": 6.57
+      "costUsd": 6.63,
+      "status": "completed"
     },
     {
       "name": "raied_campaign",
@@ -23,12 +24,30 @@
       "audienceFile": "interakt-audience-new-customers.csv",
       "attempted": 18,
       "sent": 16,
-      "delivered": 15,
+      "delivered": 16,
       "read": 5,
       "replied": 12,
       "limitedByMeta": 0,
       "otherFailures": 2,
-      "costUsd": 0.83
+      "costUsd": 0.89,
+      "status": "live",
+      "retriesUntil": "2026-08-26"
+    },
+    {
+      "name": "hamla_327_19aug",
+      "date": "2026-08-20",
+      "template": "raied_calc",
+      "audienceFile": "hamla-3-jadid-327.csv",
+      "attempted": 327,
+      "sent": 272,
+      "delivered": 267,
+      "read": 127,
+      "replied": 145,
+      "limitedByMeta": 21,
+      "otherFailures": 34,
+      "costUsd": 14.81,
+      "status": "completed",
+      "phonesOnDisk": false
     },
     {
       "name": "raied_calc_campaign",
@@ -43,20 +62,21 @@
       "limitedByMeta": 29,
       "otherFailures": 60,
       "costUsd": 18.44,
+      "status": "completed",
       "phonesOnDisk": false
     }
   ],
   "totals": {
-    "campaigns": 3,
-    "attempted": 593,
-    "sent": 479,
-    "delivered": 465,
-    "read": 191,
-    "replied": 211,
-    "limitedByMeta": 36,
-    "otherFailures": 78,
-    "costUsd": 25.84,
+    "campaigns": 4,
+    "attempted": 920,
+    "sent": 751,
+    "delivered": 734,
+    "read": 319,
+    "replied": 358,
+    "limitedByMeta": 57,
+    "otherFailures": 112,
+    "costUsd": 40.77,
     "uniquePhonesSavedLocally": 163,
-    "audienceMissing": ["hamla-4-jadid-431.csv"]
+    "audienceMissing": ["hamla-3-jadid-327.csv", "hamla-4-jadid-431.csv"]
   }
 }
