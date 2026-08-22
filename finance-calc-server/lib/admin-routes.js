@@ -11,7 +11,7 @@ const {
 const { createCampaignedAudience } = require("./campaigned-audience");
 
 /** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
-const ADMIN_UI_VERSION = "20260822r1";
+const ADMIN_UI_VERSION = "20260822r2";
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")

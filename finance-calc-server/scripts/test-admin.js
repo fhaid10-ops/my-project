@@ -498,6 +498,20 @@ async function waitBulkJob(timeoutMs = 3000) {
     path.join(__dirname, "../public/admin/index.html"),
     "utf8"
   );
+  const adminRoutesSrc = fs.readFileSync(
+    path.join(__dirname, "../lib/admin-routes.js"),
+    "utf8"
+  );
+  const htmlVersion = adminHtml.match(/const UI_VERSION = "([^"]+)"/)?.[1];
+  const serverVersion = adminRoutesSrc.match(
+    /const ADMIN_UI_VERSION = "([^"]+)"/
+  )?.[1];
+  assert.ok(htmlVersion, "إصدار واجهة اللوحة في HTML");
+  assert.strictEqual(
+    htmlVersion,
+    serverVersion,
+    "إصدار HTML لازم يطابق ADMIN_UI_VERSION وإلا اللوحة تدخل حلقة تحويل"
+  );
   assert.match(adminHtml, /id="pending-followup-send-card"/);
   assert.match(adminHtml, /id="pending-followup-count"/);
   assert.match(adminHtml, /id="pending-followup-send-btn"/);
