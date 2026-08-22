@@ -5,3 +5,4 @@ data/customers.json
 data/*.json
 !data/approved-companies.json
 data/backups/
+data/audiences/
