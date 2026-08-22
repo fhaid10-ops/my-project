@@ -69,6 +69,7 @@ const {
 } = require("./lib/webhook-parse");
 const { normalizeDigits } = require("./lib/digits");
 const { mountAdmin } = require("./lib/admin-routes");
+const { createCampaignedAudience } = require("./lib/campaigned-audience");
 const { createCustomerLedger } = require("./lib/customer-ledger");
 const { createChatState } = require("./lib/chat-state");
 const { detectCustomerOutcome } = require("./lib/customer-outcome");
@@ -98,6 +99,9 @@ const WEBHOOK_SECRET = normalizeEnvValue(process.env.WEBHOOK_SECRET);
 const ADMIN_TOKEN = normalizeEnvValue(process.env.ADMIN_TOKEN);
 
 const customerLedger = createCustomerLedger();
+const campaignedAudience = createCampaignedAudience({
+  dataDir: customerLedger.persistenceInfo().dataDir,
+});
 const chatState = createChatState();
 const inboundDedupe = createInboundDedupe();
 const sessions = chatState.sessions;
@@ -996,6 +1000,7 @@ mountAdmin(app, {
   interaktConfigured: Boolean(INTERAKT_API_KEY),
   interaktApiKey: INTERAKT_API_KEY,
   customerLedger,
+  campaignedAudience,
 });
 
 function gracefulShutdown(signal) {
@@ -1022,6 +1027,7 @@ app.listen(PORT, () => {
     console.log(
       `[customers] ${persistence.count} عميل · ${persistence.durable ? "قرص دائم" : "تخزين مؤقت"} · ${persistence.dataFile}`
     );
+    console.log(`[campaigns] ${campaignedAudience.count()} رقم محفوظ من حملات سابقة`);
     if (!persistence.durable) {
       console.log(
         "[customers] تنبيه: أضف Persistent Disk على /var/data واضبط CUSTOMERS_DATA_DIR=/var/data/kobri حتى لا يُمسح السجل بعد إعادة التشغيل"

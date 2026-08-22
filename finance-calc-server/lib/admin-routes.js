@@ -8,9 +8,10 @@ const {
   looksLikeFollowupMessage,
   hasFirstFollowup,
 } = require("./customer-ledger");
+const { createCampaignedAudience } = require("./campaigned-audience");
 
 /** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
-const ADMIN_UI_VERSION = "20260820r3";
+const ADMIN_UI_VERSION = "20260822r1";
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
@@ -42,8 +43,12 @@ function parsePhoneList(raw) {
   return phones;
 }
 
-function toInteraktAudienceCsv(raw) {
-  const rows = parsePhoneList(raw).filter((p) => isSaudiMobile(p.phone));
+function toInteraktAudienceCsv(raw, options = {}) {
+  const exclude = new Set(
+    [...(options.exclude || [])].map((p) => normalizePhoneParts({ phone: p }).phone)
+  );
+  const mobiles = parsePhoneList(raw).filter((p) => isSaudiMobile(p.phone));
+  const rows = mobiles.filter((p) => !exclude.has(p.phone));
   const lines = ["countryCode,phoneNumber"];
   for (const p of rows) {
     lines.push(`${p.countryCode},${p.phone}`);
@@ -51,6 +56,7 @@ function toInteraktAudienceCsv(raw) {
   return {
     csv: `${lines.join("\n")}\n`,
     count: rows.length,
+    skipped: mobiles.length - rows.length,
   };
 }
 
@@ -74,7 +80,14 @@ function createAdminRouter(deps) {
     interaktConfigured,
     customerLedger,
     interaktApiKey,
+    campaignedAudience: campaignedAudienceDep,
   } = deps;
+
+  const campaignedAudience =
+    campaignedAudienceDep ||
+    createCampaignedAudience({
+      dataDir: customerLedger?.persistenceInfo?.()?.dataDir,
+    });
 
   const router = express.Router();
   const activityLog = [];
@@ -508,6 +521,7 @@ function createAdminRouter(deps) {
         customersFinanceLinkPending: financeStats.financeLinkPending,
         customersFinanceLinkSent: financeStats.financeLinkSent,
         customersFinanceLinkPlus: financeStats.financeLinkPlus,
+        campaignedAudience: campaignedAudience.count(),
       },
       customers: ledgerSummary,
       persistence,
@@ -678,6 +692,61 @@ function createAdminRouter(deps) {
 
   router.get("/activity", requireAdmin, (_req, res) => {
     res.json({ ok: true, activity: activityLog });
+  });
+
+  router.get("/campaigns/audience", requireAdmin, (_req, res) => {
+    res.json({
+      ok: true,
+      count: campaignedAudience.count(),
+    });
+  });
+
+  router.post("/campaigns/import-audience", requireAdmin, (req, res) => {
+    const text = String(req.body?.csv || req.body?.phones || "");
+    if (!text.trim()) {
+      return res.status(400).json({ ok: false, error: "الملف أو الأرقام فارغة" });
+    }
+    const result = campaignedAudience.importCsv(text);
+    pushLog({ action: "campaign-audience-import", added: result.added, count: result.count });
+    res.json({ ok: true, added: result.added, count: result.count });
+  });
+
+  router.post("/campaigns/audience-csv", requireAdmin, (req, res) => {
+    const raw = Array.isArray(req.body?.phones) ? req.body.phones : req.body?.phones || "";
+    const remember = req.body?.remember !== false;
+    const pack = toInteraktAudienceCsv(raw, {
+      exclude: campaignedAudience.excludeSet(),
+    });
+    if (pack.count < 1) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          pack.skipped > 0
+            ? `كل الأرقام سبق أُرسلت لهم حملة (${pack.skipped})`
+            : "ما فيه جوالات صالحة (يبدأ بـ 05)",
+        count: 0,
+        skipped: pack.skipped || 0,
+      });
+    }
+    if (remember) {
+      const fresh = parsePhoneList(raw)
+        .filter((p) => isSaudiMobile(p.phone) && !campaignedAudience.has(p.phone))
+        .map((p) => p.phone);
+      campaignedAudience.add(fresh);
+    }
+    pushLog({
+      action: "campaign-audience-csv",
+      count: pack.count,
+      skipped: pack.skipped,
+    });
+    res.json({
+      ok: true,
+      csv: pack.csv,
+      count: pack.count,
+      skipped: pack.skipped,
+      filename: "interakt-audience.csv",
+      savedTotal: campaignedAudience.count(),
+    });
   });
 
   /** أرقام بدون متابعة خارج نافذة واتساب 24 ساعة — تُرفع كحملة قالب في إنترأكت */

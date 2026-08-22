@@ -4,6 +4,7 @@ const os = require("os");
 const path = require("path");
 const fs = require("fs");
 const { createAdminRouter, normalizePhoneParts, parsePhoneList, isSaudiMobile, toInteraktAudienceCsv } = require("../lib/admin-routes");
+const { createCampaignedAudience } = require("../lib/campaigned-audience");
 const { showMainMenu } = require("../lib/main-menu");
 const { createCustomerLedger } = require("../lib/customer-ledger");
 
@@ -18,9 +19,17 @@ assert.deepStrictEqual(
 );
 const interaktCsv = toInteraktAudienceCsv("+966 55 952 6221\n0115033469\n0504297151");
 assert.strictEqual(interaktCsv.count, 2);
+assert.strictEqual(interaktCsv.skipped, 0);
 assert.match(interaktCsv.csv, /^countryCode,phoneNumber\n/);
 assert.match(interaktCsv.csv, /\+966,559526221/);
 assert.doesNotMatch(interaktCsv.csv, /115033469/);
+const interaktSkip = toInteraktAudienceCsv("+966559526221\n0504297151", {
+  exclude: ["559526221"],
+});
+assert.strictEqual(interaktSkip.count, 1);
+assert.strictEqual(interaktSkip.skipped, 1);
+assert.match(interaktSkip.csv, /504297151/);
+assert.doesNotMatch(interaktSkip.csv, /559526221/);
 
 const sessions = new Map();
 const drafts = new Map();
@@ -31,6 +40,10 @@ function sessionKey(cc, phone) {
 
 const customerLedger = createCustomerLedger({
   dataFile: path.join(os.tmpdir(), `admin-ledger-${Date.now()}.json`),
+});
+const campaignedAudience = createCampaignedAudience({
+  dataDir: path.join(os.tmpdir(), `admin-campaigns-${Date.now()}`),
+  seedDir: null,
 });
 customerLedger.recordInbound("+966", "551234567", "مرحبا");
 
@@ -67,6 +80,7 @@ app.use(
     showMainMenu,
     interaktConfigured: true,
     customerLedger,
+    campaignedAudience,
   })
 );
 
@@ -858,6 +872,33 @@ async function waitBulkJob(timeoutMs = 3000) {
   const menu = await req("POST", "/send-menu", { phone: "0551234567" });
   assert.strictEqual(menu.json.sent, true);
   assert.ok(drafts.has("+966:551234567"));
+
+  const imported = await req("POST", "/campaigns/import-audience", {
+    csv: "countryCode,phoneNumber\n+966,555111222\n+966,555111222\n",
+  });
+  assert.strictEqual(imported.status, 200, imported.json?.error);
+  assert.strictEqual(imported.json.added, 1);
+  assert.strictEqual(imported.json.count, 1);
+
+  const firstCsv = await req("POST", "/campaigns/audience-csv", {
+    phones: "0555111222\n0555333444",
+    remember: true,
+  });
+  assert.strictEqual(firstCsv.status, 200, firstCsv.json?.error);
+  assert.strictEqual(firstCsv.json.count, 1);
+  assert.strictEqual(firstCsv.json.skipped, 1);
+  assert.match(firstCsv.json.csv, /555333444/);
+  assert.doesNotMatch(firstCsv.json.csv, /555111222/);
+
+  const again = await req("POST", "/campaigns/audience-csv", {
+    phones: "0555333444",
+    remember: true,
+  });
+  assert.strictEqual(again.status, 400);
+  assert.ok(again.json.skipped >= 1);
+
+  const stats = await req("GET", "/campaigns/audience");
+  assert.strictEqual(stats.json.count, 2);
 
   console.log("test-admin: OK");
 })().catch((err) => {

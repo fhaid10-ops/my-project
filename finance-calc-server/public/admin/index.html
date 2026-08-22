@@ -535,13 +535,19 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
         <p class="muted" style="margin-bottom:12px">
           لا ترسل لعملاء جدد من لوحة التحكم (رسالة عادية) — هذا يحظر الواتساب.
           حمّل CSV وارفعه في إنترأكت: Campaigns → Audience → القالب المعتمد (نظامي).
+          الأرقام اللي سبق دخلوا حملة تُستثنى تلقائياً.
         </p>
+        <p id="bulk-blast-saved" class="muted" style="margin-bottom:12px"></p>
         <label class="field">
           <span>الأرقام</span>
           <textarea id="bulk-blast-phones" rows="8" placeholder="+9665xxxxxxxx&#10;05xxxxxxxx" dir="ltr" style="text-align:left"></textarea>
         </label>
         <div class="btn-row">
           <button id="bulk-blast-csv" class="btn primary" type="button">تحميل CSV لإنترأكت</button>
+          <label class="btn secondary" style="margin:0;cursor:pointer">
+            رفع حملة سابقة
+            <input id="bulk-blast-import" type="file" accept=".csv,text/csv,text/plain" hidden />
+          </label>
         </div>
         <p id="bulk-blast-status" class="status" hidden></p>
       </div>
@@ -1887,35 +1893,75 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     }
   }
 
-  document.getElementById("bulk-blast-csv").addEventListener("click", () => {
+  async function refreshCampaignedCount() {
+    const el = document.getElementById("bulk-blast-saved");
+    if (!el) return;
+    try {
+      const pack = await api("/campaigns/audience");
+      el.textContent = pack.count
+        ? `محفوظ ${pack.count} رقم من حملات سابقة — ما يتكررون في CSV الجديد.`
+        : "ما فيه أرقام حملات محفوظة بعد. ارفع CSV حملة سابقة إذا تبي منع التكرار.";
+    } catch {
+      el.textContent = "";
+    }
+  }
+  refreshCampaignedCount();
+
+  document.getElementById("bulk-blast-csv").addEventListener("click", async () => {
     const statusEl = document.getElementById("bulk-blast-status");
     const phonesRaw = String(document.getElementById("bulk-blast-phones").value || "").trim();
-    const chunks = phonesRaw.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
-    const seen = new Set();
-    const lines = ["countryCode,phoneNumber"];
-    for (const chunk of chunks) {
-      let phone = String(chunk).replace(/\D/g, "").replace(/^0+/, "");
-      if (phone.startsWith("966") && phone.length > 9) phone = phone.slice(3);
-      if (!/^5\d{8}$/.test(phone) || seen.has(phone)) continue;
-      seen.add(phone);
-      lines.push(`+966,${phone}`);
-    }
-    if (lines.length < 2) {
-      alert("ما فيه جوالات صالحة (يبدأ بـ 05)");
-      return;
-    }
-    const csv = `${lines.join("\n")}\n`;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "interakt-audience.csv";
-    a.click();
-    URL.revokeObjectURL(url);
     statusEl.hidden = false;
-    statusEl.className = "status ok";
-    statusEl.textContent =
-      `تم تحميل ${lines.length - 1} رقم. ارفع الملف في إنترأكت كحملة بقالب معتمد — لا ترسل من اللوحة.`;
+    statusEl.className = "status";
+    statusEl.style.color = "";
+    statusEl.textContent = "جارٍ تجهيز الملف…";
+    try {
+      const pack = await api("/campaigns/audience-csv", {
+        method: "POST",
+        body: JSON.stringify({ phones: phonesRaw, remember: true }),
+      });
+      const blob = new Blob([pack.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = pack.filename || "interakt-audience.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      statusEl.className = "status ok";
+      statusEl.textContent =
+        `تم تحميل ${pack.count} رقم` +
+        (pack.skipped ? ` — استُثني ${pack.skipped} سبق أُرسلت لهم حملة` : "") +
+        `. ارفع الملف في إنترأكت كحملة بقالب معتمد — لا ترسل من اللوحة.`;
+      refreshCampaignedCount();
+    } catch (err) {
+      statusEl.className = "status";
+      statusEl.style.color = "var(--danger)";
+      statusEl.textContent = err.message;
+    }
+  });
+
+  document.getElementById("bulk-blast-import").addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    const statusEl = document.getElementById("bulk-blast-status");
+    if (!file) return;
+    statusEl.hidden = false;
+    statusEl.className = "status";
+    statusEl.style.color = "";
+    statusEl.textContent = "جارٍ حفظ الأرقام…";
+    try {
+      const text = await file.text();
+      const pack = await api("/campaigns/import-audience", {
+        method: "POST",
+        body: JSON.stringify({ csv: text, source: file.name }),
+      });
+      statusEl.className = "status ok";
+      statusEl.textContent = `انحفظ ${pack.added} رقم جديد — المجموع ${pack.count}.`;
+      refreshCampaignedCount();
+    } catch (err) {
+      statusEl.className = "status";
+      statusEl.style.color = "var(--danger)";
+      statusEl.textContent = err.message;
+    }
   });
 
   document.getElementById("bulk-followup-csv").addEventListener("click", async () => {
