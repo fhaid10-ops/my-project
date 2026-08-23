@@ -2,6 +2,7 @@
  * واجهة برمجة لوحة التحكم الخارجية
  */
 const path = require("path");
+const fs = require("fs");
 const express = require("express");
 const CONFIG = require("../config");
 const {
@@ -11,7 +12,14 @@ const {
 const { createCampaignedAudience } = require("./campaigned-audience");
 
 /** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
-const ADMIN_UI_VERSION = "20260822r1";
+const ADMIN_UI_VERSION = "20260823r1";
+
+function stampAdminUiVersion(html) {
+  return String(html).replace(
+    /const UI_VERSION = "[^"]+"/,
+    `const UI_VERSION = "${ADMIN_UI_VERSION}"`
+  );
+}
 
 function normalizePhoneParts(input = {}) {
   let phone = String(input.phone || input.phoneNumber || "")
@@ -1762,7 +1770,8 @@ function mountAdmin(app, deps) {
     if (got !== ADMIN_UI_VERSION) {
       return res.redirect(302, `/admin/?v=${encodeURIComponent(ADMIN_UI_VERSION)}`);
     }
-    res.sendFile(indexFile, { etag: false, lastModified: false, cacheControl: false });
+    const html = stampAdminUiVersion(fs.readFileSync(indexFile, "utf8"));
+    res.type("html").send(html);
   });
 
   app.use(
@@ -1789,4 +1798,6 @@ module.exports = {
   parsePhoneList,
   isSaudiMobile,
   toInteraktAudienceCsv,
+  ADMIN_UI_VERSION,
+  stampAdminUiVersion,
 };
