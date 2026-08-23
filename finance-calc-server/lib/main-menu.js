@@ -5,20 +5,36 @@ const CONFIG = require("../config");
 const { normalizeDigits } = require("./digits");
 const { askAmountExamplesSector } = require("./amount-examples");
 
-function looksLikeGreeting(text) {
-  const t = String(text || "")
+function normalizeGreetingText(text) {
+  return String(text || "")
     .trim()
-    .replace(/[.!?…]+$/g, "")
+    .replace(/[.!?…،,]+$/g, "")
+    .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * رد على سلام المكتب («وعليكم السلام») — مو طلب قائمة
+ */
+function looksLikeGreetingReply(text) {
+  const t = normalizeGreetingText(text);
   if (!t || t.length > 80) return false;
+  return /^(و)?عليكم(?:\s+السلام)?(?:\s+ورحمة\s+الله(?:\s+وبركاته)?)?$/i.test(t);
+}
+
+function looksLikeGreeting(text) {
+  const t = normalizeGreetingText(text);
+  if (!t || t.length > 80) return false;
+  if (looksLikeGreetingReply(t)) return false;
   if (
-    /^(السلام عليكم|سلام عليكم|السلام عليكم ورحمة الله|السلام عليكم ورحمة الله وبركاته|وعليكم السلام|السلام|سلام|مرحبا|مرحباً|اهلا|أهلا|أهلاً|هلا|هلا والله|يا هلا|صباح الخير|مساء الخير|صباح النور|مساء النور|هاي|hi|hello)$/i.test(
+    /^(السلام عليكم|سلام عليكم|السلام عليكم ورحمة الله|السلام عليكم ورحمة الله وبركاته|السلام|سلام|مرحبا|مرحباً|اهلا|أهلا|أهلاً|هلا|هلا والله|يا هلا|صباح الخير|مساء الخير|صباح النور|مساء النور|هاي|hi|hello)$/i.test(
       t
     )
   ) {
     return true;
   }
-  // صيغ شائعة قصيرة فيها «السلام» أو «السلام عليكم»
+  // صيغ شائعة قصيرة فيها «السلام عليكم» من العميل، مو رد «وعليكم السلام»
+  if (/وعليكم\s+السلام/.test(t)) return false;
   return /(?:^|\s)السلام(?:\s*عليكم)?(?:\s|$)/.test(t) && t.length <= 60;
 }
 
@@ -543,6 +559,7 @@ function sectorButtonsInteractive() {
 
 module.exports = {
   looksLikeGreeting,
+  looksLikeGreetingReply,
   looksLikeMainMenuTrigger,
   looksLikeMenuShortcut,
   looksLikeShowMainMenu,

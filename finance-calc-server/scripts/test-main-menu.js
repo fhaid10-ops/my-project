@@ -1,6 +1,7 @@
 const assert = require("assert");
 const {
   looksLikeGreeting,
+  looksLikeGreetingReply,
   looksLikeShowMainMenu,
   looksLikeMenuShortcut,
   showMainMenu,
@@ -20,7 +21,8 @@ assert.strictEqual(looksLikeGreeting("السلام"), true);
 assert.strictEqual(looksLikeGreeting("السلام."), true);
 assert.strictEqual(looksLikeGreeting("سلام"), true);
 assert.strictEqual(looksLikeGreeting("مرحبا"), true);
-assert.strictEqual(looksLikeGreeting("وعليكم السلام"), true);
+assert.strictEqual(looksLikeGreeting("وعليكم السلام"), false);
+assert.strictEqual(looksLikeGreeting("وعليكم السلام ورحمة الله وبركاته"), false);
 assert.strictEqual(looksLikeGreeting("صباح الخير"), true);
 assert.strictEqual(looksLikeGreeting("مساء الخير"), true);
 assert.strictEqual(looksLikeGreeting("هلا والله"), true);
@@ -28,6 +30,10 @@ assert.strictEqual(looksLikeGreeting("تمويل شخصي"), false);
 assert.strictEqual(looksLikeGreeting("طيب"), false);
 
 assert.strictEqual(looksLikeShowMainMenu("السلام عليكم"), true);
+assert.strictEqual(looksLikeShowMainMenu("وعليكم السلام"), false);
+assert.strictEqual(looksLikeGreetingReply("وعليكم السلام"), true);
+assert.strictEqual(looksLikeGreetingReply("وعليكم السلام ورحمة الله"), true);
+assert.strictEqual(looksLikeGreetingReply("السلام عليكم"), false);
 assert.strictEqual(looksLikeShowMainMenu("طيب"), false);
 assert.strictEqual(looksLikeShowMainMenu("تمام"), false);
 assert.strictEqual(looksLikeShowMainMenu("قائمة"), true);
