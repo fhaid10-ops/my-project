@@ -3,7 +3,7 @@ const express = require("express");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
-const { createAdminRouter, normalizePhoneParts, parsePhoneList, isSaudiMobile, toInteraktAudienceCsv } = require("../lib/admin-routes");
+const { createAdminRouter, normalizePhoneParts, parsePhoneList, isSaudiMobile, toInteraktAudienceCsv, ADMIN_UI_VERSION, stampAdminUiVersion } = require("../lib/admin-routes");
 const { createCampaignedAudience } = require("../lib/campaigned-audience");
 const { showMainMenu } = require("../lib/main-menu");
 const { createCustomerLedger } = require("../lib/customer-ledger");
@@ -511,6 +511,15 @@ async function waitBulkJob(timeoutMs = 3000) {
     htmlVersion,
     serverVersion,
     "إصدار HTML لازم يطابق ADMIN_UI_VERSION وإلا اللوحة تدخل حلقة تحويل"
+  );
+  assert.strictEqual(htmlVersion, ADMIN_UI_VERSION);
+  assert.ok(
+    !/searchParams\.get\("v"\) !== UI_VERSION/.test(adminHtml),
+    "ما نعيد توجيه الصفحة من الجافاسكربت حسب الإصدار"
+  );
+  assert.match(
+    stampAdminUiVersion('const UI_VERSION = "old";'),
+    new RegExp(`const UI_VERSION = "${ADMIN_UI_VERSION}"`)
   );
   assert.match(adminHtml, /id="pending-followup-send-card"/);
   assert.match(adminHtml, /id="pending-followup-count"/);

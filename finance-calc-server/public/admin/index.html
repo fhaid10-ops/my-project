@@ -617,7 +617,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "20260822r2";
+  const UI_VERSION = "20260823r1";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -710,15 +710,6 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     if (isIsoDay(day)) return day;
     return today;
   }
-
-  try {
-    const url = new URL(location.href);
-    if (url.searchParams.get("v") !== UI_VERSION) {
-      url.searchParams.set("v", UI_VERSION);
-      location.replace(url.toString());
-      return;
-    }
-  } catch {}
 
   const refreshBtn = document.getElementById("refresh-btn");
   const errorBanner = document.getElementById("error-banner");
