@@ -582,42 +582,98 @@ function personalEmployeeCode() {
   return match ? match[1] : "SF1695";
 }
 
-/** رسالتا التقديم الإلكتروني: الرابط ثم الملاحظة ورمز الموظف */
-function buildPersonalApplyMessages() {
-  const code = personalEmployeeCode();
-  const portalUrl =
-    CONFIG.financing?.personalPortalUrl ||
-    "https://portal.sfco.com.sa/?DSA=SF1695";
+function applyStaffList() {
+  return [
+    {
+      id: "abdulrahman",
+      name: "عبدالرحمن",
+      portalUrl:
+        CONFIG.financing?.personalPortalUrl ||
+        "https://portal.sfco.com.sa/?DSA=SF1695",
+      code: CONFIG.financing?.personalEmployeeCode || "SF1695",
+    },
+    {
+      id: "majed",
+      name: "ماجد",
+      portalUrl:
+        CONFIG.financing?.majedPortalUrl ||
+        "https://portal.sfco.com.sa/?DSA=SF1888",
+      code: CONFIG.financing?.majedEmployeeCode || "SF1888",
+    },
+  ];
+}
 
-  const linkCustom = CONFIG.messages?.personalApplyLink;
-  const noteCustom = CONFIG.messages?.personalApplyNote;
+function localMobileDigits(phone) {
+  return normalizeDigits(String(phone || ""))
+    .replace(/\D/g, "")
+    .replace(/^966/, "")
+    .replace(/^0+/, "");
+}
 
-  let reply;
-  if (typeof linkCustom === "function") reply = linkCustom(portalUrl);
-  else if (typeof linkCustom === "string" && linkCustom.trim()) reply = linkCustom;
-  else {
-    reply = `قدم الان هنا
-${portalUrl}`;
+/** عميل رقم أخير فردي → عبدالرحمن، زوجي → ماجد. نفس الجوال يبقى على نفس الموظف. */
+function pickApplyStaff(phone, previousId) {
+  const list = applyStaffList();
+  const prev = list.find(
+    (s) =>
+      s.id === previousId ||
+      s.code === previousId ||
+      s.name === previousId
+  );
+  if (prev) return prev;
+  const local = localMobileDigits(phone);
+  const last = Number(local.slice(-1));
+  if (!local || !Number.isFinite(last)) return list[0];
+  return last % 2 === 0 ? list[1] : list[0];
+}
+
+function applyText(custom, arg, fallback) {
+  if (typeof custom === "function") {
+    const got = custom(arg);
+    if (got != null && String(got).trim()) return String(got).trim();
+  } else if (typeof custom === "string" && custom.trim()) {
+    return custom.trim();
   }
+  return fallback;
+}
 
-  let followUpReply;
-  if (typeof noteCustom === "function") followUpReply = noteCustom(code);
-  else if (typeof noteCustom === "string" && noteCustom.trim()) {
-    followUpReply = noteCustom;
-  } else {
-    followUpReply = `ملاحظه
+/** رسالة رابط واحد + ملاحظة برمز موظفه */
+function buildPersonalApplyMessages(phoneOrStaff, previousId) {
+  const staff =
+    phoneOrStaff &&
+    typeof phoneOrStaff === "object" &&
+    phoneOrStaff.portalUrl
+      ? phoneOrStaff
+      : pickApplyStaff(phoneOrStaff, previousId);
+  const portalUrl = staff.portalUrl;
+  const code = staff.code;
 
-سجل مبلغ التمويل المرغوب فيه بالملاحظات
-داخل الموقع لمتابعة الطلب اضف رمز الموظف
-${code}`;
-  }
+  const reply = applyText(
+    CONFIG.messages?.personalApplyLink,
+    portalUrl,
+    `قدم الان هنا
+${portalUrl}`
+  );
+  const followUpReply = applyText(
+    CONFIG.messages?.personalApplyNote,
+    code,
+    `ملاحظه
 
-  return { reply: String(reply).trim(), followUpReply: String(followUpReply).trim() };
+سجل مبلغ التمويل المرغوب فيه بالملاحظات.`
+  );
+
+  return {
+    staff,
+    reply: String(reply).trim(),
+    followUpReply: String(followUpReply).trim(),
+  };
 }
 
 /** النصان معًا — للتوافق وكشف «أخذ رابط التمويل» */
-function buildPersonalApplyFollowUp() {
-  const { reply, followUpReply } = buildPersonalApplyMessages();
+function buildPersonalApplyFollowUp(phoneOrStaff, previousId) {
+  const { reply, followUpReply } = buildPersonalApplyMessages(
+    phoneOrStaff,
+    previousId
+  );
   return `${reply}
 
 ${followUpReply}`;
@@ -913,9 +969,12 @@ function askApplyMethod(sessionData = {}) {
   };
 }
 
-function replyWantApplyMethod(choice, sessionData = {}) {
+function replyWantApplyMethod(choice, sessionData = {}, phone = "") {
   if (choice === "electronic") {
-    const messages = buildPersonalApplyMessages();
+    const messages = buildPersonalApplyMessages(
+      phone,
+      sessionData.applyStaffId
+    );
     return {
       ok: true,
       reply: messages.reply,
@@ -924,6 +983,9 @@ function replyWantApplyMethod(choice, sessionData = {}) {
         ...sessionData,
         awaitingApplyMethod: false,
         applyMethod: "electronic",
+        applyStaffId: messages.staff.id,
+        applyStaffName: messages.staff.name,
+        applyStaffCode: messages.staff.code,
       },
     };
   }
@@ -1432,6 +1494,8 @@ module.exports = {
   looksLikeApplyMethodReply,
   buildApplyMethodAskInteractive,
   replyWantApplyMethod,
+  pickApplyStaff,
+  applyStaffList,
   applyLowerAmountTerm,
   buildWantLowerAmountInteractive,
   replyPropertyComboDecision,

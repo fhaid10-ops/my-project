@@ -566,6 +566,9 @@ function createCustomerLedger(options = {}) {
     }
     if (patch.outcome != null) row.outcome = String(patch.outcome);
     if (patch.notes != null) row.notes = String(patch.notes);
+    if (patch.applyStaffId != null && String(patch.applyStaffId).trim()) {
+      row.applyStaffId = String(patch.applyStaffId).trim();
+    }
     if (patch.orderNumber != null && String(patch.orderNumber).trim()) {
       row.orderNumber = String(patch.orderNumber).replace(/\D/g, "").slice(0, 8);
       row.orderNumberAt = patch.orderNumberAt || iso;
