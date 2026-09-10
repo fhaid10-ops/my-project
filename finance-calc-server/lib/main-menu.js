@@ -311,11 +311,11 @@ function packageAgentContactReply() {
   const name =
     CONFIG.financing?.serviceStopAgentName ||
     CONFIG.financing?.propertyComboAgentName ||
-    "أبو تركي";
+    "ابو شايع";
   const phone =
     CONFIG.financing?.serviceStopAgentPhone ||
     CONFIG.financing?.propertyComboAgentPhone ||
-    "0566817985";
+    "0501812339";
   const attribution =
     CONFIG.financing?.serviceStopContactHint ||
     CONFIG.financing?.propertyComboContactFooter ||

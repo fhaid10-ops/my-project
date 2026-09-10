@@ -754,9 +754,9 @@ function replyPropertyComboInterestDecision(choice, sessionBase = {}) {
 function replyPropertyComboDecision(choice) {
   if (choice === "yes") {
     const agentName =
-      CONFIG.financing?.propertyComboAgentName || "أبو تركي";
+      CONFIG.financing?.propertyComboAgentName || "ابو شايع";
     const agentPhone =
-      CONFIG.financing?.propertyComboAgentPhone || "0566817985";
+      CONFIG.financing?.propertyComboAgentPhone || "0501812339";
     const footer =
       CONFIG.financing?.propertyComboContactFooter ||
       "من طرف رائد الحربي";
