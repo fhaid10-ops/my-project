@@ -228,9 +228,9 @@ module.exports = {
     /** شراء المديونية */
     portalUrl: "https://portal.sfco.com.sa/?DSA=SF1888",
     /** التمويل الشخصي — رابط التقديم الإلكتروني */
-    personalPortalUrl: "https://portal.sfco.com.sa/?DSA=SF1888",
+    personalPortalUrl: "https://portal.sfco.com.sa/?DSA=SF1695",
     /** رمز الموظف في التقديم الإلكتروني */
-    personalEmployeeCode: "SF1888",
+    personalEmployeeCode: "SF1695",
     employeeName: "ماجد",
     employeePhone: "0507009290",
     /** التمويل الشخصي — تقديم إلكتروني واستفسارات المسار الشخصي */
@@ -481,13 +481,13 @@ module.exports = {
      * 1) الرابط  2) الملاحظة ورمز الموظف
      */
     personalApplyLink: (portalUrl) => `قدم الان هنا
-${portalUrl || "https://portal.sfco.com.sa/?DSA=SF1888"}`,
+${portalUrl || "https://portal.sfco.com.sa/?DSA=SF1695"}`,
 
     personalApplyNote: (employeeCode) => `ملاحظه
 
 سجل مبلغ التمويل المرغوب فيه بالملاحظات
 داخل الموقع لمتابعة الطلب اضف رمز الموظف
-${employeeCode || "SF1888"}`,
+${employeeCode || "SF1695"}`,
 
     serviceStopQualify: `هل راتبك لا يقل عن 7000 ريال
 وما عليك عقاري؟`,

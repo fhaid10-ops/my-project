@@ -577,9 +577,9 @@ function personalEmployeeCode() {
   if (fromConfig) return String(fromConfig);
   const portalUrl =
     CONFIG.financing?.personalPortalUrl ||
-    "https://portal.sfco.com.sa/?DSA=SF1888";
+    "https://portal.sfco.com.sa/?DSA=SF1695";
   const match = String(portalUrl).match(/[?&]DSA=([^&#]+)/i);
-  return match ? match[1] : "SF1888";
+  return match ? match[1] : "SF1695";
 }
 
 /** رسالتا التقديم الإلكتروني: الرابط ثم الملاحظة ورمز الموظف */
@@ -587,7 +587,7 @@ function buildPersonalApplyMessages() {
   const code = personalEmployeeCode();
   const portalUrl =
     CONFIG.financing?.personalPortalUrl ||
-    "https://portal.sfco.com.sa/?DSA=SF1888";
+    "https://portal.sfco.com.sa/?DSA=SF1695";
 
   const linkCustom = CONFIG.messages?.personalApplyLink;
   const noteCustom = CONFIG.messages?.personalApplyNote;
