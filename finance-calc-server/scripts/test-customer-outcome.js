@@ -85,8 +85,8 @@ assert.strictEqual(
   OUTCOMES.PACKAGE
 );
 const comboYes = replyPropertyComboDecision("yes");
-assert.match(comboYes.reply, /أبو تركي/);
-assert.match(comboYes.reply, /0566817985/);
+assert.match(comboYes.reply, /ابو شايع/);
+assert.match(comboYes.reply, /0501812339/);
 assert.match(comboYes.reply, /من طرف رائد الحربي/);
 
 assert.strictEqual(detectCustomerOutcome({ reply: "مرحبا" }), null);

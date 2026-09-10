@@ -243,12 +243,12 @@ module.exports = {
     branchEmployeeName: "ماجد",
     branchEmployeePhone: "0507009290",
     /** باقة عقاري + شخصي — عند قبول العرض والتواصل */
-    propertyComboAgentName: "أبو تركي",
-    propertyComboAgentPhone: "0566817985",
+    propertyComboAgentName: "ابو شايع",
+    propertyComboAgentPhone: "0501812339",
     propertyComboContactFooter: "من طرف رائد الحربي",
     /** إيقاف الخدمات / حلول تمويلية — المندوب عند رغبة العميل بالتواصل */
-    serviceStopAgentName: "أبو تركي",
-    serviceStopAgentPhone: "0566817985",
+    serviceStopAgentName: "ابو شايع",
+    serviceStopAgentPhone: "0501812339",
     serviceStopContactHint: "من طرف رائد الحربي",
   },
 
