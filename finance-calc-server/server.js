@@ -543,13 +543,30 @@ app.post("/webhook/interakt", async (req, res) => {
       if (result?.data) saveSession(countryCode, phone, result.data);
     } else if (currentSession?.awaitingApplyMethod) {
       const method = looksLikeApplyMethodReply(text);
-      result = method
-        ? replyWantApplyMethod(method, currentSession)
-        : {
-            ok: false,
-            interactive: buildApplyMethodAskInteractive(),
-            data: { ...currentSession, awaitingApplyMethod: true },
-          };
+      if (method === "electronic") {
+        const existingStaff =
+          currentSession.applyStaffId ||
+          customerLedger.findByPhone(phone)?.applyStaffId ||
+          null;
+        result = replyWantApplyMethod(
+          "electronic",
+          { ...currentSession, applyStaffId: existingStaff },
+          phone
+        );
+        if (result?.data?.applyStaffId) {
+          customerLedger.updateState(countryCode, phone, {
+            applyStaffId: result.data.applyStaffId,
+          });
+        }
+      } else {
+        result = method
+          ? replyWantApplyMethod(method, currentSession, phone)
+          : {
+              ok: false,
+              interactive: buildApplyMethodAskInteractive(),
+              data: { ...currentSession, awaitingApplyMethod: true },
+            };
+      }
       if (result?.data) saveSession(countryCode, phone, result.data);
     } else if (
       looksLikeShowMainMenu(text) ||

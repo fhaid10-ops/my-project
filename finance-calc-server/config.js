@@ -479,21 +479,17 @@ module.exports = {
     propertyComboInterest: `هل ترغب بحلول تمويلية أخرى؟`,
 
     /**
-     * التقديم الإلكتروني: رسالة عبدالرحمن، ثم رسالة ماجد، ثم الملاحظة
+     * التقديم الإلكتروني — رسالة الرابط ثم الملاحظة برمز موظف واحد
+     * (عبدالرحمن SF1695 أو ماجد SF1888 حسب العميل)
      */
-    personalApplyAbdulrahman: (portalUrl) => `عبدالرحمن
+    personalApplyLink: (portalUrl) => `قدم الان هنا
 ${portalUrl || "https://portal.sfco.com.sa/?DSA=SF1695"}`,
 
-    personalApplyMajed: (portalUrl) => `ماجد
-قدم الان هنا
-${portalUrl || "https://portal.sfco.com.sa/?DSA=SF1888"}`,
-
-    personalApplyNote: () => `ملاحظه
+    personalApplyNote: (employeeCode) => `ملاحظه
 
 سجل مبلغ التمويل المرغوب فيه بالملاحظات
 داخل الموقع لمتابعة الطلب اضف رمز الموظف
-عبدالرحمن SF1695
-ماجد SF1888`,
+${employeeCode || "SF1695"}`,
 
     serviceStopQualify: `هل راتبك لا يقل عن 7000 ريال
 وما عليك عقاري؟`,
