@@ -105,8 +105,14 @@ assert.ok(
 assert.ok(!String(electronicAbdul.reply).includes("SF1888"));
 assert.ok(!String(electronicAbdul.reply).includes("سجل مبلغ التمويل"));
 assert.match(String(electronicAbdul.followUpReply), /^ملاحظه/);
-assert.ok(String(electronicAbdul.followUpReply).includes("SF1695"));
+assert.ok(
+  String(electronicAbdul.followUpReply).includes(
+    "سجل مبلغ التمويل المرغوب فيه بالملاحظات."
+  )
+);
+assert.ok(!String(electronicAbdul.followUpReply).includes("SF1695"));
 assert.ok(!String(electronicAbdul.followUpReply).includes("SF1888"));
+assert.ok(!String(electronicAbdul.followUpReply).includes("رمز الموظف"));
 assert.ok(!String(electronicAbdul.followUpReply).includes("portal.sfco.com.sa"));
 assert.strictEqual(electronicAbdul.data.applyStaffId, "abdulrahman");
 assert.ok(!electronicAbdul.afterFollowUpReply);
@@ -120,7 +126,12 @@ assert.ok(
   String(electronicMajed.reply).includes("https://portal.sfco.com.sa/?DSA=SF1888")
 );
 assert.ok(!String(electronicMajed.reply).includes("SF1695"));
-assert.ok(String(electronicMajed.followUpReply).includes("SF1888"));
+assert.ok(
+  String(electronicMajed.followUpReply).includes(
+    "سجل مبلغ التمويل المرغوب فيه بالملاحظات."
+  )
+);
+assert.ok(!String(electronicMajed.followUpReply).includes("SF1888"));
 assert.ok(!String(electronicMajed.followUpReply).includes("SF1695"));
 assert.strictEqual(electronicMajed.data.applyStaffId, "majed");
 assert.strictEqual(electronicAbdul.data.awaitingApplyMethod, false);

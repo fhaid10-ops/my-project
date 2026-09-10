@@ -479,17 +479,15 @@ module.exports = {
     propertyComboInterest: `هل ترغب بحلول تمويلية أخرى؟`,
 
     /**
-     * التقديم الإلكتروني — رسالة الرابط ثم الملاحظة برمز موظف واحد
+     * التقديم الإلكتروني — رسالة الرابط ثم الملاحظة
      * (عبدالرحمن SF1695 أو ماجد SF1888 حسب العميل)
      */
     personalApplyLink: (portalUrl) => `قدم الان هنا
 ${portalUrl || "https://portal.sfco.com.sa/?DSA=SF1695"}`,
 
-    personalApplyNote: (employeeCode) => `ملاحظه
+    personalApplyNote: `ملاحظه
 
-سجل مبلغ التمويل المرغوب فيه بالملاحظات
-داخل الموقع لمتابعة الطلب اضف رمز الموظف
-${employeeCode || "SF1695"}`,
+سجل مبلغ التمويل المرغوب فيه بالملاحظات.`,
 
     serviceStopQualify: `هل راتبك لا يقل عن 7000 ريال
 وما عليك عقاري؟`,
