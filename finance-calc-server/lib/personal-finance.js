@@ -582,45 +582,77 @@ function personalEmployeeCode() {
   return match ? match[1] : "SF1695";
 }
 
-/** رسالتا التقديم الإلكتروني: الرابط ثم الملاحظة ورمز الموظف */
+function applyText(custom, fallback) {
+  if (typeof custom === "function") {
+    const got = custom();
+    if (got != null && String(got).trim()) return String(got).trim();
+  } else if (typeof custom === "string" && custom.trim()) {
+    return custom.trim();
+  }
+  return fallback;
+}
+
+/** رسائل التقديم الإلكتروني: عبدالرحمن ثم ماجد ثم الملاحظة */
 function buildPersonalApplyMessages() {
-  const code = personalEmployeeCode();
-  const portalUrl =
+  const abdulrahmanUrl =
     CONFIG.financing?.personalPortalUrl ||
     "https://portal.sfco.com.sa/?DSA=SF1695";
+  const majedUrl =
+    CONFIG.financing?.majedPortalUrl ||
+    "https://portal.sfco.com.sa/?DSA=SF1888";
 
-  const linkCustom = CONFIG.messages?.personalApplyLink;
+  const abdulrahmanCustom = CONFIG.messages?.personalApplyAbdulrahman;
+  const majedCustom = CONFIG.messages?.personalApplyMajed;
   const noteCustom = CONFIG.messages?.personalApplyNote;
 
   let reply;
-  if (typeof linkCustom === "function") reply = linkCustom(portalUrl);
-  else if (typeof linkCustom === "string" && linkCustom.trim()) reply = linkCustom;
-  else {
-    reply = `قدم الان هنا
-${portalUrl}`;
+  if (typeof abdulrahmanCustom === "function") {
+    reply = abdulrahmanCustom(abdulrahmanUrl);
+  } else {
+    reply = applyText(
+      abdulrahmanCustom,
+      `عبدالرحمن
+${abdulrahmanUrl}`
+    );
   }
 
   let followUpReply;
-  if (typeof noteCustom === "function") followUpReply = noteCustom(code);
-  else if (typeof noteCustom === "string" && noteCustom.trim()) {
-    followUpReply = noteCustom;
+  if (typeof majedCustom === "function") {
+    followUpReply = majedCustom(majedUrl);
   } else {
-    followUpReply = `ملاحظه
+    followUpReply = applyText(
+      majedCustom,
+      `ماجد
+قدم الان هنا
+${majedUrl}`
+    );
+  }
+
+  const afterFollowUpReply = applyText(
+    noteCustom,
+    `ملاحظه
 
 سجل مبلغ التمويل المرغوب فيه بالملاحظات
 داخل الموقع لمتابعة الطلب اضف رمز الموظف
-${code}`;
-  }
+عبدالرحمن SF1695
+ماجد SF1888`
+  );
 
-  return { reply: String(reply).trim(), followUpReply: String(followUpReply).trim() };
+  return {
+    reply: String(reply).trim(),
+    followUpReply: String(followUpReply).trim(),
+    afterFollowUpReply: String(afterFollowUpReply).trim(),
+  };
 }
 
-/** النصان معًا — للتوافق وكشف «أخذ رابط التمويل» */
+/** النصوص معًا — للتوافق وكشف «أخذ رابط التمويل» */
 function buildPersonalApplyFollowUp() {
-  const { reply, followUpReply } = buildPersonalApplyMessages();
+  const { reply, followUpReply, afterFollowUpReply } = buildPersonalApplyMessages();
   return `${reply}
 
-${followUpReply}`;
+${followUpReply}
+
+${afterFollowUpReply}`;
 }
 
 function contactFooter() {
@@ -920,6 +952,7 @@ function replyWantApplyMethod(choice, sessionData = {}) {
       ok: true,
       reply: messages.reply,
       followUpReply: messages.followUpReply,
+      afterFollowUpReply: messages.afterFollowUpReply,
       data: {
         ...sessionData,
         awaitingApplyMethod: false,
