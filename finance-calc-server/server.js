@@ -80,6 +80,12 @@ const {
 } = require("./lib/order-number");
 const { createInboundDedupe, looksLikeEchoedMenuBody } = require("./lib/inbound-dedupe");
 const { shouldIgnoreInboundImage } = require("./lib/inbound-image");
+const {
+  describeInteraktFailure,
+  recordOutboundError,
+  recordOutboundSuccess,
+  getLastOutboundError,
+} = require("./lib/interakt-send-error");
 const CONFIG = require("./config");
 
 function normalizeEnvValue(value) {
@@ -166,6 +172,8 @@ app.get("/health", (_req, res) => {
     drafts: drafts.size,
     paused: pausedChats.size,
     customers,
+    outboundOk: !getLastOutboundError(),
+    lastOutboundError: getLastOutboundError(),
   });
 });
 
@@ -217,11 +225,18 @@ async function postInteraktPayload(payload) {
     ]
       .filter(Boolean)
       .join(" | ");
-    const err = new Error(`فشل الاتصال بـ Interakt: ${detail}`);
+    const described = describeInteraktFailure({
+      status: 0,
+      json: null,
+      networkMessage: detail,
+    });
+    recordOutboundError(described, { phone: payload?.phoneNumber || null });
+    const err = new Error(described.hint);
     err.details = {
       hint: "تأكد من الإنترنت على الجهاز، وأن جدار الحماية لا يمنع Node.js",
       causeCode: cause?.code || null,
     };
+    err.code = described.code;
     throw err;
   }
 
@@ -234,31 +249,19 @@ async function postInteraktPayload(payload) {
   }
 
   if (!response.ok || json?.result === false || json?.ok === false || json?.success === false) {
-    const reason = [
-      json?.message,
-      json?.error,
-      json?.msg,
-      json?.detail,
-      typeof json?.details === "string" ? json.details : null,
-    ]
-      .filter(Boolean)
-      .join(" — ")
-      .slice(0, 240);
-    const blob = `${reason} ${JSON.stringify(json || {}).slice(0, 200)}`;
-    const outsideWindow =
-      /24\s*hour|24hr|session expir|outside.*window|not messaged|customer care window/i.test(
-        blob
-      );
-    const err = new Error(
-      outsideWindow
-        ? "خارج نافذة واتساب 24 ساعة — الرسالة العادية لا تصل، استخدم قالب إنترأكت"
-        : `Interakt ${response.status}: ${reason || "رفض الإرسال"}`
-    );
+    const described = describeInteraktFailure({
+      status: response.status,
+      json,
+    });
+    recordOutboundError(described, { phone: payload?.phoneNumber || null });
+    const err = new Error(described.hint);
     err.details = json;
-    err.outsideWindow = outsideWindow;
+    err.code = described.code;
+    err.outsideWindow = described.code === "outside_window";
     throw err;
   }
 
+  recordOutboundSuccess();
   return json;
 }
 
@@ -1018,6 +1021,7 @@ mountAdmin(app, {
   interaktApiKey: INTERAKT_API_KEY,
   customerLedger,
   campaignedAudience,
+  getLastOutboundError,
 });
 
 function gracefulShutdown(signal) {

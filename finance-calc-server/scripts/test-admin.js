@@ -81,6 +81,12 @@ app.use(
     interaktConfigured: true,
     customerLedger,
     campaignedAudience,
+    getLastOutboundError: () => ({
+      code: "wallet_empty",
+      hint: "محفظة Interakt فارغة — اشحن الرصيد من لوحة Interakt حتى يرجع الرد الآلي.",
+      phone: "559954968",
+      at: "2026-10-13T12:00:00.000Z",
+    }),
   })
 );
 
@@ -128,6 +134,8 @@ async function waitBulkJob(timeoutMs = 3000) {
   assert.strictEqual(status.json.ok, true);
   assert.ok(status.json.adminUiVersion, "إصدار واجهة اللوحة");
   assert.ok((status.json.counts.customersToday || 0) >= 1);
+  assert.strictEqual(status.json.lastOutboundError?.code, "wallet_empty");
+  assert.match(status.json.lastOutboundError?.hint || "", /محفظة Interakt فارغة/);
 
   const customers = await req("GET", "/customers?day=today");
   assert.strictEqual(customers.status, 200);
@@ -521,6 +529,7 @@ async function waitBulkJob(timeoutMs = 3000) {
     stampAdminUiVersion('const UI_VERSION = "old";'),
     new RegExp(`const UI_VERSION = "${ADMIN_UI_VERSION}"`)
   );
+  assert.match(adminHtml, /id="outbound-error-banner"/);
   assert.match(adminHtml, /id="pending-followup-send-card"/);
   assert.match(adminHtml, /id="pending-followup-count"/);
   assert.match(adminHtml, /id="pending-followup-send-btn"/);
