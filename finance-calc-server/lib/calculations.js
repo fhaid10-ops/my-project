@@ -342,7 +342,7 @@ function calculateEqualPrincipalInstallment(
  * قسط شهري حسب معادلة القطاع (من config.financing.installmentFormulaByCategory)
  */
 /**
- * إجمالي سداد التمويل (أصل + أرباح على مدة العقد) — مثال 10,000 @ 13% / 60 شهر → 16,500
+ * إجمالي سداد التمويل (أصل + أرباح على مدة العقد) — مثال 10,000 @ 14.50% / 60 شهر → 17,250
  */
 function calculateTotalRepayment(
   principal,
