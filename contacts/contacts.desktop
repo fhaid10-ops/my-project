@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=جهات Hotmail
+Comment=استيراد دفتر عناوين Hotmail
+Exec=xdg-open https://fhaid10-ops.github.io/my-project/contacts/
+Icon=https://fhaid10-ops.github.io/my-project/contacts/icon-192.png
+Terminal=false
+Categories=Office;ContactManagement;
+StartupNotify=true

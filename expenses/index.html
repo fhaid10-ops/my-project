@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=29" />
+  <link rel="stylesheet" href="styles.css?v=30" />
 </head>
 <body>
   <div class="app">
@@ -39,6 +39,7 @@
         <div class="options-wrap mobile-only">
           <button type="button" id="optionsBtn" class="btn btn-ghost btn-icon" aria-label="خيارات" aria-expanded="false">⚙</button>
           <div id="optionsMenu" class="options-menu" hidden>
+            <a class="options-item" href="../contacts/">جهات Hotmail</a>
             <button type="button" class="options-item" id="importBackupMenuBtn">استيراد نسخة</button>
             <button type="button" class="options-item" id="backupMenuBtn">نسخة احتياطية</button>
             <button type="button" class="options-item" id="exportMenuBtn">تصدير CSV</button>
@@ -48,6 +49,7 @@
       </div>
 
       <div class="header-actions desktop-actions">
+        <a class="btn btn-ghost" href="../contacts/">جهات Hotmail</a>
         <a class="btn btn-ghost desktop-only" href="expenses-desktop.url" download="المصاريف.url" title="اختصار ويندوز">🪟 ويندوز</a>
         <a class="btn btn-ghost desktop-only" href="expenses.desktop" download="المصاريف.desktop" title="اختصار لينكس">🐧 لينكس</a>
         <button type="button" id="installHeaderBtn" class="btn btn-primary install-btn mobile-only" hidden>📲 تثبيت التطبيق</button>
