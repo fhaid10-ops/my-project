@@ -29,7 +29,10 @@ function resolveInterestRate(session) {
   if (category === "private" && jobCategories.private) {
     return jobCategories.private.interestRate;
   }
-  if (category === "retired" || category === "civilian") {
+  if (category === "retired" && jobCategories.retired) {
+    return jobCategories.retired.interestRate;
+  }
+  if (category === "civilian") {
     return jobCategories.civilian.interestRate;
   }
   if (category && jobCategories[category]) {

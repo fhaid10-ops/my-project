@@ -48,7 +48,7 @@ module.exports = {
   // ---------------------------------------------------------------------------
   jobCategories: {
     military: { label: "عسكري", interestRate: 18.5 }, // 18.50% — تمويل شخصي جديد
-    civilian: { label: "مدني", interestRate: 13 }, // 13% — حكومي
+    civilian: { label: "مدني", interestRate: 14.5 }, // 14.50% — حكومي
     private: { label: "قطاع خاص", interestRate: 15.5 }, // 15.50%
     retired: { label: "متقاعد", interestRate: 13 }, // 13%
   },
@@ -214,7 +214,7 @@ module.exports = {
     /**
      * معادلة القسط (تمويل شخصي جديد — جميع القطاعات):
      * قسط = (المبلغ ÷ 60) + (المبلغ × نسبة الفائدة ÷ 12)
-     * أمثلة: 10,000 @ 13% → 275 | 150,000 @ 18.5% → 4,813
+     * أمثلة: 10,000 @ 14.50% → 288 | 150,000 @ 18.5% → 4,813
      */
     installmentFormula: "equalPrincipal",
     installmentFormulaByCategory: {

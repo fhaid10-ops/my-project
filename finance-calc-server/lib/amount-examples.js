@@ -36,7 +36,9 @@ function rateForCategory(jobCategory) {
       ? 18.5
       : jobCategory === "private"
         ? 15.5
-        : 13)
+        : jobCategory === "retired"
+          ? 13
+          : 14.5)
   );
 }
 

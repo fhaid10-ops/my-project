@@ -46,6 +46,11 @@ assert.strictEqual(
   afterCivilian.draft.step,
   "awaiting_amount_examples_civilian_subtype"
 );
+const govPick = handleAmountExamplesCivilianSubtype("حكومي");
+assert.strictEqual(govPick.draft.step, "awaiting_amount_examples_pick");
+assert.ok(govPick.interactive.body.includes("قطاع حكومي"));
+assert.ok(govPick.interactive.body.includes("14.50"));
+
 const privatePick = handleAmountExamplesCivilianSubtype("قطاع خاص");
 assert.strictEqual(privatePick.draft.step, "awaiting_amount_examples_pick");
 assert.ok(privatePick.interactive.body.includes("قطاع خاص"));
