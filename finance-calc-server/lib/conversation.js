@@ -118,7 +118,8 @@ ${restartHint()}`;
 }
 
 function lowSalaryApology(jobCategory) {
-  const min = getMinSalaryForEntry(jobCategory);
+  // العسكري: الحد المطلوب 10,000 (مو حد دخول الباقة 7,000)
+  const min = getMinSalaryForCategory(jobCategory);
   const formatted = Number(min).toLocaleString("en-US");
   if (jobCategory === "military") {
     return `نعتذر منك الراتب أقل من المطلوب.
