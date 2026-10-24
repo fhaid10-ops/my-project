@@ -99,7 +99,8 @@ check("عسكري أقل من 10000 يُرفض", () => {
   const afterSector = advanceDebtPurchaseFlow(start.draft, "عسكري");
   const rejected = advanceDebtPurchaseFlow(afterSector.draft, "8000");
   assert.strictEqual(rejected.ok, false);
-  assert.match(rejected.reply, /نعتذر منك/);
+  assert.match(rejected.reply, /الراتب المطلوب للعسكري من 10,000 ريال/);
+  assert.doesNotMatch(rejected.reply, /7,000/);
 });
 
 check("مسار مدني كامل حتى العرض", () => {

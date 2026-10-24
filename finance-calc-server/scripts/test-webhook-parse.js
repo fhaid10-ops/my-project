@@ -186,6 +186,15 @@ check("مدني راتبه 4000 يكمل للالتزامات", () => {
   assert.strictEqual(next.draft.step, "commitments");
 });
 
+check("عسكري تحت 7000 يُرفض برسالة 10,000", () => {
+  const start = startPersonalFinanceFlow();
+  const afterSector = advancePersonalFinanceFlow(start.draft, "عسكري");
+  const rejected = advancePersonalFinanceFlow(afterSector.draft, "6500");
+  assert.strictEqual(rejected.ok, false);
+  assert.match(rejected.reply, /الراتب المطلوب للعسكري من 10,000 ريال/);
+  assert.doesNotMatch(rejected.reply, /7,000/);
+});
+
 check("عسكري أقل من 10000 يُسأل عن العقاري ثم باقة إذا لا يوجد", () => {
   const start = startPersonalFinanceFlow();
   const afterSector = advancePersonalFinanceFlow(start.draft, "عسكري");
