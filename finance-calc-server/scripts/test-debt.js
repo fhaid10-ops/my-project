@@ -94,6 +94,13 @@ check("مثال المطابقة مع 1500 متبقي → فائض 44545", () =>
   assert.strictEqual(offer.data.rate, 12);
 });
 
+check("سؤال راتب شراء المديونية للعسكري يذكر 10,000", () => {
+  const start = startDebtPurchaseFlow();
+  const afterSector = advanceDebtPurchaseFlow(start.draft, "عسكري");
+  assert.match(afterSector.reply, /أقل راتب نقبله للعسكري: 10,000 ريال/);
+  assert.doesNotMatch(afterSector.reply, /7,?000/);
+});
+
 check("عسكري أقل من 10000 يُرفض", () => {
   const start = startDebtPurchaseFlow();
   const afterSector = advanceDebtPurchaseFlow(start.draft, "عسكري");

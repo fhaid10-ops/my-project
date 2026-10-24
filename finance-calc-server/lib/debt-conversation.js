@@ -70,6 +70,19 @@ function debtRulesText() {
   );
 }
 
+function debtSalaryAsk(jobCategory) {
+  const ask = `${debtRulesText()}
+
+${salaryPrompt(jobCategory)}`;
+  if (jobCategory !== "military") return ask;
+  const min = Number(
+    CONFIG.limits?.minSalaryByCategory?.military || 10000
+  ).toLocaleString("en-US");
+  return `${ask}
+
+أقل راتب نقبله للعسكري: ${min} ريال`;
+}
+
 function debtCommitmentsPrompt() {
   return (
     CONFIG.messages?.commitmentsDebtPurchase ||
@@ -125,13 +138,7 @@ function advanceDebtPurchaseFlow(draft, text) {
     if (jobCategory === "civilian") {
       return afterSectorSelected(state, jobCategory);
     }
-    return afterSectorSelected(
-      state,
-      jobCategory,
-      `${debtRulesText()}
-
-${salaryPrompt(jobCategory)}`
-    );
+    return afterSectorSelected(state, jobCategory, debtSalaryAsk(jobCategory));
   }
 
   const civilianSalaryMsg = `${debtRulesText()}
