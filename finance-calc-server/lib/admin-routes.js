@@ -12,7 +12,7 @@ const {
 const { createCampaignedAudience } = require("./campaigned-audience");
 
 /** غيّر القيمة عند تحديث واجهة اللوحة حتى الجوال يجيب الصفحة الجديدة بدون Ctrl+Shift+R */
-const ADMIN_UI_VERSION = "20260823r1";
+const ADMIN_UI_VERSION = "20261013r1";
 
 function stampAdminUiVersion(html) {
   return String(html).replace(
@@ -89,7 +89,19 @@ function createAdminRouter(deps) {
     customerLedger,
     interaktApiKey,
     campaignedAudience: campaignedAudienceDep,
+    getLastOutboundError: getLastOutboundErrorDep,
   } = deps;
+
+  const getLastOutboundError =
+    typeof getLastOutboundErrorDep === "function"
+      ? getLastOutboundErrorDep
+      : () => {
+          try {
+            return require("./interakt-send-error").getLastOutboundError();
+          } catch {
+            return null;
+          }
+        };
 
   const campaignedAudience =
     campaignedAudienceDep ||
@@ -541,6 +553,7 @@ function createAdminRouter(deps) {
       followUpTemplate: getFollowupTemplateConfig(),
       outboundDelayMs: getBulkFollowupSafeConfig().delayMs,
       bulkJob: snapshotBulkJob(),
+      lastOutboundError: getLastOutboundError() || null,
       outboundSafe: (() => {
         const safe = getBulkFollowupSafeConfig();
         const usage = getBulkDailyUsage();

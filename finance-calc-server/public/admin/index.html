@@ -350,6 +350,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
     </header>
 
     <div id="error-banner" class="error-banner"></div>
+    <div id="outbound-error-banner" class="error-banner"></div>
 
     <div id="home-view">
     <form id="jump-form" class="card home-search">
@@ -617,7 +618,7 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
 
 <script>
 (() => {
-  const UI_VERSION = "20260823r1";
+  const UI_VERSION = "20261013r1";
   const NOTE_OUTCOMES = [
     { id: "finance_link", label: "أخذ رابط التمويل" },
     { id: "package", label: "أخذ باقة" },
@@ -1392,6 +1393,22 @@ th { color: var(--muted); font-size: .86rem; white-space: nowrap; }
           : `الحصة: ${sent}/${daily}`;
     }
     renderBulkReceipt(status?.bulkJob);
+    updateOutboundErrorBanner(status);
+  }
+
+  function updateOutboundErrorBanner(status) {
+    const el = document.getElementById("outbound-error-banner");
+    if (!el || !status || !Object.prototype.hasOwnProperty.call(status, "lastOutboundError")) {
+      return;
+    }
+    const err = status.lastOutboundError;
+    if (!err?.hint) {
+      el.style.display = "none";
+      el.textContent = "";
+      return;
+    }
+    el.style.display = "block";
+    el.textContent = err.hint;
   }
 
   async function refreshAll() {
