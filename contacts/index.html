@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>جهات Hotmail</title>
+  <meta name="description" content="استيراد دفتر عناوين Hotmail القديم والبحث فيه محلياً" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="جهات Hotmail" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <a class="home-link" href="../">التطبيقات</a>
+    <header class="topbar">
+      <div>
+        <h1>جهات Hotmail</h1>
+        <p class="muted">استيراد ملف Zip أو vCard من Hotmail — يبقى على جهازك فقط</p>
+      </div>
+      <div class="actions">
+        <button type="button" id="exportCsvBtn" class="btn secondary" disabled>تصدير CSV</button>
+        <button type="button" id="exportVcfBtn" class="btn secondary" disabled>تصدير vCard</button>
+        <button type="button" id="clearBtn" class="btn danger" disabled>مسح</button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="stat"><span>الجهات</span><strong id="statTotal">0</strong></div>
+      <div class="stat"><span>أرقام الجوال</span><strong id="statMobile">0</strong></div>
+      <div class="stat"><span>المعروضة</span><strong id="statShown">0</strong></div>
+    </section>
+
+    <section class="card drop" id="dropZone">
+      <p>اسحب هنا ملف <strong>Hotmail.zip</strong> أو ملف <strong>.vcf</strong> من تصدير جهات Hotmail لعام 2011</p>
+      <label class="btn primary" for="fileInput">اختيار الملف</label>
+      <input type="file" id="fileInput" accept=".zip,.vcf,.vcard,application/zip,text/vcard" hidden />
+    </section>
+
+    <section class="card">
+      <div class="search-bar">
+        <input type="search" id="searchInput" placeholder="بحث بالاسم أو الرقم..." />
+        <select id="kindFilter">
+          <option value="all">كل الأرقام</option>
+          <option value="mobile">جوال فقط</option>
+          <option value="whatsapp">واتساب فقط</option>
+        </select>
+      </div>
+      <div class="list" id="list"></div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="vcard.js"></script>
+  <script src="zip.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

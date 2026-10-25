@@ -9,7 +9,7 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(regs) {
         regs.forEach(function(reg) {
-          if (!reg.scope.includes('/expenses/') && !reg.scope.includes('/sales/') && !reg.scope.includes('/followup/')) {
+          if (!reg.scope.includes('/expenses/') && !reg.scope.includes('/sales/') && !reg.scope.includes('/followup/') && !reg.scope.includes('/contacts/')) {
             reg.unregister();
           }
         });
@@ -22,7 +22,8 @@
   <p style="font-family:system-ui;text-align:center;margin-top:3rem;line-height:2">
     <a href="expenses/">المصاريف اليومية</a><br>
     <a href="sales/">مبيعات</a><br>
-    <a href="followup/">لوحة المتابعة</a>
+    <a href="followup/">لوحة المتابعة</a><br>
+    <a href="contacts/">جهات Hotmail</a>
   </p>
 </body>
 </html>
